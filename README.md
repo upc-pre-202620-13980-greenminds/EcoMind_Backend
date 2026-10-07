@@ -5,7 +5,7 @@ RESTful web services of the EcoMind platform, built with Spring Boot and Java.
 ## Requirements
 
 - Java 21 (JDK)
-- MySQL 8
+- PostgreSQL
 - The Maven Wrapper included in this repository (no local Maven installation is needed)
 
 ## Project structure
@@ -25,7 +25,7 @@ Credentials are never stored in the repository. Set these variables before runni
 
 | Variable | Profile | Description |
 |---|---|---|
-| `DATABASE_URL` | dev (optional), prod | JDBC URL of the MySQL schema. In `dev` it defaults to `jdbc:mysql://localhost:3306/ecomind` |
+| `DATABASE_URL` | dev (optional), prod | JDBC URL of the PostgreSQL database. In `dev` it defaults to `jdbc:postgresql://localhost:5432/ecomind` |
 | `DATABASE_USERNAME` | dev, prod | Database user |
 | `DATABASE_PASSWORD` | dev, prod | Database password |
 | `JWT_SECRET` | dev, prod | Secret used to sign access tokens. At least 32 characters |
@@ -46,7 +46,7 @@ Credentials are never stored in the repository. Set these variables before runni
 
 ## Running the application
 
-Create an empty MySQL schema named `ecomind`, set the environment variables and start the server:
+Create an empty PostgreSQL database named `ecomind`, set the environment variables and start the server:
 
 ```bash
 export DATABASE_USERNAME=<your-user>
