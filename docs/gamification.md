@@ -64,6 +64,34 @@ Community criteria, cosmetic prizes, publication requests and integration events
 not yet implemented. Unsupported community definitions are rejected instead of being evaluated with
 individual or family metrics. Achievement sharing and Community notifications remain separate future flows.
 
+## Ranking data (TS-007)
+
+All routes require a JWT:
+
+- `GET /api/v1/gamification/rankings/types` returns `GLOBAL`, `FRIENDS`, `FAMILIES`.
+- `GET /api/v1/gamification/rankings/{type}/participants?page=0&size=20` returns participant IDs,
+  display names and accumulated ecopoints owned by Gamification, including zero-progress participants.
+  Participants are ordered by identity; this is not a score-sorted ranking or a weekly position.
+- `GET /api/v1/gamification/rankings/{type}/transactions?from=2026-10-05T05:00:00Z&to=2026-10-12T05:00:00Z&page=0&size=100`
+  returns ecopoint transactions for the permitted participants. `from` is inclusive and `to` exclusive.
+  Clients supply the UTC boundaries appropriate to their calendar, aggregate all pages, and calculate
+  positions. This implements the responsibility assigned to Android by TS-007.
+
+Responses contain `items`, `page`, `size`, `hasNext`. Page numbering starts at zero; size is 1–100.
+Transaction ordering is stable by date and ID. `hasNext` prevents silently truncating weeks with more
+than 100 grants. Pagination reflects current data; there is no cross-request snapshot token.
+
+`GLOBAL` uses the Users profile directory. `FRIENDS` includes the JWT holder and accepted friends in
+both relationship directions, excluding pending/rejected/deleted relationships. `FAMILIES` uses family
+names and only rewards whose beneficiary type is FAMILY. No email, wallet, XP or private family membership
+is returned. All queries are read-only and ignore editable progress fields in legacy Users profiles.
+The public Users ACL supplies directory data; Gamification does not join Users tables.
+
+`LOCAL` is not advertised and is rejected until Community provides its membership contract. The current
+Users directory contract returns all profiles/families before filtering or paging; large deployments
+will need a paginated directory API. Routes replace the mock API route shapes in TS-007, while preserving
+its split between participant data, dated transactions and client-side weekly position calculation.
+
 ## Integration work still needed
 
 1. Quests completion events and its canonical execution/reward contract. Until that exists, the
@@ -71,8 +99,8 @@ individual or family metrics. Achievement sharing and Community notifications re
 2. Users currently stores `ecopoints` and `streak` in its profile and lets clients replace them.
    Change the profile to read Gamification's values and remove that client-writable source.
 3. Monetization outbox and acknowledgements for gems, active XP multipliers and streak protectors.
-4. Community awards/sharing, cosmetic achievement rewards, and authorized
-   ranking queries. These require the corresponding Quests, Users, Community and Monetization
+4. Community awards/sharing, cosmetic achievement rewards, and local
+   ranking membership from Community. These require the corresponding Quests, Users, Community and Monetization
    contracts; do not invent reward thresholds or family membership.
 
 Run the JUnit suite with `./mvnw test` (or `mvn test` where Maven is installed). The new tests
