@@ -1,7 +1,7 @@
 # Gamification implementation status
 
 This bounded context follows section 2.6.6 of the current EcoMind report. The implementation owns user ecopoints, experience, daily streaks, family ecopoints and the history
-of validated quest and family plan rewards.
+of validated quest and family plan rewards, plus configurable individual and family achievements.
 
 ## Current contract
 
@@ -37,6 +37,33 @@ reflected in the report's physical database diagram when the schema is finalized
 - Users exposes membership through `UsersContextFacade`; Gamification's ACL maps this public contract
   without reading Users tables or importing its domain classes. No public endpoint can grant points.
 
+## Achievement catalog and awards
+
+Authenticated endpoints:
+
+- `GET /api/v1/gamification/achievements?scope=INDIVIDUAL&page=0&size=20` lists catalog definitions.
+  The scope filter is optional; inactive definitions remain visible for historical awards.
+- `GET /api/v1/gamification/achievements/{achievementId}` returns a definition or 404.
+- `GET /api/v1/gamification/me/achievements` lists awards owned by the JWT subject.
+- `GET /api/v1/gamification/families/{familyId}/achievements` requires current family membership.
+
+Lists support zero-based `page` and `size` from 1 to 100. Invalid pagination/scope produces 400.
+Catalog codes are unique and definitions immutable through the current application port.
+`AchievementCommandService.register` is a trusted configuration operation, with no public mobile
+write endpoint. No production thresholds or example achievements are seeded. The configured
+catalog must be supplied before users can earn these achievements.
+
+Active individual definitions can use `ECOPOINTS`, `EXPERIENCE` or `LONGEST_STREAK`; families use
+`ECOPOINTS`. Targets must be positive. Each newly recorded quest/family reward evaluates the matching
+scope using persisted progress in the same transaction. The database guarantees a single award per
+achievement, scope and beneficiary; further rewards and retries preserve its original source and date.
+Catalog registration itself does not retroactively evaluate users; new definitions are evaluated on
+subsequent new rewards. A lookup does not grant anything.
+
+Community criteria, cosmetic prizes, publication requests and integration events/outbox delivery are
+not yet implemented. Unsupported community definitions are rejected instead of being evaluated with
+individual or family metrics. Achievement sharing and Community notifications remain separate future flows.
+
 ## Integration work still needed
 
 1. Quests completion events and its canonical execution/reward contract. Until that exists, the
@@ -44,7 +71,7 @@ reflected in the report's physical database diagram when the schema is finalized
 2. Users currently stores `ecopoints` and `streak` in its profile and lets clients replace them.
    Change the profile to read Gamification's values and remove that client-writable source.
 3. Monetization outbox and acknowledgements for gems, active XP multipliers and streak protectors.
-4. Configurable achievements, Community awards/sharing, and authorized
+4. Community awards/sharing, cosmetic achievement rewards, and authorized
    ranking queries. These require the corresponding Quests, Users, Community and Monetization
    contracts; do not invent reward thresholds or family membership.
 

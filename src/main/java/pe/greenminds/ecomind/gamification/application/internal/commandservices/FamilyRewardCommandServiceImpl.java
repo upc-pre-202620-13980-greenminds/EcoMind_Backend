@@ -1,6 +1,7 @@
 package pe.greenminds.ecomind.gamification.application.internal.commandservices;
 
 import java.util.UUID;
+import pe.greenminds.ecomind.gamification.application.commandservices.AchievementCommandService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.greenminds.ecomind.gamification.application.commandservices.FamilyRewardCommandService;
@@ -14,12 +15,14 @@ import pe.greenminds.ecomind.shared.application.result.Result;
 
 @Service
 public class FamilyRewardCommandServiceImpl implements FamilyRewardCommandService {
+  private final AchievementCommandService achievements;
   private final FamilyScoreRepository scores;
   private final FamilyRewardTransactionRepository rewards;
   private final UsersServiceClient users;
 
   public FamilyRewardCommandServiceImpl(FamilyScoreRepository scores,
-      FamilyRewardTransactionRepository rewards, UsersServiceClient users) {
+      FamilyRewardTransactionRepository rewards, UsersServiceClient users, AchievementCommandService achievements) {
+    this.achievements = achievements;
     this.scores = scores;
     this.rewards = rewards;
     this.users = users;
@@ -39,6 +42,7 @@ public class FamilyRewardCommandServiceImpl implements FamilyRewardCommandServic
     score.addReward(transaction.ecopoints());
     rewards.save(transaction);
     scores.save(score);
+    achievements.evaluateFamily(command.familyId(), command.sourceExecutionId(), command.occurredAt());
     return Result.success(transaction);
   }
 }

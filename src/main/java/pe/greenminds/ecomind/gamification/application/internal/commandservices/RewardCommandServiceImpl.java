@@ -1,6 +1,7 @@
 package pe.greenminds.ecomind.gamification.application.internal.commandservices;
 
 import java.util.UUID;
+import pe.greenminds.ecomind.gamification.application.commandservices.AchievementCommandService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.greenminds.ecomind.gamification.application.commandservices.RewardCommandService;
@@ -13,11 +14,13 @@ import pe.greenminds.ecomind.gamification.domain.repositories.UserProgressReposi
 @Service
 public class RewardCommandServiceImpl implements RewardCommandService {
 
+  private final AchievementCommandService achievements;
   private final UserProgressRepository progressRepository;
   private final RewardTransactionRepository rewardRepository;
 
   public RewardCommandServiceImpl(
-      UserProgressRepository progressRepository, RewardTransactionRepository rewardRepository) {
+      UserProgressRepository progressRepository, RewardTransactionRepository rewardRepository, AchievementCommandService achievements) {
+    this.achievements = achievements;
     this.progressRepository = progressRepository;
     this.rewardRepository = rewardRepository;
   }
@@ -43,6 +46,7 @@ public class RewardCommandServiceImpl implements RewardCommandService {
         transaction.grantedReward(), command.activityDate(), command.countsForDailyStreak());
     rewardRepository.save(transaction);
     progressRepository.save(progress);
+    achievements.evaluateUser(command.userId(), command.sourceExecutionId(), command.occurredAt());
     return transaction;
   }
 }
