@@ -78,6 +78,11 @@ SPRING_PROFILES_ACTIVE=prod java -jar target/ecomind-backend-0.0.1-SNAPSHOT.jar
 ## API documentation
 
 - Swagger UI: `http://localhost:8092/swagger-ui.html`
+
+## Gamification
+
+The first Gamification slice and its integration contract are described in
+[docs/gamification.md](docs/gamification.md).
 - OpenAPI definition: `http://localhost:8092/v3/api-docs`
 
 The documentation is grouped by bounded context.
