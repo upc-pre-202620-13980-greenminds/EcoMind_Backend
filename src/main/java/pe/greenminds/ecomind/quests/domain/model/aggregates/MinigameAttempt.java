@@ -23,6 +23,7 @@ public class MinigameAttempt extends AbstractDomainAggregateRoot<MinigameAttempt
     private OffsetDateTime startDate;
     private OffsetDateTime endDate;
     private Map<String, Object> metadata;
+    private Boolean successful;
 
     public MinigameAttempt(
             Long id,
@@ -33,7 +34,8 @@ public class MinigameAttempt extends AbstractDomainAggregateRoot<MinigameAttempt
             MinigameAttemptStatus status,
             OffsetDateTime startDate,
             OffsetDateTime endDate,
-            Map<String, Object> metadata
+            Map<String, Object> metadata,
+            Boolean successful
     ) {
         this.id = id;
         this.userId = Objects.requireNonNull(userId, "userId must not be null");
@@ -44,6 +46,7 @@ public class MinigameAttempt extends AbstractDomainAggregateRoot<MinigameAttempt
         this.startDate = Objects.requireNonNull(startDate, "startDate must not be null");
         this.endDate = endDate;
         this.metadata = copyMap(metadata);
+        this.successful = successful;
     }
 
     public MinigameAttempt(Long userId, Long questId, Long minigameId) {
@@ -56,16 +59,18 @@ public class MinigameAttempt extends AbstractDomainAggregateRoot<MinigameAttempt
                 MinigameAttemptStatus.STARTED,
                 OffsetDateTime.now(),
                 null,
-                Map.of()
+                Map.of(),
+                null
         );
     }
 
-    public void finish(Integer score, Map<String, Object> metadata) {
+    public void finish(Integer score, Map<String, Object> metadata, boolean successful) {
         if (status != MinigameAttemptStatus.STARTED) {
             throw new IllegalStateException("Minigame attempt must be STARTED");
         }
         this.score = Objects.requireNonNull(score, "score must not be null");
         this.metadata = copyMap(metadata);
+        this.successful = successful;
         this.status = MinigameAttemptStatus.COMPLETED;
         this.endDate = OffsetDateTime.now();
     }
@@ -76,6 +81,7 @@ public class MinigameAttempt extends AbstractDomainAggregateRoot<MinigameAttempt
         }
         this.status = MinigameAttemptStatus.CANCELLED;
         this.endDate = OffsetDateTime.now();
+        this.successful = null;
     }
 
     public Long getUserId() { return userId; }
@@ -86,6 +92,7 @@ public class MinigameAttempt extends AbstractDomainAggregateRoot<MinigameAttempt
     public OffsetDateTime getStartDate() { return startDate; }
     public OffsetDateTime getEndDate() { return endDate; }
     public Map<String, Object> getMetadata() { return metadata; }
+    public Boolean getSuccessful() { return successful; }
 
     private static Map<String, Object> copyMap(Map<String, Object> map) {
         if (map == null) {

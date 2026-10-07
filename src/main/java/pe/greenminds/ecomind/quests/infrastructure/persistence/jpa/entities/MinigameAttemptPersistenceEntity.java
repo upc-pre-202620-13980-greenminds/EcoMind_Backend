@@ -58,6 +58,9 @@ public class MinigameAttemptPersistenceEntity extends AuditableAbstractPersisten
     @Column(name = "metadata", columnDefinition = "jsonb")
     private Map<String, Object> metadata;
 
+    @Column(name = "successful")
+    private Boolean successful;
+
     public Long getUserId() { return userId; }
     public void setUserId(Long userId) { this.userId = userId; }
     public Long getQuestId() { return questId; }
@@ -74,4 +77,6 @@ public class MinigameAttemptPersistenceEntity extends AuditableAbstractPersisten
     public void setEndDate(OffsetDateTime endDate) { this.endDate = endDate; }
     public Map<String, Object> getMetadata() { return metadata; }
     public void setMetadata(Map<String, Object> metadata) { this.metadata = metadata; }
+    public Boolean getSuccessful() { return successful; }
+    public void setSuccessful(Boolean successful) { this.successful = successful; }
 }

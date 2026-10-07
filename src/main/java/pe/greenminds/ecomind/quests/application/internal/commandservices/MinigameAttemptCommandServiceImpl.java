@@ -144,7 +144,7 @@ public class MinigameAttemptCommandServiceImpl implements MinigameAttemptCommand
 
         try {
             var successful = isSuccessful(command.score(), minigame.get().getCompletionRules());
-            attempt.get().finish(command.score(), command.metadata());
+            attempt.get().finish(command.score(), command.metadata(), successful);
 
             var savedAttempt = minigameAttemptRepository.save(attempt.get());
             return Result.success(savedAttempt);
