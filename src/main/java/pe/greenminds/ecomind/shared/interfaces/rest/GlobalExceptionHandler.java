@@ -9,6 +9,7 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -55,6 +56,12 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ErrorResource> handleBadRequest(Exception ex) {
     return errorResponseAssembler.toErrorResponseFromMessageKey(
         HttpStatus.BAD_REQUEST, "BAD_REQUEST", "error.bad-request", null);
+  }
+
+  @ExceptionHandler(AuthenticationException.class)
+  public ResponseEntity<ErrorResource> handleAuthentication(AuthenticationException ex) {
+    return errorResponseAssembler.toErrorResponseFromMessageKey(
+        HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "error.unauthorized", null);
   }
 
   @ExceptionHandler(NoResourceFoundException.class)
