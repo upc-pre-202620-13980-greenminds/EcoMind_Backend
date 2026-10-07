@@ -12,7 +12,7 @@ Feature: User registration
     When I verify "camila@example.com" with the code I received
     Then the response status is 201
     And the account "camila@example.com" exists
-    And a profile is requested for "Camila Torres" with role "STUDENT"
+    And the profile of "camila@example.com" is created with name "Camila Torres" and role "STUDENT"
 
   Scenario: Registration with a required field left empty
     When I sign up with name "", email "camila@example.com", password "GreenPlanet2026" and role "STUDENT"

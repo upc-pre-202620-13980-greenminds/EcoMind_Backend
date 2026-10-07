@@ -12,13 +12,13 @@ import pe.greenminds.ecomind.iam.support.RecordingEmailService;
  */
 public class PasswordRecoverySteps {
 
-  private final IamApiDriver api;
+  private final IamApiDriver iam;
   private final RecordingEmailService emailService;
 
   private String recoveryEmail;
 
-  public PasswordRecoverySteps(IamApiDriver api, RecordingEmailService emailService) {
-    this.api = api;
+  public PasswordRecoverySteps(IamApiDriver iam, RecordingEmailService emailService) {
+    this.iam = iam;
     this.emailService = emailService;
   }
 
@@ -26,13 +26,13 @@ public class PasswordRecoverySteps {
   @Given("I requested a password recovery for {string}")
   public void iRequestAPasswordRecovery(String email) {
     recoveryEmail = email;
-    api.requestPasswordRecovery(email);
+    iam.requestPasswordRecovery(email);
   }
 
   @When("I set the new password {string} with the recovery link I received")
   public void iSetTheNewPassword(String newPassword) {
     String token = emailService.recoveryTokenFor(recoveryEmail).orElseThrow();
-    api.confirmPasswordRecovery(token, newPassword);
+    iam.confirmPasswordRecovery(token, newPassword);
   }
 
   @Then("a recovery link is sent to {string}")
