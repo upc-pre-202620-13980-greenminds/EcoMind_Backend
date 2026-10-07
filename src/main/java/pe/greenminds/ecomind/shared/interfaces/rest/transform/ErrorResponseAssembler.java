@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
+import pe.greenminds.ecomind.shared.application.result.ErrorType;
 import pe.greenminds.ecomind.shared.interfaces.rest.resources.ErrorResource;
 
 /**
@@ -15,9 +16,6 @@ import pe.greenminds.ecomind.shared.interfaces.rest.resources.ErrorResource;
  */
 @Component
 public class ErrorResponseAssembler {
-
-  private static final String NOT_FOUND_SUFFIX = "_NOT_FOUND";
-  private static final String CONFLICT_SUFFIX = "_CONFLICT";
 
   private final MessageSource messageSource;
 
@@ -28,19 +26,19 @@ public class ErrorResponseAssembler {
   /**
    * Maps an application error to its HTTP response. The message is looked up first with a key
    * specific to the code (ACCOUNT_NOT_FOUND -> error.account-not-found), then with the generic key
-   * of its category, and finally falls back to the message carried by the error.
+   * of its type, and finally falls back to the message carried by the error.
    */
   public ResponseEntity<ErrorResource> toErrorResponseFromApplicationError(ApplicationError error) {
     Locale locale = LocaleContextHolder.getLocale();
     Object[] args = {toResourceNameFromErrorCode(error.code())};
     String genericMessage =
         messageSource.getMessage(
-            toGenericMessageKeyFromErrorCode(error.code()), args, error.message(), locale);
+            toGenericMessageKeyFromErrorType(error.type()), args, error.message(), locale);
     String message =
         messageSource.getMessage(
             toSpecificMessageKeyFromErrorCode(error.code()), args, genericMessage, locale);
-    return toErrorResponse(toStatusFromErrorCode(error.code()), error.code(), message,
-        error.details());
+    return toErrorResponse(
+        toStatusFromErrorType(error.type()), error.code(), message, error.details());
   }
 
   /** Builds an error response from a message key, used for errors raised outside the services. */
@@ -51,13 +49,14 @@ public class ErrorResponseAssembler {
     return toErrorResponse(status, code, message, details);
   }
 
-  public static HttpStatusCode toStatusFromErrorCode(String errorCode) {
-    return switch (errorCode) {
-      case "VALIDATION_ERROR" -> HttpStatus.BAD_REQUEST;
-      case "BUSINESS_RULE_VIOLATION" -> HttpStatus.UNPROCESSABLE_CONTENT;
-      case String code when code.endsWith(NOT_FOUND_SUFFIX) -> HttpStatus.NOT_FOUND;
-      case String code when code.endsWith(CONFLICT_SUFFIX) -> HttpStatus.CONFLICT;
-      default -> HttpStatus.INTERNAL_SERVER_ERROR;
+  public static HttpStatusCode toStatusFromErrorType(ErrorType type) {
+    return switch (type) {
+      case VALIDATION -> HttpStatus.BAD_REQUEST;
+      case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
+      case NOT_FOUND -> HttpStatus.NOT_FOUND;
+      case CONFLICT -> HttpStatus.CONFLICT;
+      case BUSINESS_RULE -> HttpStatus.UNPROCESSABLE_CONTENT;
+      case UNEXPECTED -> HttpStatus.INTERNAL_SERVER_ERROR;
     };
   }
 
@@ -70,20 +69,21 @@ public class ErrorResponseAssembler {
     return "error." + errorCode.toLowerCase(Locale.ROOT).replace('_', '-');
   }
 
-  private static String toGenericMessageKeyFromErrorCode(String errorCode) {
-    return switch (errorCode) {
-      case "VALIDATION_ERROR" -> "error.validation";
-      case "BUSINESS_RULE_VIOLATION" -> "error.business-rule";
-      case String code when code.endsWith(NOT_FOUND_SUFFIX) -> "error.not-found";
-      case String code when code.endsWith(CONFLICT_SUFFIX) -> "error.conflict";
-      default -> "error.unexpected";
+  private static String toGenericMessageKeyFromErrorType(ErrorType type) {
+    return switch (type) {
+      case VALIDATION -> "error.validation";
+      case UNAUTHORIZED -> "error.unauthorized";
+      case NOT_FOUND -> "error.not-found";
+      case CONFLICT -> "error.conflict";
+      case BUSINESS_RULE -> "error.business-rule";
+      case UNEXPECTED -> "error.unexpected";
     };
   }
 
   private static String toResourceNameFromErrorCode(String errorCode) {
     return errorCode
-        .replace(NOT_FOUND_SUFFIX, "")
-        .replace(CONFLICT_SUFFIX, "")
+        .replace("_NOT_FOUND", "")
+        .replace("_CONFLICT", "")
         .toLowerCase(Locale.ROOT)
         .replace('_', ' ');
   }
