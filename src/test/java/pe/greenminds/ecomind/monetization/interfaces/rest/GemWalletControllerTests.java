@@ -30,6 +30,12 @@ class GemWalletControllerTests {
   }
 
   @Test
+  void inventoryAndPurchasesRequireAuthentication() throws Exception {
+    mockMvc.perform(get("/api/v1/monetization/me/inventory"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
   void authenticatedUserStartsWithAnEmptyWalletAndHistory() throws Exception {
     var authorization = bearer(987654L);
     mockMvc.perform(get("/api/v1/monetization/me/wallet")
