@@ -6,6 +6,7 @@ package pe.greenminds.ecomind.shared.application.result;
 public enum ErrorType {
   VALIDATION,
   UNAUTHORIZED,
+  FORBIDDEN,
   NOT_FOUND,
   CONFLICT,
   BUSINESS_RULE,

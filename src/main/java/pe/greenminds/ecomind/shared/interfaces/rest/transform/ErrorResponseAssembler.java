@@ -53,6 +53,7 @@ public class ErrorResponseAssembler {
     return switch (type) {
       case VALIDATION -> HttpStatus.BAD_REQUEST;
       case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
+      case FORBIDDEN -> HttpStatus.FORBIDDEN;
       case NOT_FOUND -> HttpStatus.NOT_FOUND;
       case CONFLICT -> HttpStatus.CONFLICT;
       case BUSINESS_RULE -> HttpStatus.UNPROCESSABLE_CONTENT;
@@ -73,6 +74,7 @@ public class ErrorResponseAssembler {
     return switch (type) {
       case VALIDATION -> "error.validation";
       case UNAUTHORIZED -> "error.unauthorized";
+      case FORBIDDEN -> "error.forbidden";
       case NOT_FOUND -> "error.not-found";
       case CONFLICT -> "error.conflict";
       case BUSINESS_RULE -> "error.business-rule";

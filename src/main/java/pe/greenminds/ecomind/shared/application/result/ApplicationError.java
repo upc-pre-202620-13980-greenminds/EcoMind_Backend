@@ -31,6 +31,11 @@ public record ApplicationError(ErrorType type, String code, String message, Stri
     return new ApplicationError(ErrorType.UNAUTHORIZED, code, message, null);
   }
 
+  /** The user is authenticated but is not allowed to do the operation. */
+  public static ApplicationError forbidden(String code, String message) {
+    return new ApplicationError(ErrorType.FORBIDDEN, code, message, null);
+  }
+
   public static ApplicationError notFound(String resourceType, String identifier) {
     return new ApplicationError(
         ErrorType.NOT_FOUND,
