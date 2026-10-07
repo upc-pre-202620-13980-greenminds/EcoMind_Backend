@@ -5,6 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import pe.greenminds.ecomind.monetization.infrastructure.persistence.jpa.entities.CosmeticPersistenceEntity;
 
 public interface CosmeticPersistenceRepository
-    extends JpaRepository<CosmeticPersistenceEntity, Long> {
+    extends JpaRepository<CosmeticPersistenceEntity, String> {
   List<CosmeticPersistenceEntity> findAllByActiveTrueOrderByNameAsc();
 }

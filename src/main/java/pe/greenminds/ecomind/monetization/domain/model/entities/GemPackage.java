@@ -3,10 +3,11 @@ package pe.greenminds.ecomind.monetization.domain.model.entities;
 import java.math.BigDecimal;
 import java.util.Currency;
 import java.util.Objects;
+import java.util.UUID;
 
 /** Immutable package of gems purchasable with real money. */
 public record GemPackage(
-    Long id,
+    UUID id,
     String name,
     int gemAmount,
     BigDecimal price,
@@ -14,9 +15,6 @@ public record GemPackage(
     boolean active) {
 
   public GemPackage {
-    if (id != null && id <= 0) {
-      throw new IllegalArgumentException("Gem package id must be positive");
-    }
     if (name == null || name.isBlank() || name.length() > 120) {
       throw new IllegalArgumentException("Gem package name is required, up to 120 characters");
     }

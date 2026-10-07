@@ -1,17 +1,16 @@
 package pe.greenminds.ecomind.monetization.domain.model.entities;
 
+import java.util.UUID;
+
 /** Immutable streak protector definition exposed by the store catalog. */
 public record StreakProtector(
-    Long id,
+    UUID id,
     String name,
     String description,
     int priceInGems,
     boolean active) {
 
   public StreakProtector {
-    if (id != null && id <= 0) {
-      throw new IllegalArgumentException("Streak protector id must be positive");
-    }
     if (name == null || name.isBlank() || name.length() > 120) {
       throw new IllegalArgumentException(
           "Streak protector name is required, up to 120 characters");

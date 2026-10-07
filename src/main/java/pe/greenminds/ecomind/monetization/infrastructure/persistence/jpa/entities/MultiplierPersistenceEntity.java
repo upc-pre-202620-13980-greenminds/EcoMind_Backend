@@ -2,8 +2,6 @@ package pe.greenminds.ecomind.monetization.infrastructure.persistence.jpa.entiti
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
@@ -16,7 +14,7 @@ import pe.greenminds.ecomind.shared.infrastructure.persistence.jpa.entities.Audi
 @Table(name = "multipliers")
 @Getter @Setter @NoArgsConstructor
 public class MultiplierPersistenceEntity extends AuditableAbstractPersistenceEntity {
-  @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
+  @Id @Column(length = 36) private String id;
   @Column(nullable = false, length = 120) private String name;
   @Column(nullable = false, length = 500) private String description;
   @Column(nullable = false, precision = 6, scale = 2) private BigDecimal factor;

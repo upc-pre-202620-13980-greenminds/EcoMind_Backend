@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pe.greenminds.ecomind.monetization.domain.model.entities.Cosmetic;
@@ -17,6 +18,7 @@ import pe.greenminds.ecomind.monetization.infrastructure.persistence.jpa.entitie
 import pe.greenminds.ecomind.monetization.infrastructure.persistence.jpa.repositories.CosmeticPersistenceRepository;
 
 class CosmeticRepositoryImplTests {
+  private static final UUID TEST_ID = UUID.fromString("00000000-0000-0000-0000-000000000010");
 
   private CosmeticPersistenceRepository persistenceRepository;
   private CosmeticRepositoryImpl repository;
@@ -31,7 +33,7 @@ class CosmeticRepositoryImplTests {
   void savesAndMapsACosmetic() {
     when(persistenceRepository.save(any(CosmeticPersistenceEntity.class))).thenAnswer(invocation -> {
       var entity = invocation.getArgument(0, CosmeticPersistenceEntity.class);
-      entity.setId(10L);
+      entity.setId(TEST_ID.toString());
       return entity;
     });
 
@@ -39,7 +41,7 @@ class CosmeticRepositoryImplTests {
         null, "Sonic", "Fast blue hedgehog avatar.", 350,
         CosmeticType.AVATAR, "sonic", true));
 
-    assertEquals(10L, saved.id());
+    assertEquals(TEST_ID, saved.id());
     assertEquals("Sonic", saved.name());
     assertEquals("sonic", saved.imageUrl());
     verify(persistenceRepository).save(any(CosmeticPersistenceEntity.class));
@@ -47,9 +49,10 @@ class CosmeticRepositoryImplTests {
 
   @Test
   void findsACosmeticById() {
-    when(persistenceRepository.findById(1L)).thenReturn(Optional.of(entity(1L, true)));
+    when(persistenceRepository.findById(TEST_ID.toString()))
+        .thenReturn(Optional.of(entity(TEST_ID, true)));
 
-    var result = repository.findById(1L);
+    var result = repository.findById(TEST_ID);
 
     assertTrue(result.isPresent());
     assertEquals(CosmeticType.AVATAR, result.orElseThrow().type());
@@ -58,7 +61,7 @@ class CosmeticRepositoryImplTests {
   @Test
   void listsOnlyActiveCosmeticsFromPersistence() {
     when(persistenceRepository.findAllByActiveTrueOrderByNameAsc())
-        .thenReturn(List.of(entity(1L, true), entity(2L, true)));
+        .thenReturn(List.of(entity(TEST_ID, true), entity(UUID.randomUUID(), true)));
 
     var cosmetics = repository.findActive();
 
@@ -66,9 +69,9 @@ class CosmeticRepositoryImplTests {
     assertTrue(cosmetics.stream().allMatch(Cosmetic::active));
   }
 
-  private static CosmeticPersistenceEntity entity(Long id, boolean active) {
+  private static CosmeticPersistenceEntity entity(UUID id, boolean active) {
     var entity = new CosmeticPersistenceEntity();
-    entity.setId(id);
+    entity.setId(id.toString());
     entity.setName("Sonic");
     entity.setDescription("Fast blue hedgehog avatar.");
     entity.setPriceInGems(350);

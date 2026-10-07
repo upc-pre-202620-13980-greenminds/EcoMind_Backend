@@ -1,11 +1,12 @@
 package pe.greenminds.ecomind.monetization.domain.model.entities;
 
 import java.util.Objects;
+import java.util.UUID;
 import pe.greenminds.ecomind.monetization.domain.model.valueobjects.CosmeticType;
 
 /** Immutable cosmetic definition exposed by the store catalog. */
 public record Cosmetic(
-    Long id,
+    UUID id,
     String name,
     String description,
     int priceInGems,
@@ -14,9 +15,6 @@ public record Cosmetic(
     boolean active) {
 
   public Cosmetic {
-    if (id != null && id <= 0) {
-      throw new IllegalArgumentException("Cosmetic id must be positive");
-    }
     if (name == null || name.isBlank() || name.length() > 120) {
       throw new IllegalArgumentException("Cosmetic name is required, up to 120 characters");
     }

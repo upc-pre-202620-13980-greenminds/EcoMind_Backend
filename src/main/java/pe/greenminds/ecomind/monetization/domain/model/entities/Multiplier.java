@@ -2,10 +2,11 @@ package pe.greenminds.ecomind.monetization.domain.model.entities;
 
 import java.math.BigDecimal;
 import java.util.Objects;
+import java.util.UUID;
 
 /** Immutable experience multiplier definition exposed by the store catalog. */
 public record Multiplier(
-    Long id,
+    UUID id,
     String name,
     String description,
     BigDecimal factor,
@@ -14,9 +15,6 @@ public record Multiplier(
     boolean active) {
 
   public Multiplier {
-    if (id != null && id <= 0) {
-      throw new IllegalArgumentException("Multiplier id must be positive");
-    }
     if (name == null || name.isBlank() || name.length() > 120) {
       throw new IllegalArgumentException("Multiplier name is required, up to 120 characters");
     }

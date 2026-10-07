@@ -2,6 +2,7 @@ package pe.greenminds.ecomind.monetization.infrastructure.persistence.jpa.adapte
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.stereotype.Repository;
 import pe.greenminds.ecomind.monetization.domain.model.entities.Cosmetic;
 import pe.greenminds.ecomind.monetization.domain.model.valueobjects.CosmeticType;
@@ -20,11 +21,12 @@ public class CosmeticRepositoryImpl implements CosmeticRepository {
 
   @Override
   public Cosmetic save(Cosmetic cosmetic) {
+    var id = cosmetic.id() == null ? UUID.randomUUID() : cosmetic.id();
     var entity = cosmetic.id() == null
         ? new CosmeticPersistenceEntity()
-        : persistenceRepository.findById(cosmetic.id())
+        : persistenceRepository.findById(id.toString())
             .orElseGet(CosmeticPersistenceEntity::new);
-    entity.setId(cosmetic.id());
+    entity.setId(id.toString());
     entity.setName(cosmetic.name());
     entity.setDescription(cosmetic.description());
     entity.setPriceInGems(cosmetic.priceInGems());
@@ -35,8 +37,8 @@ public class CosmeticRepositoryImpl implements CosmeticRepository {
   }
 
   @Override
-  public Optional<Cosmetic> findById(Long id) {
-    return persistenceRepository.findById(id).map(CosmeticRepositoryImpl::toDomain);
+  public Optional<Cosmetic> findById(UUID id) {
+    return persistenceRepository.findById(id.toString()).map(CosmeticRepositoryImpl::toDomain);
   }
 
   @Override
@@ -48,7 +50,7 @@ public class CosmeticRepositoryImpl implements CosmeticRepository {
 
   private static Cosmetic toDomain(CosmeticPersistenceEntity entity) {
     return new Cosmetic(
-        entity.getId(),
+        UUID.fromString(entity.getId()),
         entity.getName(),
         entity.getDescription(),
         entity.getPriceInGems(),
