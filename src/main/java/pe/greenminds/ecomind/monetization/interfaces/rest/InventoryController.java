@@ -1,0 +1,13 @@
+package pe.greenminds.ecomind.monetization.interfaces.rest;
+import jakarta.validation.Valid; import java.util.UUID; import org.springframework.http.*; import org.springframework.security.core.annotation.AuthenticationPrincipal; import org.springframework.web.bind.annotation.*; import pe.greenminds.ecomind.monetization.application.internal.commandservices.InventoryCommandService; import pe.greenminds.ecomind.monetization.infrastructure.persistence.jpa.repositories.*; import pe.greenminds.ecomind.monetization.interfaces.rest.resources.BuyItemResource; import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
+@RestController @RequestMapping(value="/api/v1/monetization/me",produces=MediaType.APPLICATION_JSON_VALUE)
+public class InventoryController{
+ private final InventoryCommandService commands;private final UserCosmeticPersistenceRepository cosmetics;private final ProtectorInventoryPersistenceRepository protectors;private final UserMultiplierPersistenceRepository multipliers;
+ public InventoryController(InventoryCommandService c,UserCosmeticPersistenceRepository co,ProtectorInventoryPersistenceRepository p,UserMultiplierPersistenceRepository m){commands=c;cosmetics=co;protectors=p;multipliers=m;}
+ @PostMapping("/cosmetics/purchases") @ResponseStatus(HttpStatus.CREATED) public Object buyCosmetic(@AuthenticationPrincipal AuthenticatedUserPrincipal p,@Valid @RequestBody BuyItemResource r){return commands.buyCosmetic(p.accountId(),r.itemId(),r.requestId());}
+ @PutMapping("/cosmetics/{id}/equipped") public void equip(@AuthenticationPrincipal AuthenticatedUserPrincipal p,@PathVariable UUID id){commands.equipCosmetic(p.accountId(),id,true);}
+ @DeleteMapping("/cosmetics/{id}/equipped") public void unequip(@AuthenticationPrincipal AuthenticatedUserPrincipal p,@PathVariable UUID id){commands.equipCosmetic(p.accountId(),id,false);}
+ @PostMapping("/protectors/purchases") @ResponseStatus(HttpStatus.CREATED) public Object buyProtector(@AuthenticationPrincipal AuthenticatedUserPrincipal p,@Valid @RequestBody BuyItemResource r){return commands.buyProtector(p.accountId(),r.itemId(),r.requestId());}
+ @PostMapping("/multipliers/purchases") @ResponseStatus(HttpStatus.CREATED) public Object buyMultiplier(@AuthenticationPrincipal AuthenticatedUserPrincipal p,@Valid @RequestBody BuyItemResource r){return commands.buyMultiplier(p.accountId(),r.itemId(),r.requestId());}
+ @GetMapping("/inventory") public Object inventory(@AuthenticationPrincipal AuthenticatedUserPrincipal p){return java.util.Map.of("cosmetics",cosmetics.findByUserId(p.accountId()),"protectors",protectors.findByUserId(p.accountId()),"multipliers",multipliers.findByUserIdOrderByStartsAtDesc(p.accountId()));}
+}

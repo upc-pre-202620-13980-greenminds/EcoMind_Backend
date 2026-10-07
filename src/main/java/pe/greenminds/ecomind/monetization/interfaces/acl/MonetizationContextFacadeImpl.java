@@ -1,0 +1,10 @@
+package pe.greenminds.ecomind.monetization.interfaces.acl;
+import java.time.*; import java.util.*; import org.springframework.stereotype.Component; import pe.greenminds.ecomind.monetization.application.commandservices.GemWalletCommandService; import pe.greenminds.ecomind.monetization.application.internal.commandservices.InventoryCommandService; import pe.greenminds.ecomind.monetization.application.outboundservices.MonetizationEventPublisher; import pe.greenminds.ecomind.monetization.domain.model.valueobjects.*; import pe.greenminds.ecomind.monetization.infrastructure.persistence.jpa.repositories.UserMultiplierPersistenceRepository; import pe.greenminds.ecomind.monetization.interfaces.acl.events.*;
+@Component public class MonetizationContextFacadeImpl implements MonetizationContextFacade{
+ private final GemWalletCommandService wallet;private final InventoryCommandService inventory;private final UserMultiplierPersistenceRepository multipliers;private final MonetizationEventPublisher events;
+ public MonetizationContextFacadeImpl(GemWalletCommandService w,InventoryCommandService i,UserMultiplierPersistenceRepository m,MonetizationEventPublisher e){wallet=w;inventory=i;multipliers=m;events=e;}
+ public Optional<ActiveXpMultiplier> getActiveMultiplier(Long user,Instant at){return multipliers.findActive(user,at).stream().findFirst().map(x->new ActiveXpMultiplier(UUID.fromString(x.getId()),x.getFactor(),x.getStartsAt(),x.getExpiresAt()));}
+ public void creditRewardGems(CreditRewardGems c){wallet.credit(c.userId(),c.gems(),GemMovementType.REWARD_CREDIT,GemMovementOrigin.QUEST,c.rewardId());}
+ public void grantCosmeticReward(GrantCosmeticReward c){inventory.grantCosmetic(c.userId(),c.cosmeticId());}
+ public void requestStreakProtection(ConsumeStreakProtector c){var now=Instant.now();if(inventory.consumeProtector(c.userId()))events.publish(new StreakProtectedIntegrationEvent(UUID.randomUUID(),c.requestId(),c.userId(),c.streakDate(),now));else events.publish(new StreakProtectionUnavailableIntegrationEvent(UUID.randomUUID(),c.requestId(),c.userId(),c.streakDate(),now));}
+}
