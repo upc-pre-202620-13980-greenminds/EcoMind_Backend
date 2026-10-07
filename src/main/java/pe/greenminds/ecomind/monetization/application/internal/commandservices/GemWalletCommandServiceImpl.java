@@ -12,21 +12,21 @@ import pe.greenminds.ecomind.monetization.domain.model.entities.GemMovement;
 import pe.greenminds.ecomind.monetization.domain.model.valueobjects.GemMovementOrigin;
 import pe.greenminds.ecomind.monetization.domain.model.valueobjects.GemMovementType;
 import pe.greenminds.ecomind.monetization.domain.repositories.GemMovementRepository;
-import pe.greenminds.ecomind.monetization.domain.repositories.GemWalletRepository;
+import pe.greenminds.ecomind.monetization.application.outboundservices.UserGemBalanceGateway;
 
 @Service
 public class GemWalletCommandServiceImpl implements GemWalletCommandService {
-  private final GemWalletRepository wallets;
+  private final UserGemBalanceGateway balances;
   private final GemMovementRepository movements;
   private final Clock clock;
 
   @Autowired
-  public GemWalletCommandServiceImpl(GemWalletRepository wallets, GemMovementRepository movements) {
-    this(wallets, movements, Clock.systemUTC());
+  public GemWalletCommandServiceImpl(UserGemBalanceGateway balances, GemMovementRepository movements) {
+    this(balances, movements, Clock.systemUTC());
   }
 
-  GemWalletCommandServiceImpl(GemWalletRepository wallets, GemMovementRepository movements, Clock clock) {
-    this.wallets = wallets;
+  GemWalletCommandServiceImpl(UserGemBalanceGateway balances, GemMovementRepository movements, Clock clock) {
+    this.balances = balances;
     this.movements = movements;
     this.clock = clock;
   }
@@ -40,8 +40,7 @@ public class GemWalletCommandServiceImpl implements GemWalletCommandService {
     requireAmount(amount);
     var prior = movements.findByReferenceId(referenceId);
     if (prior.isPresent()) return replay(prior.get(), userId, amount, type, origin);
-    var updated = getWallet(userId).credit(amount);
-    wallets.save(updated);
+    var updated = new GemWallet(userId, balances.credit(userId, amount));
     movements.save(new GemMovement(UUID.randomUUID(), userId, type, origin,
         amount, updated.balance(), referenceId, Instant.now(clock)));
     return updated;
@@ -55,8 +54,7 @@ public class GemWalletCommandServiceImpl implements GemWalletCommandService {
     var prior = movements.findByReferenceId(referenceId);
     if (prior.isPresent()) return replay(prior.get(), userId, amount,
         GemMovementType.PURCHASE_DEBIT, origin);
-    var updated = getWallet(userId).debit(amount);
-    wallets.save(updated);
+    var updated = new GemWallet(userId, balances.debit(userId, amount));
     movements.save(new GemMovement(UUID.randomUUID(), userId, GemMovementType.PURCHASE_DEBIT, origin,
         amount, updated.balance(), referenceId, Instant.now(clock)));
     return updated;
@@ -64,7 +62,7 @@ public class GemWalletCommandServiceImpl implements GemWalletCommandService {
 
   private GemWallet getWallet(Long userId) {
     if (userId == null || userId <= 0) throw new IllegalArgumentException("User id must be positive");
-    return wallets.lockByUserId(userId).orElseGet(() -> wallets.save(new GemWallet(userId, 0)));
+    return new GemWallet(userId, balances.getBalance(userId));
   }
 
   private static void requireRequest(
