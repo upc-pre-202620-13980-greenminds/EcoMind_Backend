@@ -1,51 +1,48 @@
-package pe.greenminds.ecomind.bdd.iam;
+package pe.greenminds.ecomind.bdd;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.cucumber.java.Before;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
+import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import pe.greenminds.ecomind.iam.support.RecordingEmailService;
-import pe.greenminds.ecomind.iam.support.RecordingUsersContextGateway;
 
 /**
- * Steps shared by the IAM features: scenario setup and assertions on the last response.
+ * Steps shared by every feature: clean state before each scenario and assertions on the last
+ * response.
  */
-public class IamCommonSteps {
+public class CommonSteps {
 
-  private final IamApiDriver api;
+  // Child tables first, so no foreign key is violated.
+  private static final List<String> TABLES =
+      List.of(
+          "friendships",
+          "family_members",
+          "families",
+          "user_profiles",
+          "email_verifications",
+          "pending_registrations",
+          "password_reset_tokens",
+          "account_credentials",
+          "accounts");
+
+  private final ApiClient api;
   private final JdbcTemplate jdbcTemplate;
   private final RecordingEmailService emailService;
-  private final RecordingUsersContextGateway usersContextGateway;
 
-  public IamCommonSteps(
-      IamApiDriver api,
-      JdbcTemplate jdbcTemplate,
-      RecordingEmailService emailService,
-      RecordingUsersContextGateway usersContextGateway) {
+  public CommonSteps(
+      ApiClient api, JdbcTemplate jdbcTemplate, RecordingEmailService emailService) {
     this.api = api;
     this.jdbcTemplate = jdbcTemplate;
     this.emailService = emailService;
-    this.usersContextGateway = usersContextGateway;
   }
 
   @Before
   public void cleanState() {
-    jdbcTemplate.update("DELETE FROM email_verifications");
-    jdbcTemplate.update("DELETE FROM pending_registrations");
-    jdbcTemplate.update("DELETE FROM password_reset_tokens");
-    jdbcTemplate.update("DELETE FROM account_credentials");
-    jdbcTemplate.update("DELETE FROM accounts");
+    TABLES.forEach(table -> jdbcTemplate.update("DELETE FROM " + table));
     emailService.reset();
-    usersContextGateway.reset();
-  }
-
-  @Given("a registered account with email {string} and password {string}")
-  public void aRegisteredAccount(String email, String password) {
-    api.registerAccount(email, password);
-    emailService.reset();
-    usersContextGateway.reset();
   }
 
   @Given("my language is {string}")
