@@ -7,7 +7,6 @@ import pe.greenminds.ecomind.quests.domain.repositories.MinigameAttemptRepositor
 import pe.greenminds.ecomind.quests.infrastructure.persistence.jpa.assemblers.MinigameAttemptPersistenceAssembler;
 import pe.greenminds.ecomind.quests.infrastructure.persistence.jpa.repositories.MinigameAttemptPersistenceRepository;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -50,29 +49,6 @@ public class MinigameAttemptRepositoryImpl implements MinigameAttemptRepository 
                 .stream()
                 .map(MinigameAttemptPersistenceAssembler::toDomainFromPersistence)
                 .toList();
-    }
-
-    @Override
-    public List<MinigameAttempt> findRewardedAttemptsSince(
-            Long userId,
-            Long minigameId,
-            OffsetDateTime since
-    ) {
-        return minigameAttemptPersistenceRepository
-                .findRewardedAttemptsSince(userId, minigameId, since)
-                .stream()
-                .map(MinigameAttemptPersistenceAssembler::toDomainFromPersistence)
-                .toList();
-    }
-
-    @Override
-    public int countRewardedCompletedByUserIds(List<Long> userIds) {
-        if (userIds == null || userIds.isEmpty()) {
-            return 0;
-        }
-        return (int) minigameAttemptPersistenceRepository.countRewardedCompletedByUserIds(
-                userIds
-        );
     }
 
     @Override

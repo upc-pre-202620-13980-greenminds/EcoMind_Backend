@@ -53,6 +53,12 @@ public class MinigameAttemptCommandServiceImpl implements MinigameAttemptCommand
             );
         }
 
+        if (!quest.get().acceptsNewAssignments()) {
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "Quest is not published",
+                    "Only PUBLISHED quests accept new minigame attempts"));
+        }
+
         if (quest.get().getMinigameId() == null) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
@@ -138,12 +144,7 @@ public class MinigameAttemptCommandServiceImpl implements MinigameAttemptCommand
 
         try {
             var successful = isSuccessful(command.score(), minigame.get().getCompletionRules());
-            attempt.get().finish(
-                    command.score(),
-                    command.metadata(),
-                    0,
-                    0
-            );
+            attempt.get().finish(command.score(), command.metadata());
 
             var savedAttempt = minigameAttemptRepository.save(attempt.get());
             return Result.success(savedAttempt);

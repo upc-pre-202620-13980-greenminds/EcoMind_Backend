@@ -9,7 +9,7 @@ import pe.greenminds.ecomind.quests.domain.model.aggregates.Quest;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.QuestUser;
 import pe.greenminds.ecomind.quests.domain.model.commands.CompleteQuestUserCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.CreateQuestUserCommand;
-import pe.greenminds.ecomind.quests.domain.model.commands.DeleteQuestUserCommand;
+import pe.greenminds.ecomind.quests.domain.model.commands.CancelQuestUserCommand;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabMemberStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabQuestStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestStatus;
@@ -72,6 +72,12 @@ public class QuestUserCommandServiceImpl implements QuestUserCommandService {
                                     .formatted(command.questId())
                     )
             );
+        }
+
+        if (!quest.get().acceptsNewAssignments()) {
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "Quest is not published",
+                    "Only PUBLISHED quests accept new assignments"));
         }
 
         if (quest.get().getType() == QuestType.FAMILY) {
@@ -149,7 +155,7 @@ public class QuestUserCommandServiceImpl implements QuestUserCommandService {
 
     @Transactional
     @Override
-    public Result<QuestUser, ApplicationError> handle(DeleteQuestUserCommand command) {
+    public Result<QuestUser, ApplicationError> handle(CancelQuestUserCommand command) {
         var questUser = questUserRepository.findById(command.questUserId());
 
         if (questUser.isEmpty()) {
@@ -158,13 +164,15 @@ public class QuestUserCommandServiceImpl implements QuestUserCommandService {
             );
         }
 
-        if (questUser.get().getCollaborativeSessionId() != null) {
-            handleCollaborativeQuestUserDeletion(questUser.get());
+        try {
+            if (questUser.get().getCollaborativeSessionId() != null) {
+                handleCollaborativeQuestUserDeletion(questUser.get());
+            }
+            questUser.get().cancel();
+            return Result.success(questUserRepository.save(questUser.get()));
+        } catch (IllegalStateException exception) {
+            return Result.failure(ApplicationError.conflict("QuestUser", exception.getMessage()));
         }
-
-        activityUserRepository.deleteByQuestUserId(command.questUserId());
-        questUserRepository.deleteById(command.questUserId());
-        return Result.success(questUser.get());
     }
 
     @Transactional

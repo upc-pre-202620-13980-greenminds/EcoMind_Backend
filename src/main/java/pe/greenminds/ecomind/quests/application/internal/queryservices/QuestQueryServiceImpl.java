@@ -4,10 +4,12 @@ import org.springframework.stereotype.Service;
 import pe.greenminds.ecomind.quests.application.internal.services.DailyQuestLifecycleService;
 import pe.greenminds.ecomind.quests.application.queryservices.QuestQueryService;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.Quest;
-import pe.greenminds.ecomind.quests.domain.model.queries.GetAllQuestsQuery;
+import pe.greenminds.ecomind.quests.domain.model.queries.GetPublishedQuestsQuery;
+import pe.greenminds.ecomind.quests.domain.model.queries.GetQuestVersionsQuery;
 import pe.greenminds.ecomind.quests.domain.model.queries.GetQuestByIdQuery;
 import pe.greenminds.ecomind.quests.domain.model.queries.SearchQuestQuery;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestType;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestPublicationStatus;
 import pe.greenminds.ecomind.quests.domain.repositories.QuestRepository;
 
 import java.util.List;
@@ -34,13 +36,18 @@ public class QuestQueryServiceImpl implements QuestQueryService {
     }
 
     @Override
-    public List<Quest> handle(GetAllQuestsQuery query) {
+    public List<Quest> handle(GetPublishedQuestsQuery query) {
         dailyQuestLifecycleService.ensureTodayDailyQuest();
-        return questRepository.findAll()
+        return questRepository.findByPublicationStatus(QuestPublicationStatus.PUBLISHED)
                 .stream()
                 .filter(quest -> quest.getType() != QuestType.FAMILY)
                 .sorted(questDateComparator())
                 .toList();
+    }
+
+    @Override
+    public List<Quest> handle(GetQuestVersionsQuery query) {
+        return questRepository.findByVersionGroupId(query.versionGroupId());
     }
 
     @Override

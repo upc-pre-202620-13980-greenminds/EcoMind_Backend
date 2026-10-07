@@ -76,6 +76,29 @@ public class CollabQuestMemberRepositoryImpl implements CollabQuestMemberReposit
     }
 
     @Override
+    public List<CollabQuestMember> findBySessionId(Long sessionId) {
+        return collabQuestMemberPersistenceRepository.findBySessionIdOrderByIdAsc(sessionId)
+                .stream().map(CollabQuestMemberPersistenceAssembler::toDomainFromPersistence)
+                .toList();
+    }
+
+    @Override
+    public List<CollabQuestMember> findByUserId(Long userId) {
+        return collabQuestMemberPersistenceRepository.findByUserIdOrderByIdDesc(userId)
+                .stream().map(CollabQuestMemberPersistenceAssembler::toDomainFromPersistence)
+                .toList();
+    }
+
+    @Override
+    public List<CollabQuestMember> findByUserIdAndStatus(
+            Long userId, CollabMemberStatus status) {
+        return collabQuestMemberPersistenceRepository.findByUserIdAndStatusOrderByIdDesc(
+                        userId, status)
+                .stream().map(CollabQuestMemberPersistenceAssembler::toDomainFromPersistence)
+                .toList();
+    }
+
+    @Override
     public List<CollabQuestMember> findBySessionIdAndStatusIn(
             Long sessionId,
             List<CollabMemberStatus> statuses

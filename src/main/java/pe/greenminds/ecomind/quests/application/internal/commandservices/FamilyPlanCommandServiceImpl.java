@@ -347,6 +347,11 @@ public class FamilyPlanCommandServiceImpl implements FamilyPlanCommandService {
                     "Quest %d is %s".formatted(questId, quest.get().getType())
             );
         }
+        if (!quest.get().acceptsNewAssignments()) {
+            return ApplicationError.businessRuleViolation(
+                    "Quest is not published",
+                    "Only PUBLISHED quests can be added to a family plan");
+        }
         if (activityRepository.countByQuestId(questId) < 1) {
             return ApplicationError.businessRuleViolation(
                     "Family quest must have at least one activity",

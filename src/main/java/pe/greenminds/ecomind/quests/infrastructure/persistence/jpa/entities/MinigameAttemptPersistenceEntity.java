@@ -58,12 +58,6 @@ public class MinigameAttemptPersistenceEntity extends AuditableAbstractPersisten
     @Column(name = "metadata", columnDefinition = "jsonb")
     private Map<String, Object> metadata;
 
-    @Column(name = "given_gems", nullable = false)
-    private Integer givenGems;
-
-    @Column(name = "given_ecopoints", nullable = false)
-    private Integer givenEcopoints;
-
     public Long getUserId() { return userId; }
     public void setUserId(Long userId) { this.userId = userId; }
     public Long getQuestId() { return questId; }
@@ -80,10 +74,4 @@ public class MinigameAttemptPersistenceEntity extends AuditableAbstractPersisten
     public void setEndDate(OffsetDateTime endDate) { this.endDate = endDate; }
     public Map<String, Object> getMetadata() { return metadata; }
     public void setMetadata(Map<String, Object> metadata) { this.metadata = metadata; }
-    public Integer getGivenGems() { return givenGems; }
-    public void setGivenGems(Integer givenGems) { this.givenGems = givenGems; }
-    public Integer getGivenEcopoints() { return givenEcopoints; }
-    public void setGivenEcopoints(Integer givenEcopoints) {
-        this.givenEcopoints = givenEcopoints;
-    }
 }

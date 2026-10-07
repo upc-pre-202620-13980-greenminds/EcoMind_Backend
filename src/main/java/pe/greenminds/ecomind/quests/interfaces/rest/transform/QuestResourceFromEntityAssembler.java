@@ -12,6 +12,9 @@ public class QuestResourceFromEntityAssembler {
 
         return new QuestResource(
                 quest.getId(),
+                quest.getVersionGroupId(),
+                quest.getVersionNumber(),
+                quest.getPublicationStatus(),
                 quest.getMinigameId(),
                 quest.getTitle(),
                 quest.getDescription(),
