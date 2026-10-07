@@ -94,8 +94,8 @@ its split between participant data, dated transactions and client-side weekly po
 
 ## Integration work still needed
 
-1. Quests completion events and its canonical execution/reward contract. Until that exists, the
-   trusted command service is callable in code but no production completion grants a reward.
+1. Implement the actual Quests validation/completion workflow. Its quest and family event bridge
+   is now connected; minigame/collaborative messages are contracts only. See [integration-contracts.md](integration-contracts.md).
 2. Users currently stores `ecopoints` and `streak` in its profile and lets clients replace them.
    Change the profile to read Gamification's values and remove that client-writable source.
 3. Monetization outbox and acknowledgements for gems, active XP multipliers and streak protectors.
