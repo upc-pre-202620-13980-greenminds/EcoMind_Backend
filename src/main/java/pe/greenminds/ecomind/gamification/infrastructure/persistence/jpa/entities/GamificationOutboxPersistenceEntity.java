@@ -16,6 +16,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
+@org.hibernate.annotations.Check(
+        name = "ck_outbox_attempts",
+        constraints = "attempts >= 0 AND gems >= 0")
 @Table(
         name = "\"gamification_outbox\"",
         indexes =

@@ -9,6 +9,7 @@ import pe.greenminds.ecomind.gamification.domain.model.aggregates.StreakProtecti
 import pe.greenminds.ecomind.gamification.domain.model.commands.RequestStreakProtectionCommand;
 import pe.greenminds.ecomind.gamification.domain.model.commands.ResolveStreakProtectionCommand;
 import pe.greenminds.ecomind.gamification.domain.model.events.DailyStreakAtRiskEvent;
+import pe.greenminds.ecomind.gamification.domain.model.events.UserStreakUpdatedEvent;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.StreakProtectionStatus;
 import pe.greenminds.ecomind.gamification.domain.repositories.StreakProtectionRequestRepository;
 import pe.greenminds.ecomind.gamification.domain.repositories.UserProgressRepository;
@@ -64,5 +65,11 @@ public class StreakProtectionCommandServiceImpl implements StreakProtectionComma
         else user.resetForMissedDay(resolved.streakDate());
         progress.save(user);
         requests.save(resolved);
+        events.publish(
+                new UserStreakUpdatedEvent(
+                        c.userId(),
+                        user.getCurrentStreak(),
+                        user.getLongestStreak(),
+                        user.getLastActivityDate()));
     }
 }

@@ -1018,7 +1018,7 @@ class GamificationReportIntegrationTests {
                 () ->
                         jdbc.update(
                                 "UPDATE streak_protection_requests SET status='PROTECTED' WHERE"
-                                    + " id=?",
+                                        + " id=?",
                                 request.id().toString()));
     }
 
@@ -1044,6 +1044,84 @@ class GamificationReportIntegrationTests {
                     a.get(20, java.util.concurrent.TimeUnit.SECONDS),
                     b.get(20, java.util.concurrent.TimeUnit.SECONDS));
         }
+    }
+
+    @Test
+    void publishedMinigameHttpWorkflowGrantsConfiguredExperienceAndCreditsRealWallet()
+            throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var gameResponse =
+                http.perform(
+                                post("/api/v1/minigames")
+                                        .header("Authorization", bearer(USER))
+                                        .contentType("application/json")
+                                        .content(
+                                                """
+                                                {"name":"Forest Trail","description":"Collect the scattered bottles.","url":"/games/forest-trail","completionRules":{"minScore":50}}
+                                                """))
+                        .andExpect(status().isCreated())
+                        .andReturn();
+        long gameId =
+                mapper.readTree(gameResponse.getResponse().getContentAsString()).get("id").asLong();
+        var questResponse =
+                http.perform(
+                                post("/api/v1/quests")
+                                        .header("Authorization", bearer(USER))
+                                        .contentType("application/json")
+                                        .content(
+                                                """
+                                                {"minigameId":%d,"title":"Clean the trail","description":"Collect and recycle the bottles.","category":"WATER","type":"MINIGAME","gemReward":4,"ecopoints":19,"age":9,"time":5,"theme":"MINIGAME","image":"https://example.net/trail.png"}
+                                                """
+                                                        .formatted(gameId)))
+                        .andExpect(status().isCreated())
+                        .andReturn();
+        var created = mapper.readTree(questResponse.getResponse().getContentAsString());
+        long questId = created.get("id").asLong();
+        assertEquals(questId, created.get("versionGroupId").asLong());
+        experience.handle(new ConfigureQuestExperienceCommand(questId, 17));
+        http.perform(
+                        patch("/api/v1/quests/" + questId + "/publish")
+                                .header("Authorization", bearer(USER)))
+                .andExpect(status().isOk());
+        var attemptResponse =
+                http.perform(
+                                post("/api/v1/minigame-attempts")
+                                        .header("Authorization", bearer(USER))
+                                        .contentType("application/json")
+                                        .content(
+                                                "{\"userId\":%d,\"questId\":%d}"
+                                                        .formatted(USER.value(), questId)))
+                        .andExpect(status().isCreated())
+                        .andReturn();
+        long attemptId =
+                mapper.readTree(attemptResponse.getResponse().getContentAsString())
+                        .get("id")
+                        .asLong();
+        http.perform(
+                        post("/api/v1/minigame-attempts/" + attemptId + "/finish")
+                                .header("Authorization", bearer(USER))
+                                .contentType("application/json")
+                                .content("{\"score\":80,\"metadata\":{}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"));
+        assertEquals(19, progress.getUserProgress(USER).getTotalEcopoints());
+        assertEquals(17, progress.getUserProgress(USER).getTotalExperience());
+        assertEquals(0, progress.getUserProgress(USER).getCurrentStreak());
+        for (var message : outbox.findAll())
+            if (message.getMessageType().equals("GEMS")) delivery.deliver(message.getId());
+        assertEquals(
+                4,
+                jdbc.queryForObject(
+                        "SELECT gem_balance FROM user_profiles WHERE user_id=?",
+                        Integer.class,
+                        USER.value()));
+        http.perform(
+                        post("/api/v1/minigame-attempts/" + attemptId + "/finish")
+                                .header("Authorization", bearer(USER))
+                                .contentType("application/json")
+                                .content("{\"score\":80,\"metadata\":{}}"))
+                .andExpect(status().isUnprocessableEntity());
+        assertEquals(1, progress.getRecentRewards(USER).size());
     }
 
     private GrantQuestRewardCommand quest(UserId user, Instant at, boolean daily, Reward reward) {

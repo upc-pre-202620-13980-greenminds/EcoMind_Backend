@@ -1,7 +1,8 @@
 package pe.greenminds.ecomind.gamification.application.internal.commandservices;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.*;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import pe.greenminds.ecomind.gamification.application.commandservices.AchievementCommandService;
 import pe.greenminds.ecomind.gamification.application.commandservices.UserProgressCommandService;
