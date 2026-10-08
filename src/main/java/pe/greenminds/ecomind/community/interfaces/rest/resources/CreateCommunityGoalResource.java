@@ -6,5 +6,4 @@ import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityGoalTo
 public record CreateCommunityGoalResource(
         @NotNull Long community_id,
         @NotNull CommunityGoalTopic topic,
-        @NotNull @Positive Integer target,
-        @NotNull Long user_id) {}
+        @NotNull @Positive Integer target) {}

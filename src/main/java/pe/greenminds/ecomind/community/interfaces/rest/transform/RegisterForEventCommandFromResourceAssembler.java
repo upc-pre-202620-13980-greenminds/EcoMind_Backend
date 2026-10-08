@@ -7,8 +7,8 @@ public final class RegisterForEventCommandFromResourceAssembler {
     private RegisterForEventCommandFromResourceAssembler() {}
 
     public static RegisterForEventCommand toCommandFromResource(CreateEventRegistrationResource resource,
-                                                                 Long eventId) {
-        return new RegisterForEventCommand(eventId, resource.user_id(), resource.registration_type(),
+                                                                 Long eventId, Long userId) {
+        return new RegisterForEventCommand(eventId, userId, resource.registration_type(),
                 resource.family_id());
     }
 }

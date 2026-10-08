@@ -6,8 +6,8 @@ import pe.greenminds.ecomind.community.interfaces.rest.resources.CreateCommunity
 public final class CreateCommunityGoalCommandFromResourceAssembler {
     private CreateCommunityGoalCommandFromResourceAssembler() {}
 
-    public static CreateCommunityGoalCommand toCommandFromResource(CreateCommunityGoalResource resource) {
+    public static CreateCommunityGoalCommand toCommandFromResource(CreateCommunityGoalResource resource, Long userId) {
         return new CreateCommunityGoalCommand(resource.community_id(), resource.topic(), resource.target(),
-                resource.user_id());
+                userId);
     }
 }

@@ -6,7 +6,7 @@ import pe.greenminds.ecomind.community.interfaces.rest.resources.CreatePostResou
 public final class CreatePostCommandFromResourceAssembler {
     private CreatePostCommandFromResourceAssembler() {}
 
-    public static CreatePostCommand toCommandFromResource(CreatePostResource resource) {
-        return new CreatePostCommand(resource.community_id(), resource.author_id(), resource.content(), resource.image_url());
+    public static CreatePostCommand toCommandFromResource(CreatePostResource resource, Long authorId) {
+        return new CreatePostCommand(resource.community_id(), authorId, resource.content(), resource.image_url());
     }
 }

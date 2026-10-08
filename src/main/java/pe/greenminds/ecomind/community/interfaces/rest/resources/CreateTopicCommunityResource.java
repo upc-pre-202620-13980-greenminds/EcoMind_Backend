@@ -9,5 +9,4 @@ public record CreateTopicCommunityResource(
         String description,
         @NotBlank String topic,
         @NotNull @Positive Integer member_limit,
-        String icon_url,
-        @NotNull Long user_id) {}
+        String icon_url) {}

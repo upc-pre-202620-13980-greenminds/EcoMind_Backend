@@ -7,7 +7,7 @@ public final class UpdatePostReactionTypeCommandFromResourceAssembler {
     private UpdatePostReactionTypeCommandFromResourceAssembler() {}
 
     public static UpdatePostReactionTypeCommand toCommandFromResource(
-            UpdatePostReactionTypeResource resource, Long postId) {
-        return new UpdatePostReactionTypeCommand(postId, resource.user_id(), resource.reaction_type());
+            UpdatePostReactionTypeResource resource, Long postId, Long userId) {
+        return new UpdatePostReactionTypeCommand(postId, userId, resource.reaction_type());
     }
 }

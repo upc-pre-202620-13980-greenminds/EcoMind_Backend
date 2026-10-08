@@ -1,9 +1,11 @@
 package pe.greenminds.ecomind.community.interfaces.rest;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import pe.greenminds.ecomind.community.application.commandservices.CommunityGoalCommandService;
 import pe.greenminds.ecomind.community.application.queryservices.CommunityGoalQueryService;
@@ -13,9 +15,12 @@ import pe.greenminds.ecomind.community.interfaces.rest.resources.*;
 import pe.greenminds.ecomind.community.interfaces.rest.transform.CommunityGoalResourceFromEntityAssembler;
 import pe.greenminds.ecomind.community.interfaces.rest.transform.CreateCommunityGoalCommandFromResourceAssembler;
 import pe.greenminds.ecomind.shared.interfaces.rest.transform.ResponseEntityAssembler;
+import pe.greenminds.ecomind.shared.infrastructure.documentation.openapi.configuration.OpenApiConfiguration;
+import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
 
 @RestController
 @Tag(name = "Community Goal", description = "Goals tracked by a community")
+@SecurityRequirement(name = OpenApiConfiguration.BEARER_AUTH_SCHEME)
 @RequestMapping(value = "/api/v1/Community/Community-goals", produces = MediaType.APPLICATION_JSON_VALUE)
 public class CommunityGoalController {
     private final CommunityGoalCommandService commands;
@@ -36,15 +41,17 @@ public class CommunityGoalController {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> create(@Valid @RequestBody CreateCommunityGoalResource r) {
-        var c = CreateCommunityGoalCommandFromResourceAssembler.toCommandFromResource(r);
+    public ResponseEntity<?> create(@Valid @RequestBody CreateCommunityGoalResource r,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        var c = CreateCommunityGoalCommandFromResourceAssembler.toCommandFromResource(r, principal.accountId());
         return responses.toResponseEntityFromResult(commands.handle(c),
                 CommunityGoalResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.CREATED);
     }
 
     @PatchMapping("/{id}/progress")
-    public ResponseEntity<?> increment(@PathVariable Long id, @RequestParam Long user_id) {
-        return responses.toResponseEntityFromResult(commands.handle(new IncrementCommunityGoalCommand(id, user_id)),
+    public ResponseEntity<?> increment(@PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return responses.toResponseEntityFromResult(commands.handle(new IncrementCommunityGoalCommand(id, principal.accountId())),
                 CommunityGoalResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.OK);
     }
 }

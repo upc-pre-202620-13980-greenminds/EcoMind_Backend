@@ -8,5 +8,5 @@ import java.time.LocalTime;
 @Schema(name = "CreateEvent")
 public record CreateEventResource(@NotNull Long community_id, @NotBlank String name, String description,
         @NotNull LocalDate date, @NotNull LocalTime start_time, String location, Double latitude, Double longitude,
-        @NotNull @Positive Integer capacity, String image_url, @NotNull Long author_id) {
+        @NotNull @Positive Integer capacity, String image_url) {
 }

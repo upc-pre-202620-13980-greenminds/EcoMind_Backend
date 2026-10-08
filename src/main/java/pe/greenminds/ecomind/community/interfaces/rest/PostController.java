@@ -1,9 +1,11 @@
 package pe.greenminds.ecomind.community.interfaces.rest;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import pe.greenminds.ecomind.community.application.commandservices.PostCommandService;
 import pe.greenminds.ecomind.community.application.queryservices.PostQueryService;
@@ -14,9 +16,12 @@ import pe.greenminds.ecomind.community.interfaces.rest.resources.*;
 import pe.greenminds.ecomind.community.interfaces.rest.transform.PostResourceFromEntityAssembler;
 import pe.greenminds.ecomind.community.interfaces.rest.transform.CreatePostCommandFromResourceAssembler;
 import pe.greenminds.ecomind.shared.interfaces.rest.transform.ResponseEntityAssembler;
+import pe.greenminds.ecomind.shared.infrastructure.documentation.openapi.configuration.OpenApiConfiguration;
+import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
 
 @RestController
 @Tag(name = "Post", description = "Community feed posts")
+@SecurityRequirement(name = OpenApiConfiguration.BEARER_AUTH_SCHEME)
 @RequestMapping(value = "/api/v1/Community/Posts", produces = MediaType.APPLICATION_JSON_VALUE)
 public class PostController {
     private final PostCommandService commands;
@@ -40,15 +45,17 @@ public class PostController {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> create(@Valid @RequestBody CreatePostResource r) {
-        var c = CreatePostCommandFromResourceAssembler.toCommandFromResource(r);
+    public ResponseEntity<?> create(@Valid @RequestBody CreatePostResource r,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        var c = CreatePostCommandFromResourceAssembler.toCommandFromResource(r, principal.accountId());
         return responses.toResponseEntityFromResult(commands.handle(c),
                 post -> PostResourceFromEntityAssembler.toResourceFromEntity(post, 0), HttpStatus.CREATED);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Long id, @RequestParam Long user_id) {
-        return responses.toResponseEntityFromResult(commands.handle(new DeletePostCommand(id, user_id)), v -> null,
+    public ResponseEntity<?> delete(@PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return responses.toResponseEntityFromResult(commands.handle(new DeletePostCommand(id, principal.accountId())), v -> null,
                 HttpStatus.NO_CONTENT);
     }
 }
