@@ -8,7 +8,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import pe.greenminds.ecomind.gamification.application.commandservices.FamilyRewardCommandService;
 import pe.greenminds.ecomind.gamification.application.commandservices.RewardCommandService;
-import pe.greenminds.ecomind.gamification.application.outboundservices.GamificationDependencyUnavailableException;
 import pe.greenminds.ecomind.gamification.application.outboundservices.QuestServiceClient;
 import pe.greenminds.ecomind.gamification.domain.model.commands.GrantCollaborativeQuestRewardCommand;
 import pe.greenminds.ecomind.gamification.domain.model.commands.GrantFamilyPlanRewardCommand;
@@ -17,7 +16,6 @@ import pe.greenminds.ecomind.gamification.domain.model.commands.GrantQuestReward
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.FamilyId;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.Reward;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.UserId;
-import pe.greenminds.ecomind.gamification.domain.repositories.QuestExperienceRepository;
 import pe.greenminds.ecomind.quests.interfaces.events.CollaborativeQuestCompletedIntegrationEvent;
 import pe.greenminds.ecomind.quests.interfaces.events.FamilyPlanCompletedIntegrationEvent;
 import pe.greenminds.ecomind.quests.interfaces.events.MinigameCompletedIntegrationEvent;
@@ -34,19 +32,16 @@ import java.util.UUID;
 public class PublishedQuestCompletionConsumer {
     private final RewardCommandService rewards;
     private final FamilyRewardCommandService families;
-    private final QuestExperienceRepository experience;
     private final ZoneId zone;
     private final QuestServiceClient quests;
 
     public PublishedQuestCompletionConsumer(
             RewardCommandService rewards,
             FamilyRewardCommandService families,
-            QuestExperienceRepository experience,
             QuestServiceClient quests,
             @Value("${gamification.activity-zone:America/Lima}") String zone) {
         this.rewards = rewards;
         this.families = families;
-        this.experience = experience;
         this.zone = ZoneId.of(zone);
         this.quests = quests;
     }
@@ -61,7 +56,7 @@ public class PublishedQuestCompletionConsumer {
                         at,
                         at.atZone(zone).toLocalDate(),
                         "DAILY_QUEST".equals(e.questType().name()),
-                        base(e.questId(), e.baseEcopoints(), e.baseGems())));
+                        base(e.baseEcopoints(), e.baseGems())));
     }
 
     @EventListener
@@ -80,7 +75,7 @@ public class PublishedQuestCompletionConsumer {
                         execution("minigame", e.minigameId()),
                         new UserId(e.userId()),
                         at,
-                        base(e.questId(), e.baseEcopoints(), e.baseGems()),
+                        base(e.baseEcopoints(), e.baseGems()),
                         prior));
     }
 
@@ -91,7 +86,7 @@ public class PublishedQuestCompletionConsumer {
                         execution("collaborative-session", e.sessionId()),
                         e.participantUserIds().stream().map(UserId::new).toList(),
                         e.completedAt().toInstant(),
-                        base(e.questId(), e.baseEcopoints(), e.baseGems())));
+                        base(e.baseEcopoints(), e.baseGems())));
     }
 
     @EventListener
@@ -107,17 +102,8 @@ public class PublishedQuestCompletionConsumer {
             throw new IllegalStateException("Unknown family for completed plan");
     }
 
-    private Reward base(Long quest, Integer points, Integer gems) {
-        long xp =
-                experience
-                        .find(quest)
-                        .orElseThrow(
-                                () ->
-                                        new GamificationDependencyUnavailableException(
-                                                "Configure base experience for quest version "
-                                                        + quest
-                                                        + " before completion"));
-        return new Reward(Objects.requireNonNull(points), xp, Objects.requireNonNull(gems));
+    private Reward base(Integer points, Integer gems) {
+        return new Reward(Objects.requireNonNull(points), Objects.requireNonNull(gems));
     }
 
     private UUID execution(String type, Long id) {

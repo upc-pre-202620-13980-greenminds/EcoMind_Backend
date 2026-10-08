@@ -10,7 +10,6 @@ public final class UserProgressResourceFromEntityAssembler {
         return new UserProgressResource(
                 entity.getUserId().value(),
                 entity.getTotalEcopoints(),
-                entity.getTotalExperience(),
                 entity.getCurrentStreak(),
                 entity.getLongestStreak(),
                 entity.getLastActivityDate(),

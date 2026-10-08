@@ -72,7 +72,6 @@ class QuestIntegrationTests {
                 .executeWithoutResult(status -> publisher.publish(quest(execution, 0)));
         var snapshot = progress.getUserProgress(USER);
         assertEquals(15, snapshot.ecopoints());
-        assertEquals(8, snapshot.experience());
         assertEquals(1, snapshot.currentStreak());
         assertEquals(DAY, snapshot.lastActivityDate());
         assertEquals(
@@ -182,6 +181,6 @@ class QuestIntegrationTests {
                 NOW,
                 DAY,
                 true,
-                new QuestRewardResource(15, 8, gems));
+                new QuestRewardResource(15, gems));
     }
 }

@@ -41,7 +41,7 @@ public class CommunityProgressConsumer {
                             e.executionId(),
                             e.eligibleParticipantIds().stream().map(UserId::new).toList(),
                             e.occurredAt(),
-                            new Reward(r.ecopoints(), r.experience(), r.gems())));
+                            new Reward(r.ecopoints(), r.gems())));
         }
     }
 
@@ -56,7 +56,7 @@ public class CommunityProgressConsumer {
                             e.executionId(),
                             e.eligibleParticipantIds().stream().map(UserId::new).toList(),
                             e.occurredAt(),
-                            new Reward(r.ecopoints(), r.experience(), r.gems())));
+                            new Reward(r.ecopoints(), r.gems())));
         }
         achievements.evaluateCommunity(
                 e.communityId(), e.eligibleParticipantIds(), e.executionId(), e.occurredAt());

@@ -53,7 +53,7 @@ public class UserProgressCommandServiceImpl implements UserProgressCommandServic
         var progress = users.lockForReward(command.userId());
         var oldStreak = progress.getCurrentStreak();
         var oldDate = progress.getLastActivityDate();
-        progress.applyReward(new Reward(0, 0, 0), command.activityDate(), true);
+        progress.applyReward(new Reward(0, 0), command.activityDate(), true);
         users.save(progress);
         if (oldStreak != progress.getCurrentStreak()
                 || !Objects.equals(oldDate, progress.getLastActivityDate())) {

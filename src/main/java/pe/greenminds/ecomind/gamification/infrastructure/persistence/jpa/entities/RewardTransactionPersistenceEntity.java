@@ -71,8 +71,9 @@ public class RewardTransactionPersistenceEntity {
     @Column(nullable = false)
     private long baseEcopoints;
 
-    @Column(nullable = false)
-    private long baseExperience;
+    /** Deprecated schema column; base_ecopoints is authoritative. */
+    @Column(name = "base_experience", nullable = false)
+    private long legacyBaseExperience;
 
     @Column(nullable = false)
     private int baseGems;
@@ -80,8 +81,9 @@ public class RewardTransactionPersistenceEntity {
     @Column(nullable = false)
     private long ecopoints;
 
-    @Column(nullable = false)
-    private long experience;
+    /** Deprecated schema column; ecopoints is authoritative. */
+    @Column(name = "experience", nullable = false)
+    private long legacyExperience;
 
     @Column(nullable = false)
     private int gems;

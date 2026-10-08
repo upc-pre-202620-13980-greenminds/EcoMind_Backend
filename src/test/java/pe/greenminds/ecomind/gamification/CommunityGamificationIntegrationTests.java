@@ -105,7 +105,6 @@ class CommunityGamificationIntegrationTests {
                         "achievement_milestone_locks",
                         "achievements",
                         "gamification_minigame_completions",
-                        "gamification_quest_experiences",
                         "reward_transactions",
                         "user_progresses",
                         "family_scores",
@@ -435,7 +434,7 @@ class CommunityGamificationIntegrationTests {
                         AT,
                         LocalDate.of(2026, 10, 7),
                         false,
-                        new Reward(points, 0, 0)));
+                        new Reward(points, 0)));
     }
 
     private UUID share() {

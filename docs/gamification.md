@@ -19,9 +19,9 @@ activity. Daily closure requests protection for a missing closed day; it does no
 Monetization confirms `PROTECTED` or `UNAVAILABLE`. Technical failures stay pending and retryable.
 A later daily completion waits for earlier pending protection instead of prematurely resetting a streak.
 
-XP uses the active Monetization multiplier, with inclusive start and exclusive expiry. Ecopoints and
-gems are not multiplied. The reward audit stores the multiplier identity, effective XP factor and
-minigame repetition factor. Integer results are rounded down; arithmetic overflow rolls back the grant.
+XP is the ecopoints score and uses the active Monetization multiplier, with inclusive start and
+exclusive expiry. Gems are not affected by that multiplier. The reward audit stores the multiplier
+identity, effective XP factor and minigame repetition factor. Integer results are rounded down; arithmetic overflow rolls back the grant.
 
 **Approved minigame policy:** 100%, 80%, 50%, 20%, then 0 in the preceding three hours, independently
 per user and minigame. Zero-valued validated attempts still count. Set
@@ -30,12 +30,12 @@ from the legacy `100%,100%,80%,50%,20%` curve because HU-041 requires each repet
 
 Family plans receive only a configured **additional** ecopoint reward. Their member quests are not
 summed or rewarded again. A zero additional bonus still records a validated completion and evaluates
-configured completed-plan achievements. Families receive no XP or gems.
+configured completed-plan achievements. Families receive the ecopoints score and no gems.
 
 ## Achievements and publication
 
 The trusted catalog service configures definitions; there is no public mobile grant/catalog-write route
-and no invented production threshold. Individual criteria: ecopoints, XP, longest streak or completed
+and no invented production threshold. Individual criteria: ecopoints (XP), longest streak or completed
 community goals. Family criteria: ecopoints or completed family plans. Collective community criteria:
 completed community goals. Only individual awards can request an optional cosmetic.
 
@@ -55,7 +55,7 @@ Collective award queries do not substitute for that feed.
 
 | Method | Route | Access / result |
 |---|---|---|
-| GET | `/api/v1/gamification/me/progress` | JWT subject's ecopoints, XP, streak and activity/protection dates |
+| GET | `/api/v1/gamification/me/progress` | JWT subject's ecopoints (XP), streak and activity/protection dates |
 | GET | `/api/v1/gamification/me/rewards` | Subject's latest 100 reward transactions |
 | GET | `/api/v1/gamification/rewards` | Paged USER/FAMILY history; `from` inclusive, `to` exclusive; owner/membership checks |
 | GET | `/api/v1/gamification/families/{familyId}/score` | Current family members only |
@@ -96,9 +96,11 @@ while that supplier is absent; notices remain in the outbox. JUnit uses an expli
 validate its contract, permissions, retry and confirmation behavior; it is not a production stub.
 
 Real Quests emits four completion events and has a public validated minigame-history supplier.
-Quests currently provides ecopoints/gems but no base XP. Gamification therefore requires a trusted
-per-quest-version entry in `gamification_quest_experiences` (`ConfigureQuestExperienceCommand`). Missing
-configuration fails explicitly and rolls back the source completion. No XP=ecopoints rule was approved.
+XP and ecopoints identify the same score. Quests provides the base ecopoints and gems; completion
+requires no additional XP configuration. An active XP multiplier affects ecopoints only, leaving gems
+unchanged by that multiplier. Existing repetition reduction still applies to the configured reward.
+Historical XP columns remain for schema compatibility and are ignored when loading balances; their
+values are not added to ecopoints. Existing EXPERIENCE achievement definitions use ecopoints.
 Actual family events have no additional bonus field, so their adapter records completion/recognition
 with no extra points. The proposed reward-complete event supports a configured additional bonus.
 

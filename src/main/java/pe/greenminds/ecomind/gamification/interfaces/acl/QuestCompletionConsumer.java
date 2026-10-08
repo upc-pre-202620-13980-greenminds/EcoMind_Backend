@@ -46,7 +46,7 @@ public class QuestCompletionConsumer {
                         event.occurredAt(),
                         event.activityDate(),
                         event.countsForDailyStreak(),
-                        new Reward(base.ecopoints(), base.experience(), base.gems())));
+                        new Reward(base.ecopoints(), base.gems())));
     }
 
     @EventListener
@@ -67,7 +67,7 @@ public class QuestCompletionConsumer {
                         e.questId(),
                         new UserId(e.userId()),
                         e.occurredAt(),
-                        new Reward(r.ecopoints(), r.experience(), r.gems())));
+                        new Reward(r.ecopoints(), r.gems())));
     }
 
     @EventListener
@@ -78,7 +78,7 @@ public class QuestCompletionConsumer {
                         e.sessionId(),
                         e.participantIds().stream().map(UserId::new).toList(),
                         e.occurredAt(),
-                        new Reward(r.ecopoints(), r.experience(), r.gems())));
+                        new Reward(r.ecopoints(), r.gems())));
     }
 
     @EventListener

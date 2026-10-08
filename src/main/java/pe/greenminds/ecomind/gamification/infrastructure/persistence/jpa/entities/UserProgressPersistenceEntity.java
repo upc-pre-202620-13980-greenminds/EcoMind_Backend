@@ -31,8 +31,9 @@ public class UserProgressPersistenceEntity {
     @Column(nullable = false)
     private long totalEcopoints;
 
-    @Column(nullable = false)
-    private long totalExperience;
+    /** Deprecated schema column mirrored on writes; never a separate score. */
+    @Column(name = "total_experience", nullable = false)
+    private long legacyTotalExperience;
 
     @Column(nullable = false)
     private int currentStreak;

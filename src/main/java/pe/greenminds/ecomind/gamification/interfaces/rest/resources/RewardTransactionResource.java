@@ -9,6 +9,5 @@ public record RewardTransactionResource(
         UUID sourceExecutionId,
         Long beneficiaryId,
         long ecopoints,
-        long experience,
         int gems,
         Instant occurredAt) {}

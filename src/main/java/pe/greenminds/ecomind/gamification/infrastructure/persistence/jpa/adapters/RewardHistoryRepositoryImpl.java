@@ -48,12 +48,8 @@ public class RewardHistoryRepositoryImpl implements RewardHistoryRepository {
                                                 RewardSourceType.valueOf(r.getSourceType()),
                                                 UUID.fromString(r.getSourceExecutionId())),
                                         beneficiary,
-                                        new Reward(
-                                                r.getBaseEcopoints(),
-                                                r.getBaseExperience(),
-                                                r.getBaseGems()),
-                                        new Reward(
-                                                r.getEcopoints(), r.getExperience(), r.getGems()),
+                                        new Reward(r.getBaseEcopoints(), r.getBaseGems()),
+                                        new Reward(r.getEcopoints(), r.getGems()),
                                         r.getOccurredAt()))
                 .toList();
     }

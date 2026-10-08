@@ -13,7 +13,6 @@ public class GamificationContextFacade {
     public record Progress(
             Long userId,
             long ecopoints,
-            long experience,
             int currentStreak,
             int longestStreak,
             LocalDate lastActivityDate) {}
@@ -29,7 +28,6 @@ public class GamificationContextFacade {
         return new Progress(
                 userId,
                 progress.getTotalEcopoints(),
-                progress.getTotalExperience(),
                 progress.getCurrentStreak(),
                 progress.getLongestStreak(),
                 progress.getLastActivityDate());
