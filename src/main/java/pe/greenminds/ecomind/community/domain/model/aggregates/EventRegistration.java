@@ -1,0 +1,2 @@
+package pe.greenminds.ecomind.community.domain.model.aggregates;
+public record EventRegistration(Long id,Long eventId,Long userId,String registrationType,Long familyId,Integer participantCount,String status){public EventRegistration{if(eventId==null||userId==null||participantCount==null||participantCount<1)throw new IllegalArgumentException("Event, user and participant count are required");if(!"INDIVIDUAL".equals(registrationType)&&!"FAMILY".equals(registrationType))throw new IllegalArgumentException("Registration type is invalid");}}
