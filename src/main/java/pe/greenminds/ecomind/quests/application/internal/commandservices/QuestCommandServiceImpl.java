@@ -28,6 +28,7 @@ public class QuestCommandServiceImpl implements QuestCommandService {
         this.activityRepository = activityRepository;
     }
 
+    @Transactional
     @Override
     public Result<Quest, ApplicationError> handle(CreateQuestCommand command) {
         try {
@@ -47,7 +48,9 @@ public class QuestCommandServiceImpl implements QuestCommandService {
             );
 
             var savedQuest = questRepository.save(quest);
-            savedQuest.initializeVersionGroup(savedQuest.getId());
+            // The persistence assembler already restores the canonical group for a first version.
+            if (savedQuest.getVersionGroupId() == null)
+                savedQuest.initializeVersionGroup(savedQuest.getId());
             return Result.success(questRepository.save(savedQuest));
         } catch (IllegalArgumentException e) {
             return Result.failure(
