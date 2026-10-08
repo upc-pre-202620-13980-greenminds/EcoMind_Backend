@@ -17,8 +17,7 @@ public final class MinigameAttemptResourceFromEntityAssembler {
                 attempt.getStartDate(),
                 attempt.getEndDate(),
                 attempt.getMetadata(),
-                attempt.getGivenGems(),
-                attempt.getGivenEcopoints()
+                attempt.getSuccessful()
         );
     }
 }

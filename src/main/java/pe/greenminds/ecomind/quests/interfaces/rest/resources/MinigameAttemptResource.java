@@ -14,7 +14,6 @@ public record MinigameAttemptResource(
         OffsetDateTime startDate,
         OffsetDateTime endDate,
         Map<String, Object> metadata,
-        Integer givenGems,
-        Integer givenEcopoints
+        Boolean successful
 ) {
 }

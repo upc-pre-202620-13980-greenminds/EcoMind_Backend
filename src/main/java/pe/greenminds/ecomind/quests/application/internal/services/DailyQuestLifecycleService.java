@@ -73,6 +73,9 @@ public class DailyQuestLifecycleService {
         }
 
         var savedQuest = questRepository.save(cloneQuestForDate(template.get(), today));
+        savedQuest.initializeVersionGroup(savedQuest.getId());
+        savedQuest.publish();
+        savedQuest = questRepository.save(savedQuest);
         cloneActivities(template.get().getId(), savedQuest.getId());
         return Optional.of(savedQuest);
     }
@@ -203,7 +206,8 @@ public class DailyQuestLifecycleService {
     }
 
     private Optional<Quest> findLatestDailyQuestWithActivities(Optional<Long> excludedQuestId) {
-        return questRepository.findAll()
+        return questRepository.findByPublicationStatus(
+                        pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestPublicationStatus.PUBLISHED)
                 .stream()
                 .filter(quest -> quest.getType() == QuestType.DAILY_QUEST)
                 .filter(quest -> excludedQuestId.map(id -> !id.equals(quest.getId())).orElse(true))

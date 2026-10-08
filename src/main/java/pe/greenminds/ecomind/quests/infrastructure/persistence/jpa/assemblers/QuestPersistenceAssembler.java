@@ -10,7 +10,8 @@ public class QuestPersistenceAssembler {
     private QuestPersistenceAssembler(){}
 
     public static Quest toDomainFromPersistence(QuestPersistenceEntity entity){
-        var quest = new Quest(
+        return new Quest(
+                entity.getId(),
                 entity.getMinigameId(),
                 entity.getTitle(),
                 entity.getCategory(),
@@ -21,10 +22,13 @@ public class QuestPersistenceAssembler {
                 entity.getTime(),
                 entity.getImage(),
                 entity.getTheme(),
-                entity.getAssignedDate()
+                entity.getAssignedDate(),
+                entity.getVersionGroupId() == null ? entity.getId() : entity.getVersionGroupId(),
+                entity.getVersionNumber() == null ? 1 : entity.getVersionNumber(),
+                entity.getPublicationStatus() == null
+                        ? pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestPublicationStatus.PUBLISHED
+                        : entity.getPublicationStatus()
         );
-        quest.setId(entity.getId());
-        return quest;
     }
 
     public static QuestPersistenceEntity toPersistenceFromDomain(Quest quest){
@@ -41,6 +45,9 @@ public class QuestPersistenceAssembler {
         entity.setImage(quest.getImage());
         entity.setTheme(quest.getTheme());
         entity.setAssignedDate(quest.getAssignedDate());
+        entity.setVersionGroupId(quest.getVersionGroupId());
+        entity.setVersionNumber(quest.getVersionNumber());
+        entity.setPublicationStatus(quest.getPublicationStatus());
         return entity;
     }
 

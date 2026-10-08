@@ -20,8 +20,7 @@ public final class MinigameAttemptPersistenceAssembler {
                 entity.getStartDate(),
                 entity.getEndDate(),
                 entity.getMetadata(),
-                entity.getGivenGems(),
-                entity.getGivenEcopoints()
+                entity.getSuccessful()
         );
     }
 
@@ -38,8 +37,7 @@ public final class MinigameAttemptPersistenceAssembler {
         entity.setStartDate(minigameAttempt.getStartDate());
         entity.setEndDate(minigameAttempt.getEndDate());
         entity.setMetadata(minigameAttempt.getMetadata());
-        entity.setGivenGems(minigameAttempt.getGivenGems());
-        entity.setGivenEcopoints(minigameAttempt.getGivenEcopoints());
+        entity.setSuccessful(minigameAttempt.getSuccessful());
         return entity;
     }
 }

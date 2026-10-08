@@ -6,6 +6,7 @@ import pe.greenminds.ecomind.quests.domain.model.aggregates.Quest;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.Category;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestType;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.Theme;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestPublicationStatus;
 import pe.greenminds.ecomind.quests.domain.repositories.QuestRepository;
 import pe.greenminds.ecomind.quests.infrastructure.persistence.jpa.assemblers.QuestPersistenceAssembler;
 import pe.greenminds.ecomind.quests.infrastructure.persistence.jpa.repositories.QuestPersistenceRepository;
@@ -52,8 +53,27 @@ public class QuestRepositoryImpl implements QuestRepository {
     }
 
     @Override
+    public List<Quest> findByPublicationStatus(QuestPublicationStatus status) {
+        return questPersistenceRepository.findByPublicationStatus(status).stream()
+                .map(QuestPersistenceAssembler::toDomainFromPersistence).toList();
+    }
+
+    @Override
+    public List<Quest> findByVersionGroupId(Long versionGroupId) {
+        return questPersistenceRepository.findVersions(versionGroupId)
+                .stream().map(QuestPersistenceAssembler::toDomainFromPersistence).toList();
+    }
+
+    @Override
+    public Optional<Quest> findPublishedByVersionGroupId(Long versionGroupId) {
+        return questPersistenceRepository.findPublishedByVersionGroupId(versionGroupId)
+                .map(QuestPersistenceAssembler::toDomainFromPersistence);
+    }
+
+    @Override
     public Optional<Quest> findByTypeAndAssignedDate(QuestType questType, LocalDate assignedDate) {
-        return questPersistenceRepository.findByQuestTypeAndAssignedDate(questType, assignedDate)
+        return questPersistenceRepository.findByQuestTypeAndAssignedDateAndPublicationStatus(
+                        questType, assignedDate, QuestPublicationStatus.PUBLISHED)
                 .map(QuestPersistenceAssembler::toDomainFromPersistence);
     }
 
@@ -79,11 +99,6 @@ public class QuestRepositoryImpl implements QuestRepository {
             savedQuest.clearDomainEvents();
         }
         return savedQuest;
-    }
-
-    @Override
-    public void deleteById(Long id){
-        questPersistenceRepository.deleteById(id);
     }
 
     @Override

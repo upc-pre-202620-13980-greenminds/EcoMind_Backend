@@ -3,6 +3,7 @@ package pe.greenminds.ecomind.quests.domain.model.aggregates;
 import lombok.Getter;
 import lombok.Setter;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.FamilyPlanStatus;
+import pe.greenminds.ecomind.quests.domain.model.events.FamilyPlanCompletedEvent;
 
 import java.time.OffsetDateTime;
 import java.util.Objects;
@@ -53,6 +54,9 @@ public class FamilyPlan extends AbstractDomainAggregateRoot<FamilyPlan> {
         }
         status = FamilyPlanStatus.COMPLETED;
         completedAt = OffsetDateTime.now();
+        registerDomainEvent(new FamilyPlanCompletedEvent(
+                id, familyId, ownerUserId, completedAt
+        ));
     }
 
     public Long getFamilyId() { return familyId; }

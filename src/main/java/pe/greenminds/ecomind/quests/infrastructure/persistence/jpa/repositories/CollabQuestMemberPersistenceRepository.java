@@ -23,6 +23,11 @@ public interface CollabQuestMemberPersistenceRepository
 
     void deleteBySessionId(Long sessionId);
 
+    List<CollabQuestMemberPersistenceEntity> findBySessionIdOrderByIdAsc(Long sessionId);
+    List<CollabQuestMemberPersistenceEntity> findByUserIdOrderByIdDesc(Long userId);
+    List<CollabQuestMemberPersistenceEntity> findByUserIdAndStatusOrderByIdDesc(
+            Long userId, CollabMemberStatus status);
+
     List<CollabQuestMemberPersistenceEntity> findBySessionIdAndStatusIn(
             Long sessionId,
             List<CollabMemberStatus> statuses
