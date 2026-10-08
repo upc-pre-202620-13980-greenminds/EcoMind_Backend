@@ -4,6 +4,7 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 import pe.greenminds.ecomind.quests.application.commandservices.FamilyPlanCommandService;
 import pe.greenminds.ecomind.quests.application.internal.queryservices.FamilyPlanStateAssembler;
+import pe.greenminds.ecomind.quests.application.internal.outboundservices.acl.UsersServiceClient;
 import pe.greenminds.ecomind.quests.application.queryservices.FamilyPlanState;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.ActivityUser;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.CollabQuestMember;
@@ -50,6 +51,7 @@ public class FamilyPlanCommandServiceImpl implements FamilyPlanCommandService {
     private final QuestUserRepository questUserRepository;
     private final ActivityUserRepository activityUserRepository;
     private final FamilyPlanStateAssembler familyPlanStateAssembler;
+    private final UsersServiceClient usersServiceClient;
 
     public FamilyPlanCommandServiceImpl(
             FamilyPlanRepository familyPlanRepository,
@@ -60,7 +62,8 @@ public class FamilyPlanCommandServiceImpl implements FamilyPlanCommandService {
             CollabQuestMemberRepository collabQuestMemberRepository,
             QuestUserRepository questUserRepository,
             ActivityUserRepository activityUserRepository,
-            FamilyPlanStateAssembler familyPlanStateAssembler
+            FamilyPlanStateAssembler familyPlanStateAssembler,
+            UsersServiceClient usersServiceClient
     ) {
         this.familyPlanRepository = familyPlanRepository;
         this.familyPlanItemRepository = familyPlanItemRepository;
@@ -71,6 +74,7 @@ public class FamilyPlanCommandServiceImpl implements FamilyPlanCommandService {
         this.questUserRepository = questUserRepository;
         this.activityUserRepository = activityUserRepository;
         this.familyPlanStateAssembler = familyPlanStateAssembler;
+        this.usersServiceClient = usersServiceClient;
     }
 
     @Transactional
@@ -154,9 +158,22 @@ public class FamilyPlanCommandServiceImpl implements FamilyPlanCommandService {
             ));
         }
 
-        // Membership validation belongs to the future users/profile integration.
-        // Until that boundary exists, the owner is the only known participant.
-        var familyMembers = List.of(plan.get().getOwnerUserId());
+        var familyMembers = usersServiceClient.getFamilyMemberIds(plan.get().getFamilyId());
+        if (familyMembers.isEmpty()) {
+            return Result.failure(ApplicationError.notFound(
+                    "Family",
+                    plan.get().getFamilyId().toString()
+            ));
+        }
+        if (!familyMembers.contains(plan.get().getOwnerUserId())) {
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "Family plan owner must belong to the family",
+                    "User %d does not belong to Family %d".formatted(
+                            plan.get().getOwnerUserId(),
+                            plan.get().getFamilyId()
+                    )
+            ));
+        }
 
         for (var item : items) {
             var validation = validateFamilyQuest(item.getQuestId());
@@ -326,6 +343,16 @@ public class FamilyPlanCommandServiceImpl implements FamilyPlanCommandService {
             Long ownerUserId,
             List<FamilyPlanItemCommand> items
     ) {
+        if (!usersServiceClient.existsUser(ownerUserId)) {
+            return ApplicationError.notFound("User", ownerUserId.toString());
+        }
+        if (!usersServiceClient.isFamilyMember(familyId, ownerUserId)) {
+            return ApplicationError.businessRuleViolation(
+                    "Family plan owner must belong to the family",
+                    "User %d does not belong to Family %d".formatted(ownerUserId, familyId)
+            );
+        }
+
         var requestedItems = items == null ? List.<FamilyPlanItemCommand>of() : items;
         for (var item : requestedItems) {
             var validation = validateFamilyQuest(item.questId());
