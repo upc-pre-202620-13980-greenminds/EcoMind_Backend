@@ -6,7 +6,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import pe.greenminds.ecomind.gamification.application.commandservices.AchievementCommandService;
 import pe.greenminds.ecomind.gamification.application.commandservices.FamilyRewardCommandService;
 import pe.greenminds.ecomind.gamification.application.commandservices.RewardCommandService;
 import pe.greenminds.ecomind.gamification.application.outboundservices.GamificationDependencyUnavailableException;
@@ -35,7 +34,6 @@ import java.util.UUID;
 public class PublishedQuestCompletionConsumer {
     private final RewardCommandService rewards;
     private final FamilyRewardCommandService families;
-    private final AchievementCommandService achievements;
     private final QuestExperienceRepository experience;
     private final ZoneId zone;
     private final QuestServiceClient quests;
@@ -43,13 +41,11 @@ public class PublishedQuestCompletionConsumer {
     public PublishedQuestCompletionConsumer(
             RewardCommandService rewards,
             FamilyRewardCommandService families,
-            AchievementCommandService achievements,
             QuestExperienceRepository experience,
             QuestServiceClient quests,
             @Value("${gamification.activity-zone:America/Lima}") String zone) {
         this.rewards = rewards;
         this.families = families;
-        this.achievements = achievements;
         this.experience = experience;
         this.zone = ZoneId.of(zone);
         this.quests = quests;
@@ -109,7 +105,6 @@ public class PublishedQuestCompletionConsumer {
                                 execution, family, 0, e.completedAt().toInstant()));
         if (result.isFailure())
             throw new IllegalStateException("Unknown family for completed plan");
-        achievements.recognizeFamilyPlan(family, execution, e.completedAt().toInstant());
     }
 
     private Reward base(Long quest, Integer points, Integer gems) {

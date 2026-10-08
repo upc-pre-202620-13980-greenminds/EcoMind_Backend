@@ -24,6 +24,8 @@ public interface CommunityContextFacade {
             Objects.requireNonNull(requestId);
             Objects.requireNonNull(awardId);
             Objects.requireNonNull(communityId);
+            if (communityId <= 0)
+                throw new IllegalArgumentException("Community id must be positive");
             requireUser(requestedBy);
         }
     }

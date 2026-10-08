@@ -9,17 +9,23 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import pe.greenminds.ecomind.gamification.application.commandservices.AchievementCommandService;
 import pe.greenminds.ecomind.gamification.application.commandservices.FamilyRewardCommandService;
 import pe.greenminds.ecomind.gamification.application.commandservices.RewardCommandService;
 import pe.greenminds.ecomind.gamification.application.queryservices.GamificationQueryService;
+import pe.greenminds.ecomind.gamification.domain.model.aggregates.Achievement;
 import pe.greenminds.ecomind.gamification.domain.model.commands.GrantFamilyPlanRewardCommand;
 import pe.greenminds.ecomind.gamification.domain.model.commands.GrantQuestRewardCommand;
+import pe.greenminds.ecomind.gamification.domain.model.valueobjects.AchievementMetric;
+import pe.greenminds.ecomind.gamification.domain.model.valueobjects.AchievementScope;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.FamilyId;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.Reward;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.UserId;
@@ -30,12 +36,15 @@ import pe.greenminds.ecomind.iam.application.outboundservices.TokenService;
 import pe.greenminds.ecomind.iam.domain.model.valueobjects.AccountId;
 import pe.greenminds.ecomind.iam.domain.model.valueobjects.AuthenticatedUser;
 import pe.greenminds.ecomind.iam.domain.model.valueobjects.EmailAddress;
+import pe.greenminds.ecomind.quests.interfaces.events.FamilyPlanCompletedIntegrationEvent;
 import pe.greenminds.ecomind.users.domain.model.aggregates.Family;
 import pe.greenminds.ecomind.users.domain.repositories.FamilyRepository;
 import pe.greenminds.ecomind.users.infrastructure.persistence.jpa.repositories.FamilyPersistenceRepository;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -59,12 +68,18 @@ class FamilyGamificationTests {
     @Autowired PlatformTransactionManager transactions;
     @Autowired MockMvc http;
     @Autowired TokenService tokens;
+    @Autowired ApplicationEventPublisher events;
+    @Autowired AchievementCommandService achievements;
+    @Autowired JdbcTemplate jdbc;
     Family family;
     FamilyId familyId;
     static final long MEMBER = 6001L;
 
     @BeforeEach
     void setup() {
+        jdbc.update("DELETE FROM achievement_awards");
+        jdbc.update("DELETE FROM achievements");
+        jdbc.update("DELETE FROM achievement_milestones");
         rewardRows.deleteAll();
         scores.deleteAll();
         progress.deleteAll();
@@ -167,6 +182,52 @@ class FamilyGamificationTests {
         }
         assertEquals(1, rewardRows.count());
         assertEquals(30, scores.findById(familyId.value()).orElseThrow().getTotalEcopoints());
+    }
+
+    @Test
+    void publishedFamilyPlanRetryRecognizesOnceWithoutRepeatingIndividualQuestRewards() {
+        achievements.register(
+                new Achievement(
+                        UUID.randomUUID(),
+                        "FAMILY_TEAM",
+                        "Family team",
+                        "We finished a plan together",
+                        AchievementScope.FAMILY,
+                        AchievementMetric.COMPLETED_FAMILY_PLANS,
+                        1,
+                        true));
+        individualRewards.handle(
+                new GrantQuestRewardCommand(
+                        UUID.randomUUID(),
+                        new UserId(MEMBER),
+                        Instant.now(),
+                        LocalDate.of(2026, 10, 7),
+                        false,
+                        new Reward(12, 5, 0)));
+        for (int i = 0; i < 2; i++) {
+            var event =
+                    new FamilyPlanCompletedIntegrationEvent(
+                            UUID.randomUUID(),
+                            77L,
+                            familyId.value(),
+                            MEMBER,
+                            List.of(MEMBER),
+                            Instant.parse("2026-10-08T03:00:00Z").atOffset(ZoneOffset.UTC));
+            new TransactionTemplate(transactions)
+                    .executeWithoutResult(s -> events.publishEvent(event));
+        }
+        assertEquals(12, individualQueries.getUserProgress(new UserId(MEMBER)).getTotalEcopoints());
+        assertEquals(5, individualQueries.getUserProgress(new UserId(MEMBER)).getTotalExperience());
+        assertEquals(0, scores.findById(familyId.value()).orElseThrow().getTotalEcopoints());
+        assertEquals(2, rewardRows.count());
+        assertEquals(
+                1,
+                jdbc.queryForObject("SELECT COUNT(*) FROM achievement_milestones", Integer.class));
+        assertEquals(
+                1,
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM achievement_awards WHERE scope='FAMILY'",
+                        Integer.class));
     }
 
     @Test

@@ -3,6 +3,7 @@ package pe.greenminds.ecomind.gamification.infrastructure.acl;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
+import pe.greenminds.ecomind.community.interfaces.acl.AmbiguousLocalCommunityException;
 import pe.greenminds.ecomind.community.interfaces.acl.CommunityContextFacade;
 import pe.greenminds.ecomind.gamification.application.outboundservices.CommunityServiceClient;
 import pe.greenminds.ecomind.gamification.application.outboundservices.GamificationDependencyUnavailableException;
@@ -23,7 +24,12 @@ public class CommunityServiceClientImpl implements CommunityServiceClient {
     }
 
     public Optional<Long> findLocalCommunity(Long userId) {
-        return requireSupplier().findLocalCommunity(userId);
+        try {
+            return requireSupplier().findLocalCommunity(userId);
+        } catch (AmbiguousLocalCommunityException exception) {
+            throw new GamificationDependencyUnavailableException(
+                    "Community must resolve conflicting local memberships before ranking");
+        }
     }
 
     public boolean isMember(Long communityId, Long userId) {

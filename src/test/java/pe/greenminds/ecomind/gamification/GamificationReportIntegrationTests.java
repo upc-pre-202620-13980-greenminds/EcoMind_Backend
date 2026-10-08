@@ -642,6 +642,53 @@ class GamificationReportIntegrationTests {
     }
 
     @Test
+    void invalidCanonicalCommunityIdsAreRejectedBeforeRewardsOrAwardsCanBeRecorded() {
+        for (long id : new long[] {0, -1}) {
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () ->
+                            new CommunityGoalCompletedIntegrationEvent(
+                                    UUID.randomUUID(),
+                                    UUID.randomUUID(),
+                                    UUID.randomUUID(),
+                                    id,
+                                    List.of(USER.value()),
+                                    null,
+                                    AT));
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () ->
+                            new CommunityEventCompletedIntegrationEvent(
+                                    UUID.randomUUID(),
+                                    UUID.randomUUID(),
+                                    id,
+                                    List.of(USER.value()),
+                                    null,
+                                    AT));
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () ->
+                            new AchievementAward(
+                                    UUID.randomUUID(),
+                                    UUID.randomUUID(),
+                                    AchievementScope.COMMUNITY,
+                                    null,
+                                    UUID.randomUUID(),
+                                    AT,
+                                    id));
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () ->
+                            new CommunityContextFacade.PublishAchievement(
+                                    UUID.randomUUID(), UUID.randomUUID(), USER.value(), id));
+        }
+        assertEquals(
+                0, jdbc.queryForObject("SELECT COUNT(*) FROM reward_transactions", Integer.class));
+        assertEquals(
+                0, jdbc.queryForObject("SELECT COUNT(*) FROM achievement_awards", Integer.class));
+    }
+
+    @Test
     void shareEndpointsUseAuthenticatedIdentityAndEnforceRequestOwnership() throws Exception {
         var award = unlock();
         var request = UUID.randomUUID();
@@ -713,7 +760,10 @@ class GamificationReportIntegrationTests {
                         get("/api/v1/user_achievement")
                                 .param("user_id", OTHER.value().toString())
                                 .header("Authorization", auth))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACHIEVEMENT_OWNER_REQUIRED"))
+                .andExpect(jsonPath("$.message").isString())
+                .andExpect(jsonPath("$.type").doesNotExist());
     }
 
     @Test
@@ -800,6 +850,78 @@ class GamificationReportIntegrationTests {
                         Integer.class,
                         USER.value()));
         assertEquals(DAY, progress.getUserProgress(USER).getLastActivityDate());
+    }
+
+    @Test
+    void closureRecoversSeveralClosedDaysWithoutPretendingTheyWereDailyActivities() {
+        rewards.handle(quest(USER, AT, true, new Reward(10, 0, 0)));
+        jdbc.update(
+                "INSERT INTO protector_inventories (id,user_id,protector_id,quantity,version)"
+                        + " VALUES (?,?,?,?,0)",
+                UUID.randomUUID().toString(),
+                USER.value(),
+                STREAK_SHIELD.toString(),
+                3);
+        var closedThrough = DAY.plusDays(3);
+        for (int day = 1; day <= 3; day++) {
+            closure.closeThrough(closedThrough, AT.plusSeconds(4 * 86400));
+            closure.closeThrough(closedThrough, AT.plusSeconds(4 * 86400));
+            var message =
+                    outbox.findAll().stream()
+                            .filter(m -> m.getDeliveredAt() == null)
+                            .findFirst()
+                            .orElseThrow();
+            delivery.deliver(message.getId());
+            delivery.deliver(message.getId());
+            assertEquals(
+                    StreakProtectionStatus.PROTECTED,
+                    protections.find(USER, DAY.plusDays(day)).orElseThrow().status());
+            assertEquals(DAY, progress.getUserProgress(USER).getLastActivityDate());
+            assertEquals(1, progress.getUserProgress(USER).getCurrentStreak());
+        }
+        closure.closeThrough(closedThrough, AT.plusSeconds(4 * 86400));
+        assertEquals(3, outbox.count());
+        assertEquals(
+                0,
+                jdbc.queryForObject(
+                        "SELECT quantity FROM protector_inventories WHERE user_id=?",
+                        Integer.class,
+                        USER.value()));
+        rewards.handle(quest(USER, AT.plusSeconds(4 * 86400), true, new Reward(1, 0, 0)));
+        assertEquals(2, progress.getUserProgress(USER).getCurrentStreak());
+        assertEquals(DAY.plusDays(4), progress.getUserProgress(USER).getLastActivityDate());
+    }
+
+    @Test
+    void pagedRewardResourcePreservesSourceBeneficiaryAndBaseVersusEffectiveAmounts()
+            throws Exception {
+        UUID game = UUID.randomUUID();
+        rewards.handle(
+                new GrantMinigameRewardCommand(
+                        UUID.randomUUID(), game, USER, AT, new Reward(100, 20, 10)));
+        rewards.handle(
+                new GrantMinigameRewardCommand(
+                        UUID.randomUUID(), game, USER, AT.plusSeconds(1), new Reward(100, 20, 10)));
+        http.perform(
+                        get("/api/v1/gamification/rewards")
+                                .param("from", AT.plusSeconds(1).toString())
+                                .param("to", AT.plusSeconds(2).toString())
+                                .param("size", "1")
+                                .header("Authorization", bearer(USER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(1))
+                .andExpect(jsonPath("$.hasNext").value(false))
+                .andExpect(jsonPath("$.items[0].source.type").value("MINIGAME"))
+                .andExpect(jsonPath("$.items[0].source.executionId").isString())
+                .andExpect(jsonPath("$.items[0].beneficiary.type").value("USER"))
+                .andExpect(jsonPath("$.items[0].beneficiary.id").value(USER.value()))
+                .andExpect(jsonPath("$.items[0].baseReward.ecopoints").value(100))
+                .andExpect(jsonPath("$.items[0].grantedReward.ecopoints").value(80))
+                .andExpect(jsonPath("$.items[0].grantedReward.experience").value(16))
+                .andExpect(jsonPath("$.items[0].grantedReward.gems").value(8));
+        assertEquals(
+                2, jdbc.queryForObject("SELECT COUNT(*) FROM reward_transactions", Integer.class));
     }
 
     @Test

@@ -19,6 +19,8 @@ import pe.greenminds.ecomind.gamification.domain.model.valueobjects.BeneficiaryT
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.RankingPeriod;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.RewardBeneficiary;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.UserId;
+import pe.greenminds.ecomind.gamification.interfaces.rest.transform.PageResourceFromReadModelAssembler;
+import pe.greenminds.ecomind.gamification.interfaces.rest.transform.RewardHistoryResourceFromEntityAssembler;
 import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
 import pe.greenminds.ecomind.shared.interfaces.rest.transform.ResponseEntityAssembler;
 
@@ -63,6 +65,11 @@ public class RewardController {
                         page,
                         size);
         return responses.toResponseEntityFromResult(
-                queries.handle(q), result -> result, HttpStatus.OK);
+                queries.handle(q),
+                result ->
+                        PageResourceFromReadModelAssembler.toResourceFromReadModel(
+                                result,
+                                RewardHistoryResourceFromEntityAssembler::toResourceFromEntity),
+                HttpStatus.OK);
     }
 }

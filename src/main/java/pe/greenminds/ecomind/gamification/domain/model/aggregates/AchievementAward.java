@@ -32,7 +32,7 @@ public record AchievementAward(
         Objects.requireNonNull(sourceEventId);
         Objects.requireNonNull(awardedAt);
         if (scope == AchievementScope.COMMUNITY
-                ? communityId == null || beneficiaryId != null
+                ? communityId == null || communityId <= 0 || beneficiaryId != null
                 : communityId != null || beneficiaryId == null || beneficiaryId <= 0)
             throw new IllegalArgumentException("Beneficiary id must be positive");
     }

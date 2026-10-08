@@ -14,10 +14,7 @@ public class UserProgress {
     private final UserId userId;
     private long totalEcopoints;
     private long totalExperience;
-    private int currentStreak;
-    private int longestStreak;
-    private LocalDate lastActivityDate;
-    private LocalDate lastProtectedDate;
+    private Streak streak;
 
     public UserProgress(
             UserId userId,
@@ -35,9 +32,7 @@ public class UserProgress {
         this.userId = Objects.requireNonNull(userId);
         this.totalEcopoints = totalEcopoints;
         this.totalExperience = totalExperience;
-        this.currentStreak = currentStreak;
-        this.longestStreak = longestStreak;
-        this.lastActivityDate = lastActivityDate;
+        this.streak = new Streak(currentStreak, longestStreak, lastActivityDate, null);
     }
 
     public static UserProgress empty(UserId userId) {
@@ -48,38 +43,27 @@ public class UserProgress {
         totalEcopoints = Math.addExact(totalEcopoints, reward.ecopoints());
         totalExperience = Math.addExact(totalExperience, reward.experience());
         if (countsForDailyStreak)
-            applyStreak(new StreakService().registerDailyActivity(streak(), activityDate));
-    }
-
-    private Streak streak() {
-        return new Streak(currentStreak, longestStreak, lastActivityDate, lastProtectedDate);
-    }
-
-    private void applyStreak(Streak streak) {
-        currentStreak = streak.current();
-        longestStreak = streak.longest();
-        lastActivityDate = streak.lastActivityDate();
-        lastProtectedDate = streak.lastProtectedDate();
+            streak = new StreakService().registerDailyActivity(streak, activityDate);
     }
 
     public void restoreProtectedDate(LocalDate date) {
-        lastProtectedDate = date;
+        streak = new Streak(streak.current(), streak.longest(), streak.lastActivityDate(), date);
     }
 
     public LocalDate getLastProtectedDate() {
-        return lastProtectedDate;
+        return streak.lastProtectedDate();
     }
 
     public LocalDate getLastContinuityDate() {
-        return streak().continuityDate();
+        return streak.continuityDate();
     }
 
     public void protect(LocalDate date) {
-        applyStreak(new StreakService().confirmProtection(streak(), date));
+        streak = new StreakService().confirmProtection(streak, date);
     }
 
     public void resetForMissedDay(LocalDate date) {
-        applyStreak(new StreakService().confirmUnavailable(streak(), date));
+        streak = new StreakService().confirmUnavailable(streak, date);
     }
 
     public UserId getUserId() {
@@ -95,14 +79,14 @@ public class UserProgress {
     }
 
     public int getCurrentStreak() {
-        return currentStreak;
+        return streak.current();
     }
 
     public int getLongestStreak() {
-        return longestStreak;
+        return streak.longest();
     }
 
     public LocalDate getLastActivityDate() {
-        return lastActivityDate;
+        return streak.lastActivityDate();
     }
 }

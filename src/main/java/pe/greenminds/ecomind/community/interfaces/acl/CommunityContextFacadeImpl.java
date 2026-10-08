@@ -34,13 +34,17 @@ public class CommunityContextFacadeImpl implements CommunityContextFacade {
     }
 
     public Optional<Long> findLocalCommunity(Long userId) {
-        return memberships.findByUserId(userId).stream()
-                .map(m -> communities.findById(m.communityId()))
-                .flatMap(Optional::stream)
-                .filter(c -> "local".equals(c.getType()))
-                .map(c -> c.getId())
-                .sorted()
-                .findFirst();
+        var localIds =
+                memberships.findByUserId(userId).stream()
+                        .map(m -> communities.findById(m.communityId()))
+                        .flatMap(Optional::stream)
+                        .filter(c -> "local".equals(c.getType()))
+                        .map(c -> c.getId())
+                        .distinct()
+                        .limit(2)
+                        .toList();
+        if (localIds.size() > 1) throw new AmbiguousLocalCommunityException(userId);
+        return localIds.stream().findFirst();
     }
 
     public boolean isMember(Long communityId, Long userId) {

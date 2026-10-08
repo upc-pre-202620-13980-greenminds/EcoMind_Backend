@@ -16,6 +16,7 @@ public record CommunityEventCompletedIntegrationEvent(
         Objects.requireNonNull(eventId);
         Objects.requireNonNull(executionId);
         Objects.requireNonNull(communityId);
+        if (communityId <= 0) throw new IllegalArgumentException("Community id must be positive");
         Objects.requireNonNull(occurredAt);
         eligibleParticipantIds = List.copyOf(eligibleParticipantIds);
         if (eligibleParticipantIds.stream().anyMatch(id -> id == null || id <= 0)

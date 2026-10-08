@@ -15,12 +15,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import pe.greenminds.ecomind.gamification.application.queryservices.RankingQueryService;
-import pe.greenminds.ecomind.gamification.domain.model.valueobjects.RankingEntry;
-import pe.greenminds.ecomind.gamification.domain.model.valueobjects.RankingPage;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.RankingPeriod;
-import pe.greenminds.ecomind.gamification.domain.model.valueobjects.RankingTransaction;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.RankingType;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.UserId;
+import pe.greenminds.ecomind.gamification.interfaces.rest.resources.PageResource;
+import pe.greenminds.ecomind.gamification.interfaces.rest.resources.RankingEntryResource;
+import pe.greenminds.ecomind.gamification.interfaces.rest.resources.RankingTransactionResource;
+import pe.greenminds.ecomind.gamification.interfaces.rest.transform.PageResourceFromReadModelAssembler;
+import pe.greenminds.ecomind.gamification.interfaces.rest.transform.RankingResourceFromEntityAssembler;
 import pe.greenminds.ecomind.shared.infrastructure.documentation.openapi.configuration.OpenApiConfiguration;
 import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
 
@@ -52,7 +54,7 @@ public class RankingController {
             description =
                     "Ordered by identity, not position. FRIENDS includes the JWT holder and"
                             + " accepted friends. Pages start at zero; maximum size is 100.")
-    public RankingPage<RankingEntry> participants(
+    public PageResource<RankingEntryResource> participants(
             @Parameter(
                             schema =
                                     @Schema(
@@ -68,7 +70,9 @@ public class RankingController {
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return queries.participants(type, new UserId(principal.accountId()), page, size);
+        return PageResourceFromReadModelAssembler.toResourceFromReadModel(
+                queries.participants(type, new UserId(principal.accountId()), page, size),
+                RankingResourceFromEntityAssembler::toResourceFromEntity);
     }
 
     @GetMapping("/{type}/transactions")
@@ -78,7 +82,7 @@ public class RankingController {
                     "UTC from is inclusive and to is exclusive. Follow hasNext to aggregate all"
                         + " pages. Pages start at zero; maximum size is 100. Queries never grant"
                         + " rewards.")
-    public RankingPage<RankingTransaction> transactions(
+    public PageResource<RankingTransactionResource> transactions(
             @Parameter(
                             schema =
                                     @Schema(
@@ -96,7 +100,13 @@ public class RankingController {
             @RequestParam Instant to,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return queries.transactions(
-                type, new UserId(principal.accountId()), new RankingPeriod(from, to), page, size);
+        return PageResourceFromReadModelAssembler.toResourceFromReadModel(
+                queries.transactions(
+                        type,
+                        new UserId(principal.accountId()),
+                        new RankingPeriod(from, to),
+                        page,
+                        size),
+                RankingResourceFromEntityAssembler::toResourceFromEntity);
     }
 }

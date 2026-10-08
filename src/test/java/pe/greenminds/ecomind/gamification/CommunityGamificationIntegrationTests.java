@@ -173,6 +173,29 @@ class CommunityGamificationIntegrationTests {
     }
 
     @Test
+    void conflictingLocalMembershipsCannotSilentlyChooseAnotherRankingScope() throws Exception {
+        communities
+                .handle(
+                        new CreateLocalCommunityCommand(
+                                "Los Cedros", "Un barrio unido", "San Borja", null, USER.value()))
+                .toOptional()
+                .orElseThrow();
+        http.perform(
+                        get("/api/v1/gamification/rankings/LOCAL/participants")
+                                .header("Authorization", bearer(USER)))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("GAMIFICATION_DEPENDENCY_UNAVAILABLE"));
+        http.perform(
+                        get("/api/v1/gamification/rankings/LOCAL/transactions")
+                                .param("from", AT.minusSeconds(1).toString())
+                                .param("to", AT.plusSeconds(1).toString())
+                                .header("Authorization", bearer(USER)))
+                .andExpect(status().isServiceUnavailable());
+        assertEquals(0, count("reward_transactions"));
+        assertEquals(0, count("user_progresses"));
+    }
+
+    @Test
     void publicationIsPersistedAndExactlyConfirmedWithNumericIds() throws Exception {
         var award = unlock();
         UUID request = UUID.randomUUID();

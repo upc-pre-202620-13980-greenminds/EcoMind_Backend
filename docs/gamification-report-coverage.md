@@ -103,3 +103,18 @@ Any old prototype UUID references require an explicit mapping before conversion;
 The report remains the requested current product authority. The older Notion snapshot's broader IoT
 journey excludes shop/rankings provisionally; it does not override the user's explicit current
 course report and implemented shop/ranking scope. No shared Notion or report edits were performed.
+
+## Fresh implementation review — 2026-10-08
+
+See [the new analysis](gamification-reanalysis-20261008.md) for individual findings, report/legacy
+sources and remediation. Ranking/period-history now use explicit REST resources and static
+assemblers; the TS-006 ownership error uses the shared error resource. UserProgress contains Streak
+directly. The published family-plan consumer delegates recognition once to its command service.
+Canonical Community ids are validated as positive in completion/publication contracts and awards.
+Conflicting local memberships yield a dependency-unavailable response instead of an arbitrary
+ranking scope; the underlying Community creation/membership consistency remains Community work.
+
+Fresh verification: full clean package 242 JUnit tests and seven selected native PostgreSQL suites
+74 tests, no failures/errors/skips. The final public-error change was additionally checked by the
+35-test report integration suite on native PostgreSQL; these results overlap and must not be added
+as distinct tests. Evidence remains local and outside Git.
