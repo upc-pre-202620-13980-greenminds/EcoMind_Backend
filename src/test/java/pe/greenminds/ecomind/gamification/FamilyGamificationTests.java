@@ -144,7 +144,7 @@ class FamilyGamificationTests {
                         Instant.now(),
                         LocalDate.of(2026, 10, 7),
                         true,
-                        new Reward(7, 3, 0)));
+                        new Reward(7, 0)));
         assertEquals(7, individualQueries.getUserProgress(userId).getTotalEcopoints());
         assertEquals(1, individualQueries.getRecentRewards(userId).size());
         http.perform(get(path("score")).header("Authorization", bearer(MEMBER)))
@@ -155,7 +155,7 @@ class FamilyGamificationTests {
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].sourceType").value("FAMILY_PLAN"));
         var stored = rewardRows.findById(first.id().toString()).orElseThrow();
-        assertEquals(0, stored.getExperience());
+        assertEquals(0, stored.getLegacyExperience());
         assertEquals(0, stored.getGems());
     }
 
@@ -203,7 +203,7 @@ class FamilyGamificationTests {
                         Instant.now(),
                         LocalDate.of(2026, 10, 7),
                         false,
-                        new Reward(12, 5, 0)));
+                        new Reward(12, 0)));
         for (int i = 0; i < 2; i++) {
             var event =
                     new FamilyPlanCompletedIntegrationEvent(
@@ -217,7 +217,6 @@ class FamilyGamificationTests {
                     .executeWithoutResult(s -> events.publishEvent(event));
         }
         assertEquals(12, individualQueries.getUserProgress(new UserId(MEMBER)).getTotalEcopoints());
-        assertEquals(5, individualQueries.getUserProgress(new UserId(MEMBER)).getTotalExperience());
         assertEquals(0, scores.findById(familyId.value()).orElseThrow().getTotalEcopoints());
         assertEquals(2, rewardRows.count());
         assertEquals(

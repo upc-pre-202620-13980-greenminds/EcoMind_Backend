@@ -16,9 +16,9 @@ public record CommunityGoalCompletedIntegrationEvent(
         List<Long> eligibleParticipantIds,
         ConfiguredReward configuredReward,
         Instant occurredAt) {
-    public record ConfiguredReward(long ecopoints, long experience, int gems) {
+    public record ConfiguredReward(long ecopoints, int gems) {
         public ConfiguredReward {
-            if (ecopoints < 0 || experience < 0 || gems < 0)
+            if (ecopoints < 0 || gems < 0)
                 throw new IllegalArgumentException("Invalid reward amounts");
         }
     }

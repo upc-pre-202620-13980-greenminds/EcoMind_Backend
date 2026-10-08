@@ -25,7 +25,7 @@ class IntegrationContractTests {
         assertThrows(UnsupportedOperationException.class, () -> event.participantIds().add(3L));
         assertThrows(IllegalArgumentException.class, () -> collaborative(List.of(1L, 1L)));
         assertThrows(IllegalArgumentException.class, () -> collaborative(List.of(-1L)));
-        assertThrows(IllegalArgumentException.class, () -> new QuestRewardResource(-1, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new QuestRewardResource(-1, 0));
     }
 
     @Test
@@ -84,7 +84,7 @@ class IntegrationContractTests {
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 participants,
-                new QuestRewardResource(10, 5, 0),
+                new QuestRewardResource(10, 0),
                 Instant.now());
     }
 }

@@ -53,7 +53,7 @@ public class UserProgressRepositoryImpl implements UserProgressRepository {
     public UserProgress save(UserProgress progress) {
         var entity = persistenceRepository.findById(progress.getUserId().value()).orElseThrow();
         entity.setTotalEcopoints(progress.getTotalEcopoints());
-        entity.setTotalExperience(progress.getTotalExperience());
+        entity.setLegacyTotalExperience(progress.getTotalEcopoints());
         entity.setCurrentStreak(progress.getCurrentStreak());
         entity.setLongestStreak(progress.getLongestStreak());
         entity.setLastActivityDate(progress.getLastActivityDate());
@@ -85,7 +85,6 @@ public class UserProgressRepositoryImpl implements UserProgressRepository {
                 new UserProgress(
                         new UserId(entity.getUserId()),
                         entity.getTotalEcopoints(),
-                        entity.getTotalExperience(),
                         entity.getCurrentStreak(),
                         entity.getLongestStreak(),
                         entity.getLastActivityDate());

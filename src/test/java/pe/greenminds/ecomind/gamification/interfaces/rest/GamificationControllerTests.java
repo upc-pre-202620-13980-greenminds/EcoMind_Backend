@@ -50,7 +50,7 @@ class GamificationControllerTests {
                         Instant.now(),
                         LocalDate.of(2026, 10, 5),
                         true,
-                        new Reward(20, 10, 0)));
+                        new Reward(20, 0)));
 
         mockMvc.perform(
                         get("/api/v1/gamification/me/progress")

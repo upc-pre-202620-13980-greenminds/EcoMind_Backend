@@ -5,7 +5,6 @@ import java.time.LocalDate;
 public record UserProgressResource(
         Long userId,
         long totalEcopoints,
-        long totalExperience,
         int currentStreak,
         int longestStreak,
         LocalDate lastActivityDate,

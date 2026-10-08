@@ -88,13 +88,13 @@ class AchievementTests {
                         20,
                         true);
         achievements.register(definition);
-        rewards.handle(command(UUID.randomUUID(), USER, 10, 0, DAY, true));
+        rewards.handle(command(UUID.randomUUID(), USER, 10, DAY, true));
         assertTrue(queries.forUser(USER, 0, 20).isEmpty());
-        var crossing = command(UUID.randomUUID(), USER, 10, 0, DAY, true);
+        var crossing = command(UUID.randomUUID(), USER, 10, DAY, true);
         rewards.handle(crossing);
         var award = queries.forUser(USER, 0, 20).getFirst();
         rewards.handle(crossing);
-        rewards.handle(command(UUID.randomUUID(), USER, 15, 0, DAY, true));
+        rewards.handle(command(UUID.randomUUID(), USER, 15, DAY, true));
         assertEquals(1, queries.forUser(USER, 0, 20).size());
         assertEquals(definition.id(), award.achievementId());
         assertEquals(crossing.sourceExecutionId(), award.sourceEventId());
@@ -102,7 +102,7 @@ class AchievementTests {
     }
 
     @Test
-    void experienceAndStreakUseTheirOwnMetricsAndInactiveDefinitionsDoNotGrant() {
+    void legacyXpMetricUsesTheSameScoreWhileStreakAndInactiveDefinitionsRemainIndependent() {
         achievements.register(
                 definition(
                         "XP", AchievementScope.INDIVIDUAL, AchievementMetric.EXPERIENCE, 10, true));
@@ -123,10 +123,10 @@ class AchievementTests {
         achievements.register(
                 definition(
                         "FAMILY", AchievementScope.FAMILY, AchievementMetric.ECOPOINTS, 1, true));
-        rewards.handle(command(UUID.randomUUID(), USER, 100, 10, DAY, true));
-        rewards.handle(command(UUID.randomUUID(), USER, 100, 0, DAY, true));
+        rewards.handle(command(UUID.randomUUID(), USER, 100, DAY, true));
+        rewards.handle(command(UUID.randomUUID(), USER, 100, DAY, true));
         assertEquals(1, queries.forUser(USER, 0, 20).size());
-        rewards.handle(command(UUID.randomUUID(), USER, 1, 0, DAY.plusDays(1), true));
+        rewards.handle(command(UUID.randomUUID(), USER, 1, DAY.plusDays(1), true));
         assertEquals(2, queries.forUser(USER, 0, 20).size());
     }
 
@@ -146,14 +146,14 @@ class AchievementTests {
                             () -> {
                                 start.await();
                                 return rewards.handle(
-                                        command(UUID.randomUUID(), USER, 10, 0, DAY, true));
+                                        command(UUID.randomUUID(), USER, 10, DAY, true));
                             });
             var second =
                     executor.submit(
                             () -> {
                                 start.await();
                                 return rewards.handle(
-                                        command(UUID.randomUUID(), USER, 10, 0, DAY, true));
+                                        command(UUID.randomUUID(), USER, 10, DAY, true));
                             });
             start.countDown();
             first.get(10, TimeUnit.SECONDS);
@@ -255,7 +255,7 @@ class AchievementTests {
                         AchievementMetric.ECOPOINTS,
                         1,
                         true));
-        rewards.handle(command(UUID.randomUUID(), USER, 1, 0, DAY, true));
+        rewards.handle(command(UUID.randomUUID(), USER, 1, DAY, true));
         String path = "/api/v1/gamification/me/achievements";
         http.perform(get(path).header("Authorization", bearer(USER.value())))
                 .andExpect(status().isOk())
@@ -281,13 +281,7 @@ class AchievementTests {
                                 .executeWithoutResult(
                                         status -> {
                                             rewards.handle(
-                                                    command(
-                                                            UUID.randomUUID(),
-                                                            USER,
-                                                            1,
-                                                            0,
-                                                            DAY,
-                                                            true));
+                                                    command(UUID.randomUUID(), USER, 1, DAY, true));
                                             assertEquals(1, queries.forUser(USER, 0, 20).size());
                                             throw new IllegalStateException(
                                                     "Simulate failure in the completion"
@@ -309,15 +303,10 @@ class AchievementTests {
                                 AchievementMetric.ECOPOINTS,
                                 0,
                                 true));
-        assertThrows(
-                IllegalArgumentException.class,
-                () ->
-                        definition(
-                                "XP",
-                                AchievementScope.FAMILY,
-                                AchievementMetric.EXPERIENCE,
-                                1,
-                                true));
+        assertEquals(
+                AchievementMetric.ECOPOINTS,
+                definition("XP", AchievementScope.FAMILY, AchievementMetric.EXPERIENCE, 1, true)
+                        .metric());
         var definition =
                 definition(
                         "UNIQUE",
@@ -357,14 +346,14 @@ class AchievementTests {
     }
 
     private GrantQuestRewardCommand command(
-            UUID execution, UserId user, long points, long xp, LocalDate date, boolean daily) {
+            UUID execution, UserId user, long points, LocalDate date, boolean daily) {
         return new GrantQuestRewardCommand(
                 execution,
                 user,
                 date.atStartOfDay().toInstant(java.time.ZoneOffset.UTC),
                 date,
                 daily,
-                new Reward(points, xp, 0));
+                new Reward(points, 0));
     }
 
     private String bearer(long id) {

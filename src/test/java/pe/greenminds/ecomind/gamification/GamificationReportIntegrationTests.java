@@ -34,14 +34,12 @@ import pe.greenminds.ecomind.community.interfaces.acl.events.PublicationCreatedI
 import pe.greenminds.ecomind.gamification.application.commandservices.AchievementCommandService;
 import pe.greenminds.ecomind.gamification.application.commandservices.RewardCommandService;
 import pe.greenminds.ecomind.gamification.application.commandservices.StreakProtectionCommandService;
-import pe.greenminds.ecomind.gamification.application.internal.commandservices.QuestExperienceCommandService;
 import pe.greenminds.ecomind.gamification.application.internal.services.DailyStreakClosureService;
 import pe.greenminds.ecomind.gamification.application.queryservices.AchievementQueryService;
 import pe.greenminds.ecomind.gamification.application.queryservices.GamificationQueryService;
 import pe.greenminds.ecomind.gamification.application.queryservices.RankingQueryService;
 import pe.greenminds.ecomind.gamification.domain.model.aggregates.Achievement;
 import pe.greenminds.ecomind.gamification.domain.model.aggregates.AchievementAward;
-import pe.greenminds.ecomind.gamification.domain.model.commands.ConfigureQuestExperienceCommand;
 import pe.greenminds.ecomind.gamification.domain.model.commands.ConfirmAchievementPublicationCommand;
 import pe.greenminds.ecomind.gamification.domain.model.commands.GrantCollaborativeQuestRewardCommand;
 import pe.greenminds.ecomind.gamification.domain.model.commands.GrantMinigameRewardCommand;
@@ -101,7 +99,6 @@ class GamificationReportIntegrationTests {
     @Autowired GamificationOutboxPersistenceRepository outbox;
     @Autowired GamificationOutboxDeliveryService delivery;
     @Autowired DailyStreakClosureService closure;
-    @Autowired QuestExperienceCommandService experience;
     @Autowired ApplicationEventPublisher events;
     @Autowired PlatformTransactionManager transactions;
     @Autowired UserProfileRepository profiles;
@@ -126,7 +123,6 @@ class GamificationReportIntegrationTests {
                         "achievement_milestone_locks",
                         "achievements",
                         "gamification_minigame_completions",
-                        "gamification_quest_experiences",
                         "minigame_attempts",
                         "reward_transactions",
                         "user_progresses",
@@ -172,7 +168,7 @@ class GamificationReportIntegrationTests {
                                             game,
                                             USER,
                                             AT.plusSeconds(i),
-                                            new Reward(100, 20, 10)))
+                                            new Reward(100, 10)))
                             .grantedReward()
                             .ecopoints());
         assertEquals(List.of(100L, 80L, 50L, 20L, 0L, 0L), points);
@@ -183,7 +179,7 @@ class GamificationReportIntegrationTests {
                                 game,
                                 USER,
                                 AT.plusSeconds(10806),
-                                new Reward(100, 20, 10)));
+                                new Reward(100, 10)));
         assertEquals(100, renewed.grantedReward().ecopoints());
         assertEquals(0, progress.getUserProgress(USER).getCurrentStreak());
     }
@@ -192,26 +188,26 @@ class GamificationReportIntegrationTests {
     void minigameRetryDoesNotConsumeAnotherRepetitionAndUsersHaveIndependentWindows() {
         var game = UUID.randomUUID();
         var execution = UUID.randomUUID();
-        var c = new GrantMinigameRewardCommand(execution, game, USER, AT, new Reward(10, 0, 0));
+        var c = new GrantMinigameRewardCommand(execution, game, USER, AT, new Reward(10, 0));
         assertEquals(rewards.handle(c).id(), rewards.handle(c).id());
         assertEquals(
                 10,
                 rewards.handle(
                                 new GrantMinigameRewardCommand(
-                                        UUID.randomUUID(), game, OTHER, AT, new Reward(10, 0, 0)))
+                                        UUID.randomUUID(), game, OTHER, AT, new Reward(10, 0)))
                         .grantedReward()
                         .ecopoints());
         assertEquals(
                 8,
                 rewards.handle(
                                 new GrantMinigameRewardCommand(
-                                        UUID.randomUUID(), game, USER, AT, new Reward(10, 0, 0)))
+                                        UUID.randomUUID(), game, USER, AT, new Reward(10, 0)))
                         .grantedReward()
                         .ecopoints());
     }
 
     @Test
-    void multiplierChangesOnlyExperienceWithinItsValidity() {
+    void multiplierBoostsTheEcopointsScoreWithinItsValidityAndLeavesGemsUnchanged() {
         jdbc.update(
                 "INSERT INTO user_multipliers"
                         + " (id,user_id,multiplier_id,factor,starts_at,expires_at) VALUES"
@@ -222,19 +218,39 @@ class GamificationReportIntegrationTests {
                 new BigDecimal("2.5"),
                 java.sql.Timestamp.from(AT),
                 java.sql.Timestamp.from(AT.plusSeconds(60)));
-        var active = rewards.handle(quest(USER, AT, false, new Reward(10, 11, 3)));
-        assertEquals(new Reward(10, 27, 3), active.grantedReward());
+        var active = rewards.handle(quest(USER, AT, false, new Reward(10, 3)));
+        assertEquals(new Reward(25, 3), active.grantedReward());
         assertNotNull(active.multiplierId());
         assertEquals(new BigDecimal("2.5"), active.appliedFactor());
         assertEquals(
                 active.multiplierId(), progress.getRecentRewards(USER).getFirst().multiplierId());
-        var expired = rewards.handle(quest(USER, AT.plusSeconds(60), false, new Reward(10, 11, 3)));
-        assertEquals(new Reward(10, 11, 3), expired.grantedReward());
+        var expired = rewards.handle(quest(USER, AT.plusSeconds(60), false, new Reward(10, 3)));
+        assertEquals(new Reward(10, 3), expired.grantedReward());
+    }
+
+    @Test
+    void historicalXpColumnsDoNotCreateAnotherScoreOrChangeRewardAmounts() throws Exception {
+        var grant = rewards.handle(quest(USER, AT, false, new Reward(19, 4)));
+        jdbc.update("UPDATE user_progresses SET total_experience=900 WHERE user_id=?", USER.value());
+        jdbc.update(
+                "UPDATE reward_transactions SET base_experience=500,experience=750 WHERE id=?",
+                grant.id().toString());
+        assertEquals(19, progress.getUserProgress(USER).getTotalEcopoints());
+        assertEquals(new Reward(19, 4), progress.getRecentRewards(USER).getFirst().grantedReward());
+        http.perform(get("/api/v1/gamification/me/progress").header("Authorization", bearer(USER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalEcopoints").value(19))
+                .andExpect(jsonPath("$.totalExperience").doesNotExist());
+        http.perform(get("/api/v1/gamification/me/rewards").header("Authorization", bearer(USER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].ecopoints").value(19))
+                .andExpect(jsonPath("$[0].gems").value(4))
+                .andExpect(jsonPath("$[0].experience").doesNotExist());
     }
 
     @Test
     void gemDeliveryPersistsOnceAndARepeatedDeliveryDoesNotCreditAgain() {
-        var grant = rewards.handle(quest(USER, AT, false, new Reward(10, 5, 3)));
+        var grant = rewards.handle(quest(USER, AT, false, new Reward(10, 3)));
         var message = outbox.findAll().getFirst();
         assertEquals(
                 0,
@@ -262,7 +278,7 @@ class GamificationReportIntegrationTests {
     void collaborativeSessionAwardsEachValidatedParticipantOnceWithoutFamilyAttribution() {
         var c =
                 new GrantCollaborativeQuestRewardCommand(
-                        UUID.randomUUID(), List.of(OTHER, USER), AT, new Reward(15, 4, 2));
+                        UUID.randomUUID(), List.of(OTHER, USER), AT, new Reward(15, 2));
         var first = rewards.handle(c);
         var duplicate = rewards.handle(c);
         assertEquals(first, duplicate);
@@ -322,7 +338,7 @@ class GamificationReportIntegrationTests {
                                             communityId,
                                             List.of(USER.value()),
                                             new CommunityGoalCompletedIntegrationEvent
-                                                    .ConfiguredReward(9, 5, 1),
+                                                    .ConfiguredReward(9, 1),
                                             AT)));
         assertEquals(9, progress.getUserProgress(USER).getTotalEcopoints());
         assertEquals(0, progress.getUserProgress(USER).getCurrentStreak());
@@ -483,7 +499,7 @@ class GamificationReportIntegrationTests {
 
     @Test
     void protectedDayKeepsContinuityWithoutCreatingActivityAndNextDailyQuestIncrementsOnce() {
-        rewards.handle(quest(USER, AT, true, new Reward(10, 0, 0)));
+        rewards.handle(quest(USER, AT, true, new Reward(10, 0)));
         var request =
                 protection.handle(
                         new RequestStreakProtectionCommand(
@@ -495,15 +511,15 @@ class GamificationReportIntegrationTests {
         protection.handle(result);
         assertEquals(DAY, progress.getUserProgress(USER).getLastActivityDate());
         assertEquals(1, progress.getUserProgress(USER).getCurrentStreak());
-        rewards.handle(quest(USER, AT.plusSeconds(172800), true, new Reward(5, 0, 0)));
-        rewards.handle(quest(USER, AT.plusSeconds(172810), true, new Reward(5, 0, 0)));
+        rewards.handle(quest(USER, AT.plusSeconds(172800), true, new Reward(5, 0)));
+        rewards.handle(quest(USER, AT.plusSeconds(172810), true, new Reward(5, 0)));
         assertEquals(2, progress.getUserProgress(USER).getCurrentStreak());
         assertEquals(20, progress.getUserProgress(USER).getTotalEcopoints());
     }
 
     @Test
     void unavailableInventoryResetsStreakButTechnicalFailureStaysPending() {
-        rewards.handle(quest(USER, AT, true, new Reward(10, 0, 0)));
+        rewards.handle(quest(USER, AT, true, new Reward(10, 0)));
         var request =
                 protection.handle(
                         new RequestStreakProtectionCommand(
@@ -515,9 +531,7 @@ class GamificationReportIntegrationTests {
                                 USER, DAY.plusDays(1), AT.plusSeconds(86400))));
         assertThrows(
                 IllegalStateException.class,
-                () ->
-                        rewards.handle(
-                                quest(USER, AT.plusSeconds(172800), true, new Reward(5, 0, 0))));
+                () -> rewards.handle(quest(USER, AT.plusSeconds(172800), true, new Reward(5, 0))));
         assertEquals(1, progress.getUserProgress(USER).getCurrentStreak());
         protection.handle(
                 new ResolveStreakProtectionCommand(
@@ -537,7 +551,7 @@ class GamificationReportIntegrationTests {
 
     @Test
     void protectorResultCorrelationRejectsWrongUserOrDate() {
-        rewards.handle(quest(USER, AT, true, new Reward(10, 0, 0)));
+        rewards.handle(quest(USER, AT, true, new Reward(10, 0)));
         var request =
                 protection.handle(new RequestStreakProtectionCommand(USER, DAY.plusDays(1), AT));
         assertThrows(
@@ -565,7 +579,7 @@ class GamificationReportIntegrationTests {
 
     @Test
     void dailyClosureIsIdempotentAndMonetizationConfirmsNoInventory() {
-        rewards.handle(quest(USER, AT, true, new Reward(10, 0, 0)));
+        rewards.handle(quest(USER, AT, true, new Reward(10, 0)));
         closure.closeThrough(DAY.plusDays(1), AT.plusSeconds(172800));
         closure.closeThrough(DAY.plusDays(1), AT.plusSeconds(172800));
         var message = outbox.findAll().getFirst();
@@ -580,8 +594,7 @@ class GamificationReportIntegrationTests {
     }
 
     @Test
-    void publishedQuestEventUsesCanonicalExecutionAndConfiguredXp() {
-        experience.handle(new ConfigureQuestExperienceCommand(41L, 7));
+    void publishedQuestEventUsesCanonicalExecutionAndEcopoints() {
         for (int i = 0; i < 2; i++)
             tx(
                     () ->
@@ -599,35 +612,32 @@ class GamificationReportIntegrationTests {
                                             13,
                                             AT.atOffset(ZoneOffset.UTC))));
         assertEquals(13, progress.getUserProgress(USER).getTotalEcopoints());
-        assertEquals(7, progress.getUserProgress(USER).getTotalExperience());
         assertEquals(1, progress.getUserProgress(USER).getCurrentStreak());
         assertEquals(
                 1, jdbc.queryForObject("SELECT COUNT(*) FROM reward_transactions", Integer.class));
     }
 
     @Test
-    void missingQuestXpConfigurationFailsWithoutFabricatingOrPartiallyRewarding() {
-        assertThrows(
-                IllegalStateException.class,
+    void publishedQuestUsesEcopointsWithoutAnyAdditionalXpConfiguration() {
+        tx(
                 () ->
-                        tx(
-                                () ->
-                                        events.publishEvent(
-                                                new QuestCompletedIntegrationEvent(
-                                                        UUID.randomUUID(),
-                                                        75L,
-                                                        41L,
-                                                        41L,
-                                                        1,
-                                                        USER.value(),
-                                                        WATER,
-                                                        ACTIVITIES,
-                                                        2,
-                                                        13,
-                                                        AT.atOffset(ZoneOffset.UTC)))));
+                        events.publishEvent(
+                                new QuestCompletedIntegrationEvent(
+                                        UUID.randomUUID(),
+                                        75L,
+                                        41L,
+                                        41L,
+                                        1,
+                                        USER.value(),
+                                        WATER,
+                                        ACTIVITIES,
+                                        2,
+                                        13,
+                                        AT.atOffset(ZoneOffset.UTC))));
         assertEquals(
-                0, jdbc.queryForObject("SELECT COUNT(*) FROM reward_transactions", Integer.class));
-        assertEquals(0, progress.getUserProgress(USER).getTotalEcopoints());
+                1, jdbc.queryForObject("SELECT COUNT(*) FROM reward_transactions", Integer.class));
+        assertEquals(13, progress.getUserProgress(USER).getTotalEcopoints());
+        assertEquals(new Reward(13, 2), progress.getRecentRewards(USER).getFirst().grantedReward());
     }
 
     @Test
@@ -725,8 +735,8 @@ class GamificationReportIntegrationTests {
 
     @Test
     void rewardHistoryPeriodIsExclusiveAtEndAndRejectsOtherUsers() throws Exception {
-        rewards.handle(quest(USER, AT, false, new Reward(7, 0, 0)));
-        rewards.handle(quest(USER, AT.plusSeconds(60), false, new Reward(8, 0, 0)));
+        rewards.handle(quest(USER, AT, false, new Reward(7, 0)));
+        rewards.handle(quest(USER, AT.plusSeconds(60), false, new Reward(8, 0)));
         var endpoint = "/api/v1/gamification/rewards";
         http.perform(
                         get(endpoint)
@@ -804,8 +814,8 @@ class GamificationReportIntegrationTests {
                         5,
                         true,
                         cosmetic));
-        rewards.handle(quest(USER, AT, false, new Reward(5, 0, 0)));
-        rewards.handle(quest(USER, AT, false, new Reward(5, 0, 0)));
+        rewards.handle(quest(USER, AT, false, new Reward(5, 0)));
+        rewards.handle(quest(USER, AT, false, new Reward(5, 0)));
         var message =
                 outbox.findAll().stream()
                         .filter(m -> m.getMessageType().equals("COSMETIC"))
@@ -824,7 +834,7 @@ class GamificationReportIntegrationTests {
 
     @Test
     void realProtectorConsumptionResolvesTheDayWithoutDoubleInventoryDebit() {
-        rewards.handle(quest(USER, AT, true, new Reward(10, 0, 0)));
+        rewards.handle(quest(USER, AT, true, new Reward(10, 0)));
         var protector = STREAK_SHIELD;
         jdbc.update(
                 "INSERT INTO protector_inventories (id,user_id,protector_id,quantity,version)"
@@ -854,7 +864,7 @@ class GamificationReportIntegrationTests {
 
     @Test
     void closureRecoversSeveralClosedDaysWithoutPretendingTheyWereDailyActivities() {
-        rewards.handle(quest(USER, AT, true, new Reward(10, 0, 0)));
+        rewards.handle(quest(USER, AT, true, new Reward(10, 0)));
         jdbc.update(
                 "INSERT INTO protector_inventories (id,user_id,protector_id,quantity,version)"
                         + " VALUES (?,?,?,?,0)",
@@ -887,7 +897,7 @@ class GamificationReportIntegrationTests {
                         "SELECT quantity FROM protector_inventories WHERE user_id=?",
                         Integer.class,
                         USER.value()));
-        rewards.handle(quest(USER, AT.plusSeconds(4 * 86400), true, new Reward(1, 0, 0)));
+        rewards.handle(quest(USER, AT.plusSeconds(4 * 86400), true, new Reward(1, 0)));
         assertEquals(2, progress.getUserProgress(USER).getCurrentStreak());
         assertEquals(DAY.plusDays(4), progress.getUserProgress(USER).getLastActivityDate());
     }
@@ -898,10 +908,10 @@ class GamificationReportIntegrationTests {
         UUID game = UUID.randomUUID();
         rewards.handle(
                 new GrantMinigameRewardCommand(
-                        UUID.randomUUID(), game, USER, AT, new Reward(100, 20, 10)));
+                        UUID.randomUUID(), game, USER, AT, new Reward(100, 10)));
         rewards.handle(
                 new GrantMinigameRewardCommand(
-                        UUID.randomUUID(), game, USER, AT.plusSeconds(1), new Reward(100, 20, 10)));
+                        UUID.randomUUID(), game, USER, AT.plusSeconds(1), new Reward(100, 10)));
         http.perform(
                         get("/api/v1/gamification/rewards")
                                 .param("from", AT.plusSeconds(1).toString())
@@ -918,7 +928,7 @@ class GamificationReportIntegrationTests {
                 .andExpect(jsonPath("$.items[0].beneficiary.id").value(USER.value()))
                 .andExpect(jsonPath("$.items[0].baseReward.ecopoints").value(100))
                 .andExpect(jsonPath("$.items[0].grantedReward.ecopoints").value(80))
-                .andExpect(jsonPath("$.items[0].grantedReward.experience").value(16))
+                .andExpect(jsonPath("$.items[0].grantedReward.experience").doesNotExist())
                 .andExpect(jsonPath("$.items[0].grantedReward.gems").value(8));
         assertEquals(
                 2, jdbc.queryForObject("SELECT COUNT(*) FROM reward_transactions", Integer.class));
@@ -937,7 +947,7 @@ class GamificationReportIntegrationTests {
                 () ->
                         tx(
                                 () -> {
-                                    rewards.handle(quest(USER, AT, true, new Reward(10, 4, 2)));
+                                    rewards.handle(quest(USER, AT, true, new Reward(10, 2)));
                                     throw new IllegalStateException("Completion rejected");
                                 }));
         assertEquals(0, progress.getUserProgress(USER).getTotalEcopoints());
@@ -949,7 +959,6 @@ class GamificationReportIntegrationTests {
 
     @Test
     void publishedMinigameUsesValidatedQuestsHistoryIncludingEarlierCompletions() {
-        experience.handle(new ConfigureQuestExperienceCommand(41L, 5));
         var attempts = applicationAttempts();
         tx(
                 () ->
@@ -982,7 +991,6 @@ class GamificationReportIntegrationTests {
                                             100,
                                             AT.atOffset(ZoneOffset.UTC))));
         assertEquals(80, progress.getUserProgress(USER).getTotalEcopoints());
-        assertEquals(4, progress.getUserProgress(USER).getTotalExperience());
         assertEquals(0, progress.getUserProgress(USER).getCurrentStreak());
     }
 
@@ -999,7 +1007,7 @@ class GamificationReportIntegrationTests {
                         AchievementScope.INDIVIDUAL,
                         AchievementMetric.ECOPOINTS,
                         10));
-        rewards.handle(quest(USER, AT, false, new Reward(10, 0, 0)));
+        rewards.handle(quest(USER, AT, false, new Reward(10, 0)));
         return queries.forUser(USER, 0, 20).getFirst();
     }
 
@@ -1028,7 +1036,7 @@ class GamificationReportIntegrationTests {
                                                         game,
                                                         USER,
                                                         AT,
-                                                        new Reward(100, 0, 0)))
+                                                        new Reward(100, 0)))
                                         .grantedReward()
                                         .ecopoints(),
                         () ->
@@ -1038,7 +1046,7 @@ class GamificationReportIntegrationTests {
                                                         game,
                                                         USER,
                                                         AT,
-                                                        new Reward(100, 0, 0)))
+                                                        new Reward(100, 0)))
                                         .grantedReward()
                                         .ecopoints());
         assertEquals(List.of(80L, 100L), amounts.stream().sorted().toList());
@@ -1117,7 +1125,7 @@ class GamificationReportIntegrationTests {
                                 communityId.toString(),
                                 "PENDING",
                                 java.sql.Timestamp.from(AT)));
-        rewards.handle(quest(USER, AT, true, new Reward(1, 0, 0)));
+        rewards.handle(quest(USER, AT, true, new Reward(1, 0)));
         assertThrows(
                 org.springframework.dao.DataIntegrityViolationException.class,
                 () ->
@@ -1161,8 +1169,7 @@ class GamificationReportIntegrationTests {
     }
 
     @Test
-    void publishedMinigameHttpWorkflowGrantsConfiguredExperienceAndCreditsRealWallet()
-            throws Exception {
+    void publishedMinigameHttpWorkflowUsesEcopointsAndCreditsRealWallet() throws Exception {
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         var gameResponse =
                 http.perform(
@@ -1192,7 +1199,6 @@ class GamificationReportIntegrationTests {
         var created = mapper.readTree(questResponse.getResponse().getContentAsString());
         long questId = created.get("id").asLong();
         assertEquals(questId, created.get("versionGroupId").asLong());
-        experience.handle(new ConfigureQuestExperienceCommand(questId, 17));
         http.perform(
                         patch("/api/v1/quests/" + questId + "/publish")
                                 .header("Authorization", bearer(USER)))
@@ -1219,7 +1225,6 @@ class GamificationReportIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("COMPLETED"));
         assertEquals(19, progress.getUserProgress(USER).getTotalEcopoints());
-        assertEquals(17, progress.getUserProgress(USER).getTotalExperience());
         assertEquals(0, progress.getUserProgress(USER).getCurrentStreak());
         for (var message : outbox.findAll())
             if (message.getMessageType().equals("GEMS")) delivery.deliver(message.getId());

@@ -154,7 +154,7 @@ public class RewardCommandServiceImpl implements RewardCommandService {
         if (prior.isPresent()) return prior.get();
         // Supplier errors propagate: absence of a response is not proof of an inactive multiplier.
         var multiplier =
-                base.experience() == 0
+                base.ecopoints() == 0
                         ? Optional.<ActiveMultiplier>empty()
                         : monetization
                                 .getActiveMultiplier(user.value(), at)

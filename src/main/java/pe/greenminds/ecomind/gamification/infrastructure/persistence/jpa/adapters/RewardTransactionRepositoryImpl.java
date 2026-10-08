@@ -45,10 +45,10 @@ public class RewardTransactionRepositoryImpl implements RewardTransactionReposit
         entity.setBeneficiaryId(rewardTransaction.beneficiary().value());
         entity.setUserProgressId(rewardTransaction.beneficiary().value());
         entity.setBaseEcopoints(rewardTransaction.baseReward().ecopoints());
-        entity.setBaseExperience(rewardTransaction.baseReward().experience());
+        entity.setLegacyBaseExperience(rewardTransaction.baseReward().ecopoints());
         entity.setBaseGems(rewardTransaction.baseReward().gems());
         entity.setEcopoints(rewardTransaction.grantedReward().ecopoints());
-        entity.setExperience(rewardTransaction.grantedReward().experience());
+        entity.setLegacyExperience(rewardTransaction.grantedReward().ecopoints());
         entity.setGems(rewardTransaction.grantedReward().gems());
         entity.setOccurredAt(rewardTransaction.occurredAt());
         entity.setMultiplierId(
@@ -76,11 +76,8 @@ public class RewardTransactionRepositoryImpl implements RewardTransactionReposit
                 RewardSourceType.valueOf(entity.getSourceType()),
                 UUID.fromString(entity.getSourceExecutionId()),
                 new UserId(entity.getBeneficiaryId()),
-                new Reward(
-                        entity.getBaseEcopoints(),
-                        entity.getBaseExperience(),
-                        entity.getBaseGems()),
-                new Reward(entity.getEcopoints(), entity.getExperience(), entity.getGems()),
+                new Reward(entity.getBaseEcopoints(), entity.getBaseGems()),
+                new Reward(entity.getEcopoints(), entity.getGems()),
                 entity.getOccurredAt(),
                 entity.getMultiplierId() == null ? null : UUID.fromString(entity.getMultiplierId()),
                 entity.getAppliedFactor(),

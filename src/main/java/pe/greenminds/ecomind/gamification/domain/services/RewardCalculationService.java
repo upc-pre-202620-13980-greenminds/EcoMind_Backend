@@ -22,8 +22,7 @@ public class RewardCalculationService {
                         .map(ActiveMultiplier::factor)
                         .orElse(BigDecimal.ONE);
         return new Reward(
-                scale(base.ecopoints(), repetitionFactor),
-                scale(base.experience(), repetitionFactor.multiply(xpFactor)),
+                scale(base.ecopoints(), repetitionFactor.multiply(xpFactor)),
                 Math.toIntExact(scale(base.gems(), repetitionFactor)));
     }
 

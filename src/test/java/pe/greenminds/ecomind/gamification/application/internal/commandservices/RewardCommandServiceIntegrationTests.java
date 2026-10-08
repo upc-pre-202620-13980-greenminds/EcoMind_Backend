@@ -51,7 +51,7 @@ class RewardCommandServiceIntegrationTests {
                         Instant.parse("2026-10-05T15:00:00Z"),
                         LocalDate.of(2026, 10, 5),
                         true,
-                        new Reward(15, 8, 0));
+                        new Reward(15, 0));
 
         var original = rewards.handle(command);
         var duplicate = rewards.handle(command);
@@ -59,7 +59,6 @@ class RewardCommandServiceIntegrationTests {
         assertEquals(original.id(), duplicate.id());
         assertEquals(1, rewardRows.count());
         assertEquals(15, queries.getUserProgress(userId).getTotalEcopoints());
-        assertEquals(8, queries.getUserProgress(userId).getTotalExperience());
         assertEquals(1, queries.getUserProgress(userId).getCurrentStreak());
     }
 
@@ -71,7 +70,7 @@ class RewardCommandServiceIntegrationTests {
         var userTwo = new UserId(202L);
         rewards.handle(
                 new GrantQuestRewardCommand(
-                        executionId, userOne, Instant.now(), monday, true, new Reward(10, 5, 0)));
+                        executionId, userOne, Instant.now(), monday, true, new Reward(10, 0)));
         rewards.handle(
                 new GrantQuestRewardCommand(
                         UUID.randomUUID(),
@@ -79,10 +78,10 @@ class RewardCommandServiceIntegrationTests {
                         Instant.now(),
                         monday,
                         true,
-                        new Reward(10, 5, 0)));
+                        new Reward(10, 0)));
         rewards.handle(
                 new GrantQuestRewardCommand(
-                        executionId, userTwo, Instant.now(), monday, true, new Reward(10, 5, 0)));
+                        executionId, userTwo, Instant.now(), monday, true, new Reward(10, 0)));
 
         assertEquals(3, rewardRows.count());
         assertEquals(20, queries.getUserProgress(userOne).getTotalEcopoints());
@@ -105,7 +104,7 @@ class RewardCommandServiceIntegrationTests {
                                 Instant.now(),
                                 LocalDate.of(2026, 10, 5),
                                 true,
-                                new Reward(10, 5, 1)));
+                                new Reward(10, 1)));
         assertEquals(1, rewardRows.count());
         assertEquals(10, queries.getUserProgress(userId).getTotalEcopoints());
         assertEquals(
@@ -125,7 +124,7 @@ class RewardCommandServiceIntegrationTests {
                         Instant.now(),
                         LocalDate.of(2026, 10, 5),
                         true,
-                        new Reward(12, 6, 0));
+                        new Reward(12, 0));
         var start = new CountDownLatch(1);
         try (var executor = Executors.newFixedThreadPool(2)) {
             var first =

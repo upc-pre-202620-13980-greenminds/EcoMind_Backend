@@ -34,7 +34,7 @@ public class GamificationController {
     }
 
     @GetMapping("/progress")
-    @Operation(summary = "Get my ecopoints, experience and daily streak")
+    @Operation(summary = "Get my XP (ecopoints) and daily streak")
     public UserProgressResource getMyProgress(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         return UserProgressResourceFromEntityAssembler.toResourceFromEntity(
