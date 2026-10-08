@@ -10,6 +10,7 @@ import pe.greenminds.ecomind.community.domain.model.commands.CreateCommunityGoal
 import pe.greenminds.ecomind.community.domain.model.commands.IncrementCommunityGoalCommand;
 import pe.greenminds.ecomind.community.domain.model.events.CommunityGoalCompletedEvent;
 import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityRole;
+import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityGoalStatus;
 import pe.greenminds.ecomind.community.domain.repositories.CommunityAchievementRepository;
 import pe.greenminds.ecomind.community.domain.repositories.CommunityGoalRepository;
 import pe.greenminds.ecomind.community.domain.repositories.CommunityMembershipRepository;
@@ -53,7 +54,7 @@ public class CommunityGoalCommandServiceImpl implements CommunityGoalCommandServ
         }
         try {
             return Result.success(goals.save(new CommunityGoal(null, command.communityId(), command.topic(),
-                    command.target(), 0, 0, "active")));
+                    command.target(), 0, 0, CommunityGoalStatus.ACTIVE)));
         } catch (IllegalArgumentException | NullPointerException exception) {
             return Result.failure(ApplicationError.validationError("Community goal", exception.getMessage()));
         } catch (Exception exception) {
@@ -73,16 +74,18 @@ public class CommunityGoalCommandServiceImpl implements CommunityGoalCommandServ
             return Result.failure(ApplicationError.forbidden("COMMUNITY_MEMBERSHIP_REQUIRED",
                     "Community membership is required"));
         }
-        if ("completed".equals(current.status())) {
+        if (current.status() == CommunityGoalStatus.COMPLETED) {
             return Result.failure(ApplicationError.businessRuleViolation("COMMUNITY_GOAL_COMPLETED",
                     "Community goal is already completed"));
         }
 
         int progress = Math.min(current.target(), current.progress() + 1);
-        String status = progress >= current.target() ? "completed" : "active";
+        CommunityGoalStatus status = progress >= current.target()
+                ? CommunityGoalStatus.COMPLETED
+                : CommunityGoalStatus.ACTIVE;
         CommunityGoal updated = goals.save(new CommunityGoal(current.id(), current.communityId(), current.topic(),
                 current.target(), progress, current.participants() + 1, status));
-        if ("completed".equals(status)) {
+        if (status == CommunityGoalStatus.COMPLETED) {
             achievements.save(new CommunityAchievement(null, updated.communityId(), "Community goal completed",
                     updated.title(), updated.id()));
             publisher.publishEvent(new CommunityGoalCompletedEvent(updated.id(), updated.communityId(), updated.title()));

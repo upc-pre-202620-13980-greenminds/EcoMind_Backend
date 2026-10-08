@@ -8,7 +8,7 @@ public final class RegisterForEventCommandFromResourceAssembler {
 
     public static RegisterForEventCommand toCommandFromResource(CreateEventRegistrationResource resource,
                                                                  Long eventId) {
-        return new RegisterForEventCommand(eventId, resource.user_id(), resource.registration_type().toUpperCase(),
+        return new RegisterForEventCommand(eventId, resource.user_id(), resource.registration_type(),
                 resource.family_id());
     }
 }

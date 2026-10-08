@@ -39,7 +39,7 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
     public Result<Community, ApplicationError> handle(CreateLocalCommunityCommand command) {
         try {
             return create(CommunityType.LOCAL, command.name(), command.description(), null, command.locality(), null,
-                    command.iconUrl(), command.userId());
+                    command.iconUrl(), null);
         } catch (IllegalArgumentException | NullPointerException exception) {
             return Result.failure(ApplicationError.validationError("Community", exception.getMessage()));
         } catch (Exception exception) {
@@ -68,7 +68,9 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
         Community community = new Community(null, name, description, type, topic, locality, memberLimit,
                 iconUrl, creatorId);
         Community saved = communities.save(community);
-        memberships.save(new CommunityMembership(null, saved.getId(), creatorId, CommunityRole.ADMIN));
+        if (creatorId != null) {
+            memberships.save(new CommunityMembership(null, saved.getId(), creatorId, CommunityRole.ADMIN));
+        }
         return Result.success(saved);
     }
 

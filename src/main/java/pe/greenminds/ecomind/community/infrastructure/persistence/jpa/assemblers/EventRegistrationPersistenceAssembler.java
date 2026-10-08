@@ -1,3 +1,23 @@
 package pe.greenminds.ecomind.community.infrastructure.persistence.jpa.assemblers;
-import pe.greenminds.ecomind.community.domain.model.aggregates.EventRegistration;import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.entities.EventRegistrationPersistenceEntity;
-public final class EventRegistrationPersistenceAssembler{private EventRegistrationPersistenceAssembler(){}public static EventRegistration toDomain(EventRegistrationPersistenceEntity e){return new EventRegistration(e.getId(),e.getEventId(),e.getUserId(),e.getRegistrationType(),e.getFamilyId(),e.getParticipantCount(),e.getStatus());}public static EventRegistrationPersistenceEntity toEntity(EventRegistration r){var e=new EventRegistrationPersistenceEntity(r.eventId(),r.userId(),r.registrationType(),r.familyId(),r.participantCount());if("CANCELLED".equals(r.status()))e.cancel();return e;}}
+
+import pe.greenminds.ecomind.community.domain.model.aggregates.EventRegistration;
+import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.entities.EventRegistrationPersistenceEntity;
+import pe.greenminds.ecomind.community.domain.model.valueobjects.EventRegistrationStatus;
+
+public final class EventRegistrationPersistenceAssembler {
+    private EventRegistrationPersistenceAssembler() {
+    }
+
+    public static EventRegistration toDomain(EventRegistrationPersistenceEntity e) {
+        return new EventRegistration(e.getId(), e.getEventId(), e.getUserId(), e.getRegistrationType(), e.getFamilyId(),
+                e.getParticipantCount(), e.getStatus());
+    }
+
+    public static EventRegistrationPersistenceEntity toEntity(EventRegistration r) {
+        var e = new EventRegistrationPersistenceEntity(r.eventId(), r.userId(), r.registrationType(), r.familyId(),
+                r.participantCount());
+        if (r.status() == EventRegistrationStatus.CANCELLED)
+            e.cancel();
+        return e;
+    }
+}

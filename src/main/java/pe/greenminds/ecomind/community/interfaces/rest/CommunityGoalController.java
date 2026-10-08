@@ -15,30 +15,36 @@ import pe.greenminds.ecomind.community.interfaces.rest.transform.CreateCommunity
 import pe.greenminds.ecomind.shared.interfaces.rest.transform.ResponseEntityAssembler;
 
 @RestController
-@Tag(name="Community Goal",description="Goals tracked by a community")
-@RequestMapping(value="/api/v1/Community/Community-goals",produces=MediaType.APPLICATION_JSON_VALUE)
-public class CommunityGoalController{
- private final CommunityGoalCommandService commands;
- private final CommunityGoalQueryService queries;
- private final ResponseEntityAssembler responses;
+@Tag(name = "Community Goal", description = "Goals tracked by a community")
+@RequestMapping(value = "/api/v1/Community/Community-goals", produces = MediaType.APPLICATION_JSON_VALUE)
+public class CommunityGoalController {
+    private final CommunityGoalCommandService commands;
+    private final CommunityGoalQueryService queries;
+    private final ResponseEntityAssembler responses;
 
- public CommunityGoalController(CommunityGoalCommandService c,CommunityGoalQueryService q,ResponseEntityAssembler r){
-  commands=c;queries=q;responses=r;
- }
+    public CommunityGoalController(CommunityGoalCommandService c, CommunityGoalQueryService q,
+            ResponseEntityAssembler r) {
+        commands = c;
+        queries = q;
+        responses = r;
+    }
 
- @GetMapping
- public List<CommunityGoalResource> list(@RequestParam(required=false)Long community_id){
-  return queries.handle(new SearchCommunityGoalsQuery(community_id)).stream().map(CommunityGoalResourceFromEntityAssembler::toResourceFromEntity).toList();
- }
+    @GetMapping
+    public List<CommunityGoalResource> list(@RequestParam(required = false) Long community_id) {
+        return queries.handle(new SearchCommunityGoalsQuery(community_id)).stream()
+                .map(CommunityGoalResourceFromEntityAssembler::toResourceFromEntity).toList();
+    }
 
- @PostMapping(consumes=MediaType.APPLICATION_JSON_VALUE)
- public ResponseEntity<?> create(@Valid @RequestBody CreateCommunityGoalResource r){
-  var c=CreateCommunityGoalCommandFromResourceAssembler.toCommandFromResource(r);
-  return responses.toResponseEntityFromResult(commands.handle(c),CommunityGoalResourceFromEntityAssembler::toResourceFromEntity,HttpStatus.CREATED);
- }
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> create(@Valid @RequestBody CreateCommunityGoalResource r) {
+        var c = CreateCommunityGoalCommandFromResourceAssembler.toCommandFromResource(r);
+        return responses.toResponseEntityFromResult(commands.handle(c),
+                CommunityGoalResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.CREATED);
+    }
 
- @PatchMapping("/{id}/progress")
- public ResponseEntity<?> increment(@PathVariable Long id,@RequestParam Long user_id){
-  return responses.toResponseEntityFromResult(commands.handle(new IncrementCommunityGoalCommand(id,user_id)),CommunityGoalResourceFromEntityAssembler::toResourceFromEntity,HttpStatus.OK);
- }
+    @PatchMapping("/{id}/progress")
+    public ResponseEntity<?> increment(@PathVariable Long id, @RequestParam Long user_id) {
+        return responses.toResponseEntityFromResult(commands.handle(new IncrementCommunityGoalCommand(id, user_id)),
+                CommunityGoalResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.OK);
+    }
 }

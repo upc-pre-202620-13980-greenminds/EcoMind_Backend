@@ -2,7 +2,9 @@ package pe.greenminds.ecomind.community.infrastructure.persistence.jpa.entities;
 
 import jakarta.persistence.*;
 import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityGoalTopic;
+import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityGoalStatus;
 import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.converters.CommunityGoalTopicPersistenceConverter;
+import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.converters.CommunityGoalStatusPersistenceConverter;
 import pe.greenminds.ecomind.shared.infrastructure.persistence.jpa.entities.AuditableAbstractPersistenceEntity;
 
 @Entity @Table(name="community_goals")
@@ -26,14 +28,15 @@ public class CommunityGoalPersistenceEntity extends AuditableAbstractPersistence
     @Column(nullable=false)
     private Integer participants;
 
+    @Convert(converter = CommunityGoalStatusPersistenceConverter.class)
     @Column(nullable=false)
-    private String status;
+    private CommunityGoalStatus status;
 
     protected CommunityGoalPersistenceEntity(){}
 
-    public CommunityGoalPersistenceEntity(Long c, CommunityGoalTopic topic, Integer t){this(c,topic,t,0,0,"active");}
+    public CommunityGoalPersistenceEntity(Long c, CommunityGoalTopic topic, Integer t){this(c,topic,t,0,0,CommunityGoalStatus.ACTIVE);}
 
-    public CommunityGoalPersistenceEntity(Long c, CommunityGoalTopic topic, Integer t,Integer p,Integer n,String s){
+    public CommunityGoalPersistenceEntity(Long c, CommunityGoalTopic topic, Integer t,Integer p,Integer n,CommunityGoalStatus s){
         communityId=c;
         this.topic=topic;
         target=t;
@@ -66,14 +69,14 @@ public class CommunityGoalPersistenceEntity extends AuditableAbstractPersistence
         return participants;
     }
 
-    public String getStatus(){
+    public CommunityGoalStatus getStatus(){
         return status;
     }
 
     public void applyProgress(Integer p,Integer n){
         progress=Math.min(target,p);
         participants=n;
-        status=progress>=target?"completed":"active";
+        status=progress>=target?CommunityGoalStatus.COMPLETED:CommunityGoalStatus.ACTIVE;
     }
 
     public void increment(){

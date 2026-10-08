@@ -1,3 +1,21 @@
 package pe.greenminds.ecomind.community.application.internal.queryservices;
-import java.util.List;import org.springframework.stereotype.Service;import pe.greenminds.ecomind.community.application.queryservices.CommunityGoalQueryService;import pe.greenminds.ecomind.community.domain.model.aggregates.CommunityGoal;import pe.greenminds.ecomind.community.domain.model.queries.SearchCommunityGoalsQuery;import pe.greenminds.ecomind.community.domain.repositories.CommunityGoalRepository;
-@Service public class CommunityGoalQueryServiceImpl implements CommunityGoalQueryService{private final CommunityGoalRepository goals;public CommunityGoalQueryServiceImpl(CommunityGoalRepository g){goals=g;}public List<CommunityGoal> handle(SearchCommunityGoalsQuery q){return goals.findAll(q.communityId());}}
+
+import java.util.List;
+import org.springframework.stereotype.Service;
+import pe.greenminds.ecomind.community.application.queryservices.CommunityGoalQueryService;
+import pe.greenminds.ecomind.community.domain.model.aggregates.CommunityGoal;
+import pe.greenminds.ecomind.community.domain.model.queries.SearchCommunityGoalsQuery;
+import pe.greenminds.ecomind.community.domain.repositories.CommunityGoalRepository;
+
+@Service
+public class CommunityGoalQueryServiceImpl implements CommunityGoalQueryService {
+    private final CommunityGoalRepository goals;
+
+    public CommunityGoalQueryServiceImpl(CommunityGoalRepository g) {
+        goals = g;
+    }
+
+    public List<CommunityGoal> handle(SearchCommunityGoalsQuery q) {
+        return goals.findAll(q.communityId());
+    }
+}

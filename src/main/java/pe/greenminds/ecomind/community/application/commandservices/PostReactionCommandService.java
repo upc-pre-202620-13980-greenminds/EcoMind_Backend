@@ -1,3 +1,16 @@
 package pe.greenminds.ecomind.community.application.commandservices;
-import pe.greenminds.ecomind.community.domain.model.aggregates.PostReaction;import pe.greenminds.ecomind.community.domain.model.commands.ReactToPostCommand;import pe.greenminds.ecomind.community.domain.model.commands.RemovePostReactionCommand;import pe.greenminds.ecomind.community.domain.model.commands.UpdatePostReactionTypeCommand;import pe.greenminds.ecomind.shared.application.result.ApplicationError;import pe.greenminds.ecomind.shared.application.result.Result;
-public interface PostReactionCommandService{Result<PostReaction,ApplicationError> handle(ReactToPostCommand command);Result<PostReaction,ApplicationError> handle(UpdatePostReactionTypeCommand command);Result<Void,ApplicationError> handle(RemovePostReactionCommand command);}
+
+import pe.greenminds.ecomind.community.domain.model.aggregates.PostReaction;
+import pe.greenminds.ecomind.community.domain.model.commands.ReactToPostCommand;
+import pe.greenminds.ecomind.community.domain.model.commands.RemovePostReactionCommand;
+import pe.greenminds.ecomind.community.domain.model.commands.UpdatePostReactionTypeCommand;
+import pe.greenminds.ecomind.shared.application.result.ApplicationError;
+import pe.greenminds.ecomind.shared.application.result.Result;
+
+public interface PostReactionCommandService {
+    Result<PostReaction, ApplicationError> handle(ReactToPostCommand command);
+
+    Result<PostReaction, ApplicationError> handle(UpdatePostReactionTypeCommand command);
+
+    Result<Void, ApplicationError> handle(RemovePostReactionCommand command);
+}

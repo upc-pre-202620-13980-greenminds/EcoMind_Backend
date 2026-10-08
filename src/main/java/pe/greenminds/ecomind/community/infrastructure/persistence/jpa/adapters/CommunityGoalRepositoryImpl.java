@@ -5,6 +5,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Repository;
 import pe.greenminds.ecomind.community.domain.model.aggregates.CommunityGoal;
 import pe.greenminds.ecomind.community.domain.repositories.CommunityGoalRepository;
+import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityGoalStatus;
 import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.assemblers.CommunityGoalPersistenceAssembler;
 import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.repositories.CommunityGoalPersistenceRepository;
 
@@ -25,6 +26,6 @@ import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.repositori
         return (c==null?repository.findAll():repository.findByCommunityId(c)).stream().map(CommunityGoalPersistenceAssembler::toDomain).toList();
     }
     public boolean existsActiveByCommunityId(Long c){
-        return repository.existsByCommunityIdAndStatus(c,"active");
+        return repository.existsByCommunityIdAndStatus(c, CommunityGoalStatus.ACTIVE);
     }
 }

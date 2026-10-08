@@ -1,3 +1,42 @@
 package pe.greenminds.ecomind.community.infrastructure.persistence.jpa.adapters;
-import java.util.List;import java.util.Optional;import org.springframework.stereotype.Repository;import pe.greenminds.ecomind.community.domain.model.aggregates.Community;import pe.greenminds.ecomind.community.domain.model.queries.SearchCommunitiesQuery;import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityType;import pe.greenminds.ecomind.community.domain.repositories.CommunityRepository;import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.assemblers.CommunityPersistenceAssembler;import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.repositories.CommunityPersistenceRepository;
-@Repository public class CommunityRepositoryImpl implements CommunityRepository{private final CommunityPersistenceRepository repository;public CommunityRepositoryImpl(CommunityPersistenceRepository r){repository=r;}public Community save(Community c){return CommunityPersistenceAssembler.toDomain(repository.save(CommunityPersistenceAssembler.toEntity(c)));}public Optional<Community> findById(Long id){return repository.findById(id).map(CommunityPersistenceAssembler::toDomain);}public boolean existsById(Long id){return repository.existsById(id);}public List<Community> search(SearchCommunitiesQuery q){var list=q.type()==null?(q.locality()==null?repository.findAll():repository.findByTypeAndLocalityIgnoreCase(CommunityType.LOCAL,q.locality())):q.type()==CommunityType.LOCAL&&q.locality()!=null?repository.findByTypeAndLocalityIgnoreCase(CommunityType.LOCAL,q.locality()):repository.findByType(q.type());return list.stream().map(CommunityPersistenceAssembler::toDomain).toList();}}
+
+import java.util.List;
+import java.util.Optional;
+import org.springframework.stereotype.Repository;
+import pe.greenminds.ecomind.community.domain.model.aggregates.Community;
+import pe.greenminds.ecomind.community.domain.model.queries.SearchCommunitiesQuery;
+import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityType;
+import pe.greenminds.ecomind.community.domain.repositories.CommunityRepository;
+import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.assemblers.CommunityPersistenceAssembler;
+import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.repositories.CommunityPersistenceRepository;
+
+@Repository
+public class CommunityRepositoryImpl implements CommunityRepository {
+    private final CommunityPersistenceRepository repository;
+
+    public CommunityRepositoryImpl(CommunityPersistenceRepository r) {
+        repository = r;
+    }
+
+    public Community save(Community c) {
+        return CommunityPersistenceAssembler.toDomain(repository.save(CommunityPersistenceAssembler.toEntity(c)));
+    }
+
+    public Optional<Community> findById(Long id) {
+        return repository.findById(id).map(CommunityPersistenceAssembler::toDomain);
+    }
+
+    public boolean existsById(Long id) {
+        return repository.existsById(id);
+    }
+
+    public List<Community> search(SearchCommunitiesQuery q) {
+        var list = q.type() == null
+                ? (q.locality() == null ? repository.findAll()
+                        : repository.findByTypeAndLocalityIgnoreCase(CommunityType.LOCAL, q.locality()))
+                : q.type() == CommunityType.LOCAL && q.locality() != null
+                        ? repository.findByTypeAndLocalityIgnoreCase(CommunityType.LOCAL, q.locality())
+                        : repository.findByType(q.type());
+        return list.stream().map(CommunityPersistenceAssembler::toDomain).toList();
+    }
+}
