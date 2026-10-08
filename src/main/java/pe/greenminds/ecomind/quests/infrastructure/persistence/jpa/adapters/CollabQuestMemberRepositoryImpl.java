@@ -1,6 +1,5 @@
 package pe.greenminds.ecomind.quests.infrastructure.persistence.jpa.adapters;
 
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.CollabQuestMember;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabMemberStatus;
@@ -14,35 +13,19 @@ import java.util.List;
 @Repository
 public class CollabQuestMemberRepositoryImpl implements CollabQuestMemberRepository {
     private final CollabQuestMemberPersistenceRepository collabQuestMemberPersistenceRepository;
-    private final ApplicationEventPublisher applicationEventPublisher;
 
     public CollabQuestMemberRepositoryImpl(
-            CollabQuestMemberPersistenceRepository collabQuestMemberPersistenceRepository,
-            ApplicationEventPublisher applicationEventPublisher
+            CollabQuestMemberPersistenceRepository collabQuestMemberPersistenceRepository
     ) {
         this.collabQuestMemberPersistenceRepository = collabQuestMemberPersistenceRepository;
-        this.applicationEventPublisher = applicationEventPublisher;
     }
 
     @Override
     public CollabQuestMember save(CollabQuestMember collabQuestMember) {
-        boolean isNew = collabQuestMember.getId() == null;
-        var pendingEvents = collabQuestMember.domainEvents();
         var savedEntity = collabQuestMemberPersistenceRepository.save(
                 CollabQuestMemberPersistenceAssembler.toPersistenceFromDomain(collabQuestMember)
         );
-        var savedCollabQuestMember =
-                CollabQuestMemberPersistenceAssembler.toDomainFromPersistence(savedEntity);
-
-        if (isNew) {
-            savedCollabQuestMember.onCreated();
-            savedCollabQuestMember.domainEvents().forEach(applicationEventPublisher::publishEvent);
-            savedCollabQuestMember.clearDomainEvents();
-        }
-        pendingEvents.forEach(applicationEventPublisher::publishEvent);
-        collabQuestMember.clearDomainEvents();
-
-        return savedCollabQuestMember;
+        return CollabQuestMemberPersistenceAssembler.toDomainFromPersistence(savedEntity);
     }
 
     @Override

@@ -2,13 +2,12 @@ package pe.greenminds.ecomind.quests.domain.model.aggregates;
 
 import lombok.Getter;
 import lombok.Setter;
-import pe.greenminds.ecomind.quests.domain.model.events.ActivityCreatedEvent;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.ActivityType;
 
 import java.util.Map;
 import java.util.Objects;
 
-public class Activity extends AbstractDomainAggregateRoot<Activity> {
+public class Activity {
 
     @Getter
     @Setter
@@ -61,8 +60,6 @@ public class Activity extends AbstractDomainAggregateRoot<Activity> {
         this(null, questId, description, order, type, activityConfiguration, image);
     }
 
-    public void onCreated() {
-    }
 
     public void update(
             String description,

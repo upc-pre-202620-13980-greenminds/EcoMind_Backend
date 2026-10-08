@@ -6,8 +6,8 @@ import pe.greenminds.ecomind.quests.domain.model.events.*;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabMemberStatus;
 import pe.greenminds.ecomind.quests.domain.repositories.CollabQuestMemberRepository;
 import pe.greenminds.ecomind.quests.domain.repositories.FamilyPlanItemRepository;
-import pe.greenminds.ecomind.quests.domain.services.QuestEventPublisher;
-import pe.greenminds.ecomind.quests.interfaces.events.*;
+import pe.greenminds.ecomind.quests.application.outboundservices.QuestEventPublisher;
+import pe.greenminds.ecomind.quests.interfaces.acl.events.*;
 
 import java.util.List;
 

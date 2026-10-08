@@ -5,7 +5,7 @@ import lombok.Setter;
 
 import java.util.Objects;
 
-public class FamilyPlanItem extends AbstractDomainAggregateRoot<FamilyPlanItem> {
+public class FamilyPlanItem {
     @Getter
     @Setter
     private Long id;

@@ -1,6 +1,5 @@
 package pe.greenminds.ecomind.quests.infrastructure.persistence.jpa.adapters;
 
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.CollabQuestSession;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabQuestStatus;
@@ -14,38 +13,21 @@ import java.util.Optional;
 @Repository
 public class CollabQuestSessionRepositoryImpl implements CollabQuestSessionRepository {
     private final CollabQuestSessionPersistenceRepository collabQuestSessionPersistenceRepository;
-    private final ApplicationEventPublisher applicationEventPublisher;
 
     public CollabQuestSessionRepositoryImpl(
-            CollabQuestSessionPersistenceRepository collabQuestSessionPersistenceRepository,
-            ApplicationEventPublisher applicationEventPublisher
+            CollabQuestSessionPersistenceRepository collabQuestSessionPersistenceRepository
     ) {
         this.collabQuestSessionPersistenceRepository = collabQuestSessionPersistenceRepository;
-        this.applicationEventPublisher = applicationEventPublisher;
     }
 
     @Override
     public CollabQuestSession save(CollabQuestSession collabQuestSession) {
-        boolean isNew = collabQuestSession.getId() == null;
-        var pendingEvents = collabQuestSession.domainEvents();
         var savedEntity = collabQuestSessionPersistenceRepository.save(
                 CollabQuestSessionPersistenceAssembler.toPersistenceFromDomain(
                         collabQuestSession
                 )
         );
-        var savedCollabQuestSession =
-                CollabQuestSessionPersistenceAssembler.toDomainFromPersistence(savedEntity);
-
-        if (isNew) {
-            savedCollabQuestSession.onCreated();
-            savedCollabQuestSession.domainEvents()
-                    .forEach(applicationEventPublisher::publishEvent);
-            savedCollabQuestSession.clearDomainEvents();
-        }
-        pendingEvents.forEach(applicationEventPublisher::publishEvent);
-        collabQuestSession.clearDomainEvents();
-
-        return savedCollabQuestSession;
+        return CollabQuestSessionPersistenceAssembler.toDomainFromPersistence(savedEntity);
     }
 
     @Override

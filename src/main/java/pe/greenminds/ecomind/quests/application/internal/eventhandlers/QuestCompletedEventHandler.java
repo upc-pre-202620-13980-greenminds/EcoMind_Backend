@@ -3,10 +3,9 @@ package pe.greenminds.ecomind.quests.application.internal.eventhandlers;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import pe.greenminds.ecomind.quests.domain.model.events.QuestCompletedEvent;
-import pe.greenminds.ecomind.quests.domain.model.events.IntegrationEventId;
 import pe.greenminds.ecomind.quests.domain.repositories.QuestRepository;
-import pe.greenminds.ecomind.quests.domain.services.QuestEventPublisher;
-import pe.greenminds.ecomind.quests.interfaces.events.QuestCompletedIntegrationEvent;
+import pe.greenminds.ecomind.quests.application.outboundservices.QuestEventPublisher;
+import pe.greenminds.ecomind.quests.interfaces.acl.events.QuestCompletedIntegrationEvent;
 
 @Service
 public class QuestCompletedEventHandler {
