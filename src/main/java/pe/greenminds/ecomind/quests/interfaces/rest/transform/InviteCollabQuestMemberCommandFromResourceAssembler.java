@@ -8,11 +8,12 @@ public final class InviteCollabQuestMemberCommandFromResourceAssembler {
     }
 
     public static InviteCollabQuestMemberCommand toCommandFromResource(
-            InviteCollabQuestMemberResource resource
+            InviteCollabQuestMemberResource resource,
+            Long authenticatedUserId
     ) {
         return new InviteCollabQuestMemberCommand(
                 resource.sessionId(),
-                resource.invitedByUserId(),
+                authenticatedUserId,
                 resource.invitedUserId()
         );
     }

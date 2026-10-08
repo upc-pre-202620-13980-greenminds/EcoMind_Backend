@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,6 +29,7 @@ import pe.greenminds.ecomind.quests.interfaces.rest.transform.CreateMinigameAtte
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.FinishMinigameAttemptCommandFromResourceAssembler;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.MinigameAttemptResourceFromEntityAssembler;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.ResponseEntityAssembler;
+import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
 
 import java.util.List;
 
@@ -49,11 +51,11 @@ public class MinigameAttemptController {
     @GetMapping
     @Operation(summary = "Get minigame attempts by user and minigame")
     public ResponseEntity<List<MinigameAttemptResource>> getAttemptsByUserAndMinigame(
-            @RequestParam Long userId,
-            @RequestParam Long minigameId
+            @RequestParam Long minigameId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
         var attempts = minigameAttemptQueryService.handle(
-                new GetMinigameAttemptsByUserAndMinigameQuery(userId, minigameId)
+                new GetMinigameAttemptsByUserAndMinigameQuery(principal.accountId(), minigameId)
         );
         var resources = attempts.stream()
                 .map(MinigameAttemptResourceFromEntityAssembler::toResourceFromEntity)
@@ -74,10 +76,12 @@ public class MinigameAttemptController {
             @ApiResponse(responseCode = "422", description = "Quest is not a valid minigame quest")
     })
     public ResponseEntity<?> createAttempt(
-            @Valid @RequestBody CreateMinigameAttemptResource resource
+            @Valid @RequestBody CreateMinigameAttemptResource resource,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
         var command =
-                CreateMinigameAttemptCommandFromResourceAssembler.toCommandFromResource(resource);
+                CreateMinigameAttemptCommandFromResourceAssembler.toCommandFromResource(
+                        resource, principal.accountId());
         var result = minigameAttemptCommandService.handle(command);
 
         return ResponseEntityAssembler.toResponseEntityFromResult(

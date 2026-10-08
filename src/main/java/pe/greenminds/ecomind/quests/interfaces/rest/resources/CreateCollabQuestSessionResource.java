@@ -9,8 +9,7 @@ import jakarta.validation.constraints.Positive;
         description = "Request payload for creating a collaborative quest session.",
         example = """
         {
-          "questId": 18,
-          "ownerUserId": 1
+          "questId": 18
         }
         """
 )
@@ -18,11 +17,6 @@ public record CreateCollabQuestSessionResource(
         @NotNull
         @Positive
         @Schema(description = "Quest identifier", example = "18")
-        Long questId,
-
-        @NotNull
-        @Positive
-        @Schema(description = "Owner user identifier", example = "1")
-        Long ownerUserId
+        Long questId
 ) {
 }
