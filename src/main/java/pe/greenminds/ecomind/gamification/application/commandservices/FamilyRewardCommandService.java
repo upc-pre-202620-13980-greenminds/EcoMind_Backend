@@ -6,5 +6,5 @@ import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 import pe.greenminds.ecomind.shared.application.result.Result;
 
 public interface FamilyRewardCommandService {
-  Result<FamilyRewardTransaction, ApplicationError> handle(GrantFamilyPlanRewardCommand command);
+    Result<FamilyRewardTransaction, ApplicationError> handle(GrantFamilyPlanRewardCommand command);
 }

@@ -4,6 +4,7 @@ import pe.greenminds.ecomind.gamification.domain.model.valueobjects.FamilyId;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.UserId;
 
 public interface UsersServiceClient {
-  boolean familyExists(FamilyId familyId);
-  boolean isFamilyMember(FamilyId familyId, UserId userId);
+    boolean familyExists(FamilyId familyId);
+
+    boolean isFamilyMember(FamilyId familyId, UserId userId);
 }

@@ -1,119 +1,125 @@
-# Gamification implementation status
+# Gamification backend
 
-This bounded context follows section 2.6.6 of the current EcoMind report. The implementation owns user ecopoints, experience, daily streaks, family ecopoints and the history
-of validated quest and family plan rewards, plus configurable individual and family achievements.
+Authority: `GreenMinds_Report`, `origin/develop` at
+`0d0783341b9f0b77883c65068d0af4809a74f5b9`, section 2.6.6, HU-040/HU-041,
+TS-006/TS-007 and the Gamification class/database diagram sources.
+See [report coverage](gamification-report-coverage.md) and [integration contracts](integration-contracts.md).
 
-## Current contract
+## Rewards and progress
 
-- Quests must validate a completion before calling `RewardCommandService.handle` with a stable
-  `sourceExecutionId`, the beneficiary's IAM account ID, an activity date and the configured base
-  reward. There is intentionally no public endpoint for granting points.
-- `RewardTransaction` is unique by source type, canonical execution and beneficiary. Repeated
-  delivery returns the original transaction. The reward and progress update commit together; a
-  user progress row is locked to serialize concurrent deliveries.
-- Only the first eligible daily quest increases the streak. Other valid completions still grant
-  their ecopoints and experience. A late event does not rewind the latest activity date.
-- A JWT holder can read only their own data through `GET /api/v1/gamification/me/progress` and
-  `GET /api/v1/gamification/me/rewards`. The latter returns at most 100 recent transactions.
-- Quest rewards with gems are rejected until Monetization can receive a durable, idempotent credit
-  request; no gem balance is changed by this slice.
+Validated individual quests, minigames, collaborative sessions, family plans, community goals and
+community events have separate canonical execution identities. A reward is unique by source,
+execution and beneficiary, independently of the message UUID. Reward, score, eligible daily activity,
+achievements and outgoing messages commit in one transaction. Per-beneficiary locks serialize writes;
+progress, scores, publication requests and protection requests also have optimistic versions.
 
-The report's proposed SQL uses UUIDs for external user references. This backend already uses
-numeric IAM account IDs, so Gamification stores those as `BIGINT` without a cross-context foreign
-key. Its physical naming strategy pluralizes `user_progresses`. These adaptations should be
-reflected in the report's physical database diagram when the schema is finalized.
+Only the first valid **daily quest** on a calendar day increases the streak. Other completions keep
+their rewards. The activity zone defaults to `America/Lima`. Protected dates are separate from actual
+activity. Daily closure requests protection for a missing closed day; it does not debit inventory.
+Monetization confirms `PROTECTED` or `UNAVAILABLE`. Technical failures stay pending and retryable.
+A later daily completion waits for earlier pending protection instead of prematurely resetting a streak.
 
-## Family scores and rewards
+XP uses the active Monetization multiplier, with inclusive start and exclusive expiry. Ecopoints and
+gems are not multiplied. The reward audit stores the multiplier identity, effective XP factor and
+minigame repetition factor. Integer results are rounded down; arithmetic overflow rolls back the grant.
 
-- `GET /api/v1/gamification/families/{familyId}/score` returns the family's ecopoints, initially zero.
-- `GET /api/v1/gamification/families/{familyId}/rewards` returns its 100 most recent grants.
-- Both queries require a JWT and current family membership. Removed members lose access. A missing
-  family and a family belonging to somebody else both produce 403, without disclosing its existence.
-- The trusted `FamilyRewardCommandService` accepts a validated plan execution and its configured
-  additional ecopoints. It does not sum member rewards or grant XP/gems to families. Zero additional
-  ecopoints records the completion without increasing the score; it does not grant an achievement.
-- The family grant and score commit atomically, with a per-family lock and the shared reward origin
-  uniqueness constraint. Repeated executions return the original grant, including concurrent delivery.
-- Users exposes membership through `UsersContextFacade`; Gamification's ACL maps this public contract
-  without reading Users tables or importing its domain classes. No public endpoint can grant points.
+**Approved minigame policy:** 100%, 80%, 50%, 20%, then 0 in the preceding three hours, independently
+per user and minigame. Zero-valued validated attempts still count. Set
+`MINIGAME_REPETITION_FACTORS` to override the strictly decreasing curve. This deliberately differs
+from the legacy `100%,100%,80%,50%,20%` curve because HU-041 requires each repetition to decrease.
 
-## Achievement catalog and awards
+Family plans receive only a configured **additional** ecopoint reward. Their member quests are not
+summed or rewarded again. A zero additional bonus still records a validated completion and evaluates
+configured completed-plan achievements. Families receive no XP or gems.
 
-Authenticated endpoints:
+## Achievements and publication
 
-- `GET /api/v1/gamification/achievements?scope=INDIVIDUAL&page=0&size=20` lists catalog definitions.
-  The scope filter is optional; inactive definitions remain visible for historical awards.
-- `GET /api/v1/gamification/achievements/{achievementId}` returns a definition or 404.
-- `GET /api/v1/gamification/me/achievements` lists awards owned by the JWT subject.
-- `GET /api/v1/gamification/families/{familyId}/achievements` requires current family membership.
+The trusted catalog service configures definitions; there is no public mobile grant/catalog-write route
+and no invented production threshold. Individual criteria: ecopoints, XP, longest streak or completed
+community goals. Family criteria: ecopoints or completed family plans. Collective community criteria:
+completed community goals. Only individual awards can request an optional cosmetic.
 
-Lists support zero-based `page` and `size` from 1 to 100. Invalid pagination/scope produces 400.
-Catalog codes are unique and definitions immutable through the current application port.
-`AchievementCommandService.register` is a trusted configuration operation, with no public mobile
-write endpoint. No production thresholds or example achievements are seeded. The configured
-catalog must be supplied before users can earn these achievements.
+Awards have one scope-compatible beneficiary and are unique per definition and beneficiary.
+Community completion records a collective milestone and the eligible participants' milestones;
+recognition does not invent points when no prize was configured. Reading never grants an award.
 
-Active individual definitions can use `ECOPOINTS`, `EXPERIENCE` or `LONGEST_STREAK`; families use
-`ECOPOINTS`. Targets must be positive. Each newly recorded quest/family reward evaluates the matching
-scope using persisted progress in the same transaction. The database guarantees a single award per
-achievement, scope and beneficiary; further rewards and retries preserve its original source and date.
-Catalog registration itself does not retroactively evaluate users; new definitions are evaluated on
-subsequent new rewards. A lookup does not grant anything.
+Sharing requires an existing individual award owned by the JWT subject, destination membership and
+permission to publish. Use the same client `requestId` on retries. A changed selection with that ID
+returns 409; another requester is denied. The request and outgoing message commit atomically.
+`PENDING` changes to `PUBLISHED` only after a matching Community confirmation. Duplicate matching
+confirmations preserve the publication and confirmation date; conflicting confirmations fail.
+Only the requester can query status. Community owns posts/feed, including shared individual awards.
+Collective award queries do not substitute for that feed.
 
-Community criteria, cosmetic prizes, publication requests and integration events/outbox delivery are
-not yet implemented. Unsupported community definitions are rejected instead of being evaluated with
-individual or family metrics. Achievement sharing and Community notifications remain separate future flows.
+## Authenticated REST routes
 
-## Ranking data (TS-007)
+| Method | Route | Access / result |
+|---|---|---|
+| GET | `/api/v1/gamification/me/progress` | JWT subject's ecopoints, XP, streak and activity/protection dates |
+| GET | `/api/v1/gamification/me/rewards` | Subject's latest 100 reward transactions |
+| GET | `/api/v1/gamification/rewards` | Paged USER/FAMILY history; `from` inclusive, `to` exclusive; owner/membership checks |
+| GET | `/api/v1/gamification/families/{familyId}/score` | Current family members only |
+| GET | `/api/v1/gamification/families/{familyId}/rewards` | Current members; latest 100 family grants |
+| GET | `/api/v1/gamification/achievements` | Catalog; optional scope; page/size |
+| GET | `/api/v1/gamification/achievements/{achievementId}` | Catalog detail or 404 |
+| GET | `/api/v1/gamification/me/achievements` | Subject's individual awards |
+| GET | `/api/v1/gamification/families/{familyId}/achievements` | Current family members only |
+| GET | `/api/v1/gamification/communities/{communityId}/achievements` | Collective awards; community members only |
+| POST | `/api/v1/gamification/achievement-shares` | `{requestId,awardId,communityId}`; requester from JWT; 202 |
+| GET | `/api/v1/gamification/achievement-shares/{requestId}` | Original requester only |
+| GET | `/api/v1/gamification/rankings/types` | LOCAL, GLOBAL, FRIENDS, FAMILIES |
+| GET | `/api/v1/gamification/rankings/{type}/participants` | Authorized directory and recorded ecopoints |
+| GET | `/api/v1/gamification/rankings/{type}/transactions` | Authorized ecopoint transactions within `from`/`to` |
 
-All routes require a JWT:
+TS-006/TS-007 compatibility aliases: `/api/v1/achievement`, `/api/v1/user_achievement?user_id=…`,
+`/api/v1/community_achievement?community_id=…`, `/api/v1/ranking`, `/api/v1/ecopoint_transaction`.
+`/api/v1/user` remains in Users and its ecopoints/streak response reads Gamification.
+The requesting user cannot select another user's awards/history. Removed family members lose access.
+Pages start at zero; size is 1–100. Ranking/history pages include `hasNext`, with stable date/ID ordering.
 
-- `GET /api/v1/gamification/rankings/types` returns `GLOBAL`, `FRIENDS`, `FAMILIES`.
-- `GET /api/v1/gamification/rankings/{type}/participants?page=0&size=20` returns participant IDs,
-  display names and accumulated ecopoints owned by Gamification, including zero-progress participants.
-  Participants are ordered by identity; this is not a score-sorted ranking or a weekly position.
-- `GET /api/v1/gamification/rankings/{type}/transactions?from=2026-10-05T05:00:00Z&to=2026-10-12T05:00:00Z&page=0&size=100`
-  returns ecopoint transactions for the permitted participants. `from` is inclusive and `to` exclusive.
-  Clients supply the UTC boundaries appropriate to their calendar, aggregate all pages, and calculate
-  positions. This implements the responsibility assigned to Android by TS-007.
+GLOBAL uses Users profiles; FRIENDS includes self and accepted friends; FAMILIES uses family scores;
+LOCAL requires Community's membership/directory supplier. Android aggregates all transaction pages
+and calculates weekly positions (TS-007). These read-only routes never award points or expose email,
+wallet balances or private relationship lists.
 
-Responses contain `items`, `page`, `size`, `hasNext`. Page numbering starts at zero; size is 1–100.
-Transaction ordering is stable by date and ID. `hasNext` prevents silently truncating weeks with more
-than 100 grants. Pagination reflects current data; there is no cross-request snapshot token.
+## Durable outgoing delivery
 
-`GLOBAL` uses the Users profile directory. `FRIENDS` includes the JWT holder and accepted friends in
-both relationship directions, excluding pending/rejected/deleted relationships. `FAMILIES` uses family
-names and only rewards whose beneficiary type is FAMILY. No email, wallet, XP or private family membership
-is returned. All queries are read-only and ignore editable progress fields in legacy Users profiles.
-The public Users ACL supplies directory data; Gamification does not join Users tables.
+`SpringGamificationEventPublisher` records messages in `gamification_outbox` in the business transaction.
+The scheduled publisher delivers gems, cosmetics, achievement notices, share requests and protection
+requests with row locks, durable retries and capped exponential backoff. Receivers deduplicate by reward,
+award or request. Share/protection delivery remains pending until correlated business acknowledgement;
+an acknowledgement received later completes delivery without resending the request.
 
-`LOCAL` is not advertised and is rejected until Community provides its membership contract. The current
-Users directory contract returns all profiles/families before filtering or paging; large deployments
-will need a paginated directory API. Routes replace the mock API route shapes in TS-007, while preserving
-its split between participant data, dated transactions and client-side weekly position calculation.
+Real Monetization from `feature/store` is integrated. Community has public ports/event contracts but no
+published supplier in the branches integrated here. Community-dependent REST reads/shares return 503
+while that supplier is absent; notices remain in the outbox. JUnit uses an explicit Community mock to
+validate its contract, permissions, retry and confirmation behavior; it is not a production stub.
 
-## Integration work still needed
+Real Quests emits four completion events and has a public validated minigame-history supplier.
+Quests currently provides ecopoints/gems but no base XP. Gamification therefore requires a trusted
+per-quest-version entry in `gamification_quest_experiences` (`ConfigureQuestExperienceCommand`). Missing
+configuration fails explicitly and rolls back the source completion. No XP=ecopoints rule was approved.
+Actual family events have no additional bonus field, so their adapter records completion/recognition
+with no extra points. The proposed reward-complete event supports a configured additional bonus.
 
-1. Align Gamification with Quests' real completion events in `quests.interfaces.events`.
-   The current tested reward bridge uses the proposed `quests.interfaces.acl.events` contract.
-   Real quest events do not provide base XP, and family events do not provide an additional bonus;
-   they must not be silently treated as zero-valued rewards. See [integration-contracts.md](integration-contracts.md).
-2. Users currently stores `ecopoints` and `streak` in its profile and lets clients replace them.
-   Change the profile to read Gamification's values and remove that client-writable source.
-3. Monetization outbox and acknowledgements for gems, active XP multipliers and streak protectors.
-4. Community awards/sharing, cosmetic achievement rewards, and local
-   ranking membership from Community. These require the corresponding Quests, Users, Community and Monetization
-   contracts; do not invent reward thresholds or family membership.
+## PostgreSQL and physical adaptations
 
-## Database validation
+Numeric published Users/Quests IDs are retained, rather than converting account/family IDs to invented
+UUIDs. Gamification's user/family canonical identity is also its local progress/score primary key.
+Local reward/award relations use foreign keys to Gamification progress, score and catalog records;
+external user/family/community/cosmetic/multiplier references have no cross-context FK. JPA entities
+are infrastructure adapters; the domain is persistence-independent. The outbox uses typed columns.
+These are explicit adaptations of the report's proposed MySQL/UUID SQL; update the report's physical
+schema when the team finalizes it. Do not describe that proposed SQL as the actual PostgreSQL schema.
 
-The backend uses PostgreSQL. Progress, family score and achievement inserts use `ON CONFLICT DO NOTHING`
-before the per-beneficiary lock or uniqueness check. `./mvnw test` runs JUnit and acceptance scenarios
-with H2 in PostgreSQL compatibility mode.
+For an existing database, apply [the additive migration](migrations/20261007-gamification-postgresql.sql)
+after Hibernate creates the new tables. It backfills local references/factors and enforces constraints;
+it does not erase data. Fresh test databases are created from JPA mappings.
 
-The same five Gamification persistence/API suites can run against an actual PostgreSQL database.
-Create a dedicated empty database first; these tests use `create-drop` and close each class's context.
-Never use the application's database for this command.
+## JUnit validation
+
+`JAVA_HOME=/opt/homebrew/opt/openjdk@21 ./mvnw test` runs all JUnit and acceptance suites on H2 in
+PostgreSQL mode. For native persistence validation use a **dedicated disposable** PostgreSQL database:
 
 ```bash
 createdb ecomind_gamification_test
@@ -121,11 +127,11 @@ TEST_DATABASE_URL=jdbc:postgresql://localhost:5432/ecomind_gamification_test \
 TEST_DATABASE_DRIVER=org.postgresql.Driver \
 TEST_DATABASE_USERNAME=your_local_user \
 TEST_DATABASE_PASSWORD='' \
-./mvnw test -Dtest=AchievementTests,FamilyGamificationTests,QuestIntegrationTests,RankingTests,RewardCommandServiceIntegrationTests
+./mvnw test -Dtest=AchievementTests,FamilyGamificationTests,QuestIntegrationTests,RankingTests,RewardCommandServiceIntegrationTests,GamificationReportIntegrationTests
 ```
 
-Coverage includes first grants, duplicate and concurrent delivery, daily streaks, overflow/transaction
-rollback, achievement uniqueness, family access after removal, ranking periods/pagination and JWT scope.
-The `TEST_DATABASE_*` settings apply only to tests. No credentials or QA fixtures are committed.
-The Quests suite validates the proposed reward-complete contract; it does not prove that the real Quests
-workflow currently supplies all fields Gamification requires.
+Tests use `create-drop`; never target the application database. Coverage includes all six reward
+sources, canonical retries/concurrency, multipliers, repetition/reset, actual gem/cosmetic/protector
+services, atomic rollback, collective/individual achievement criteria, sharing/correlation, missing
+suppliers/configuration, closure recovery, authorization and read-only ranking periods. QA media and
+synthetic fixtures stay local outside repositories under `~/Downloads/EcoMind-qa-evidence/`.

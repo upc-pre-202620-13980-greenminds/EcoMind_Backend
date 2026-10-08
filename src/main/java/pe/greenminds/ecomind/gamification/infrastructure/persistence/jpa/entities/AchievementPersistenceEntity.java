@@ -4,20 +4,49 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+
 import lombok.Getter;
-import lombok.Setter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import org.hibernate.annotations.Check;
 
 @Entity
+@Check(
+        name = "ck_achievement",
+        constraints =
+                "target > 0 AND scope IN ('INDIVIDUAL','FAMILY','COMMUNITY') AND (cosmetic_id IS"
+                    + " NULL OR scope = 'INDIVIDUAL')")
 @Table(name = "achievements")
-@Getter @Setter @NoArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
 public class AchievementPersistenceEntity {
-  @Id @Column(length = 36) private String id;
-  @Column(nullable = false, unique = true, length = 80) private String code;
-  @Column(nullable = false, length = 120) private String name;
-  @Column(nullable = false, length = 500) private String description;
-  @Column(nullable = false, length = 16) private String scope;
-  @Column(nullable = false, length = 40) private String metric;
-  @Column(nullable = false) private long target;
-  @Column(nullable = false) private boolean active;
+    @Id
+    @Column(length = 36)
+    private String id;
+
+    @Column(nullable = false, unique = true, length = 80)
+    private String code;
+
+    @Column(nullable = false, length = 120)
+    private String name;
+
+    @Column(nullable = false, length = 500)
+    private String description;
+
+    @Column(nullable = false, length = 16)
+    private String scope;
+
+    @Column(nullable = false, length = 40)
+    private String metric;
+
+    @Column(nullable = false)
+    private long target;
+
+    @Column(nullable = false)
+    private boolean active;
+
+    @Column(length = 36)
+    private String cosmeticId;
 }

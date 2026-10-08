@@ -1,73 +1,55 @@
 # Gamification integration contracts
 
-This change creates the public boundaries needed by report sections 2.6.6 and 2.6.7. It does not
-implement the Quests completion workflow, Community memberships/feed or Monetization wallet/inventory.
-External user and family identities follow the active backend's numeric IDs; execution, request,
-award, quest, plan, community and publication references in these proposed contracts use UUIDs.
-The merged real Quests contract instead uses numeric execution/quest/plan IDs plus a stable UUID event ID.
+The public boundaries follow report section 2.6.6. See [Gamification behavior](gamification.md) and
+[requirement coverage](gamification-report-coverage.md). Contracts represent implemented adapters
+or explicit external dependencies; interface existence alone is not evidence of a working supplier.
 
-## Structure and state
-
-| Owner | Public contract | Current state |
+| Owner | Contract | State |
 |---|---|---|
-| Quests | Proposed `interfaces.acl.events` quest/family events | Tested reward-complete boundary consumed by `QuestCompletionConsumer`; not emitted by the real workflow |
-| Quests | Actual `interfaces.events` completion events | Emitted by the merged Quests workflow; adapter pending because XP/family-bonus data is absent |
-| Quests | Proposed ACL publisher (bean `proposedQuestEventPublisher`) | Isolated from Quests' real Spring publisher; requires an existing transaction |
-| Quests | `MinigameCompletedIntegrationEvent`, `CollaborativeQuestCompletedIntegrationEvent` | Validated message shapes only; no publisher/consumer path yet |
-| Quests | `QuestsContextFacade` | Interface for validated attempt data and repetition history; requires a real implementation |
-| Monetization | `MonetizationContextFacade` | Interface for XP multiplier lookup, idempotent gem/cosmetic grants and protector requests |
-| Monetization | `StreakProtectedIntegrationEvent`, `StreakProtectionUnavailableIntegrationEvent` | Correlated result contracts; inventory handling and consumption still pending |
-| Community | `CommunityContextFacade` | Interface for local community, memberships, publishing permissions, achievement notices and publication requests |
-| Community | `CommunityGoalCompletedIntegrationEvent`, `PublicationCreatedIntegrationEvent` | Goal completion and correlated publication acknowledgement contracts |
-| Gamification | `GamificationContextFacade` | Working read-only progress snapshot for other contexts; does not claim a stored streak is currently eligible for protection |
-| Gamification | `QuestServiceClient`, `MonetizationServiceClient`, `CommunityServiceClient` and ACL implementations | Resolve public supplier implementations when registered; throw explicitly while missing |
-| Gamification | Reward, streak risk, achievement notice and share-request integration events | Outgoing message contracts; not yet emitted by the current services |
-| Community, Monetization, Gamification | `*EventPublisher` ports | Interfaces for future transactional outbox implementations; no dummy publisher beans |
+| Quests | Actual four `quests.interfaces.events` completion events | Consumed by `PublishedQuestCompletionConsumer` in the source transaction |
+| Quests | Proposed reward-complete `interfaces.acl.events` | Consumed by `QuestCompletionConsumer`; real producer does not emit these proposed messages |
+| Quests | `PublishedQuestsContextFacade` | Real public supplier for completed validated minigame attempts, backed by Quests repositories |
+| Quests | Proposed `QuestsContextFacade` | Separate UUID contract; no supplier; fails explicitly when called |
+| Monetization | `MonetizationContextFacade` | Real supplier for active XP multiplier, gem credit, cosmetic grant and protector consumption from merged store branch |
+| Monetization | Protected/unavailable events | Real correlated results consumed by Gamification; technical failure is not missing inventory |
+| Community | `CommunityContextFacade` | Public port; supplier absent from published branches integrated here |
+| Community | Goal/event completion, publication confirmation events | Gamification consumers implemented; actual Community producer pending |
+| Gamification | `GamificationContextFacade` | Read-only progress snapshot used by Users/Monetization |
+| Gamification | Domain events + `SpringGamificationEventPublisher` | Working synchronous internal delivery + transactional outgoing outbox |
+| Gamification | `GamificationOutboxPublisher` | Durable retry/acknowledgement delivery to public supplier ports |
 
-Only public ACL types cross context boundaries. There are no imports of another context's domain or
-persistence classes and no new HTTP endpoints that let mobile clients forge completion or grant events.
+## Canonical identities and base amounts
 
-## Quests contract alignment
+Published Quests IDs are numeric. The adapter derives a stable internal UUID from execution type and
+actual execution ID, rather than deduplicating on a message UUID. It maps the event's amounts and
+calendar to Gamification value objects. The actual event's public quest-type value determines daily
+eligibility; no Quests domain/repository is accessed by Gamification. Only Quests' own public facade
+implementation reads its validated attempt repository.
 
-The real producer emits `QuestCompletedIntegrationEvent` with numeric `questUserId`, quest/version IDs,
-base gems/ecopoints and `OffsetDateTime`. The proposed consumer expects a UUID execution ID, base XP,
-activity date and streak eligibility. Family events likewise lack the proposed additional-ecopoint
-amount. Until these values are supplied by an agreed contract, real producer events are not converted
-into fabricated XP, gem credits or family grants. Minigame/collaborative rewards also remain pending.
+**Unresolved configuration:** published Quests has no base XP. Trusted per-version XP configuration is
+required; missing values raise a dependency error and roll back the completion. XP is not silently set
+to zero or equated to ecopoints. Actual family events do not configure an additional reward; the adapter
+records the validated milestone with zero additional points. It does not sum member grants. The proposed
+reward-complete family event can supply a configured bonus. No public mobile API can forge these inputs.
 
-## Proposed Quests delivery semantics
+## Transactions and retries
 
-Quests must first validate/persist completion and publish from its transaction. The event carries both
-a delivery `eventId` and a stable canonical execution ID. Gamification deduplicates by execution and
-beneficiary even if a retry has a different event ID. It translates base amounts into its own Reward
-and UserId/FamilyId model; the source never imports Gamification internals.
+Actual Quests publishes synchronously in its transaction. A Gamification listener failure rolls back
+completion, rewards, score, achievements and outbox together. Outgoing gem/cosmetic/notice/publication/
+protection delivery happens after commit through durable outbox retry. This implements the report's
+Spring transaction model; incoming Quests delivery is not an asynchronous queue.
 
-The current implementation follows the explicit Spring Application Events transaction model in
-section 2.6.6: listeners run synchronously and a listener failure rolls back the completion transaction.
-The context-map rationale describes eventual asynchronous delivery; that is not implemented here.
-A future durable asynchronous path needs an outbox and retry policy before changing these semantics.
+Receivers deduplicate gems by `rewardId`, cosmetics by `awardId` and protection/publication by `requestId`.
+The optional achievement notice does not publish a post. Only Community's persisted post produces
+`PublicationCreatedIntegrationEvent`, with request, award, requester, community and publication IDs.
+Only Monetization's inventory result resolves protection. Unknown Community publication flows are
+ignored; mismatched known confirmations fail. A missing supplier is a 503 for dependent REST operations,
+not an empty result, denied membership or success. Outbox failures preserve pending business state.
 
-Family events contain only the configured additional bonus. Their participant list is context for the
-validated completion, not a command to grant individual rewards again. Missing families cause failure.
-Gem-bearing quest events still fail until real Monetization delivery is implemented; this does not
-pretend that gems were credited.
+## Integration evidence boundaries
 
-## Correlation and supplier responsibilities
-
-- Monetization deduplicates gem grants by `rewardId`, cosmetic grants by `awardId` and protector
-  consumption by `requestId`. Only actual lack of inventory produces an unavailable result. Technical
-  errors remain retryable. XP multiplier validity uses an inclusive start and exclusive end.
-- Community distinguishes an achievement notice from a voluntary publish request. Only a persisted
-  post produces `PublicationCreatedIntegrationEvent`, preserving `requestId`, `awardId`, requester and
-  community. Sending a request does not mark an achievement as published.
-- Producers/consumers of outgoing integration events must implement durable storage, deduplication,
-  permissions and acknowledgements. The public contracts alone do not provide those guarantees.
-- Missing suppliers raise `IllegalStateException`; they are never treated as an empty catalog, absent
-  multiplier, denied membership or successful wallet/publication operation. The existing application
-  boots because it does not invoke these unfinished integrations yet.
-
-## Validation
-
-JUnit verifies transactional event delivery, re-delivery with a new message ID, atomic rollback on a
-consumer failure, family bonus isolation, required transaction boundaries, immutable/unique participant
-lists, multiplier boundaries and required publication correlation. The same suites support H2 in PostgreSQL mode and dedicated native PostgreSQL runs; see [gamification.md](gamification.md#database-validation).
+JUnit validates the **real** Monetization services and actual Quests public events/history against H2
+and can run against PostgreSQL. Community permissions, goal recognition and acknowledgements use an
+explicit test mock until a real supplier is published. This is not Community end-to-end evidence.
+Android ViewModels, dialog drafts, weekly ordering and Community feed animation are separate mobile/
+Community responsibilities; backend completion does not imply those interfaces have been implemented.
