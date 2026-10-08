@@ -426,7 +426,7 @@ public class FamilyPlanCommandServiceImpl implements FamilyPlanCommandService {
             questUserRepository.save(questUser);
         }
 
-        session.get().complete();
+        session.get().completeAsFamilyPlanItem();
         collabQuestSessionRepository.save(session.get());
         return null;
     }

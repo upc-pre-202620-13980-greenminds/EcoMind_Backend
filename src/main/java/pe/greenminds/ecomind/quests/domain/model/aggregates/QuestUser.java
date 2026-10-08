@@ -3,6 +3,7 @@ package pe.greenminds.ecomind.quests.domain.model.aggregates;
 import lombok.Getter;
 import lombok.Setter;
 import pe.greenminds.ecomind.quests.domain.model.events.QuestUserCreatedEvent;
+import pe.greenminds.ecomind.quests.domain.model.events.QuestCompletedEvent;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestStatus;
 
 import java.time.LocalDate;
@@ -89,6 +90,10 @@ public class QuestUser extends AbstractDomainAggregateRoot<QuestUser> {
         this.progress = 100.0;
         this.status = QuestStatus.COMPLETED;
         this.endDate = LocalDate.now(DAILY_ZONE);
+        registerDomainEvent(new QuestCompletedEvent(
+                id, questId, userId, CollaborativeSessionId,
+                java.time.OffsetDateTime.now(DAILY_ZONE)
+        ));
     }
 
     public void expire() {

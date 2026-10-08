@@ -27,6 +27,7 @@ public class CollabQuestSessionRepositoryImpl implements CollabQuestSessionRepos
     @Override
     public CollabQuestSession save(CollabQuestSession collabQuestSession) {
         boolean isNew = collabQuestSession.getId() == null;
+        var pendingEvents = collabQuestSession.domainEvents();
         var savedEntity = collabQuestSessionPersistenceRepository.save(
                 CollabQuestSessionPersistenceAssembler.toPersistenceFromDomain(
                         collabQuestSession
@@ -41,6 +42,8 @@ public class CollabQuestSessionRepositoryImpl implements CollabQuestSessionRepos
                     .forEach(applicationEventPublisher::publishEvent);
             savedCollabQuestSession.clearDomainEvents();
         }
+        pendingEvents.forEach(applicationEventPublisher::publishEvent);
+        collabQuestSession.clearDomainEvents();
 
         return savedCollabQuestSession;
     }

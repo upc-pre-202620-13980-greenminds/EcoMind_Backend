@@ -3,6 +3,7 @@ package pe.greenminds.ecomind.quests.domain.model.aggregates;
 import lombok.Getter;
 import lombok.Setter;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.MinigameAttemptStatus;
+import pe.greenminds.ecomind.quests.domain.model.events.MinigameCompletedEvent;
 
 import java.time.OffsetDateTime;
 import java.util.Collections;
@@ -73,6 +74,11 @@ public class MinigameAttempt extends AbstractDomainAggregateRoot<MinigameAttempt
         this.successful = successful;
         this.status = MinigameAttemptStatus.COMPLETED;
         this.endDate = OffsetDateTime.now();
+        if (successful) {
+            registerDomainEvent(new MinigameCompletedEvent(
+                    id, questId, minigameId, userId, score, endDate
+            ));
+        }
     }
 
     public void cancel() {

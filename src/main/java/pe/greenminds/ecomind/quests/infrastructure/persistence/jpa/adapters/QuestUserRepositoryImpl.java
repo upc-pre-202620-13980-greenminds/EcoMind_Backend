@@ -29,6 +29,7 @@ public class QuestUserRepositoryImpl implements QuestUserRepository {
     @Override
     public QuestUser save(QuestUser questUser) {
         boolean isNew = questUser.getId() == null;
+        var pendingEvents = questUser.domainEvents();
         var savedEntity = questUserPersistenceRepository.save(
                 QuestUserPersistenceAssembler.toPersistenceFromDomain(questUser)
         );
@@ -39,6 +40,8 @@ public class QuestUserRepositoryImpl implements QuestUserRepository {
             savedQuestUser.domainEvents().forEach(applicationEventPublisher::publishEvent);
             savedQuestUser.clearDomainEvents();
         }
+        pendingEvents.forEach(applicationEventPublisher::publishEvent);
+        questUser.clearDomainEvents();
 
         return savedQuestUser;
     }
