@@ -1,3 +1,21 @@
 package pe.greenminds.ecomind.community.infrastructure.persistence.jpa.assemblers;
-import pe.greenminds.ecomind.community.domain.model.aggregates.Community;import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.entities.CommunityPersistenceEntity;
-public final class CommunityPersistenceAssembler{private CommunityPersistenceAssembler(){}public static Community toDomain(CommunityPersistenceEntity e){return new Community(e.getId(),e.getName(),e.getDescription(),e.getType(),e.getTopic(),e.getLocality(),e.getMemberLimit(),e.getIconUrl(),e.getCreatedBy());}public static CommunityPersistenceEntity toEntity(Community c){return new CommunityPersistenceEntity(c.getId(),c.getName(),c.getDescription(),c.getType(),c.getTopic(),c.getLocality(),c.getMemberLimit(),c.getIconUrl(),c.getCreatedBy());}}
+
+import pe.greenminds.ecomind.community.domain.model.aggregates.Community;
+import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.entities.CommunityPersistenceEntity;
+
+public final class CommunityPersistenceAssembler {
+    private CommunityPersistenceAssembler() {
+    }
+
+    public static Community toDomain(CommunityPersistenceEntity persistenceEntity) {
+        return new Community(persistenceEntity.getId(), persistenceEntity.getName(), persistenceEntity.getDescription(),
+                persistenceEntity.getType(), persistenceEntity.getTopic(), persistenceEntity.getLocality(),
+                persistenceEntity.getMemberLimit(), persistenceEntity.getIconUrl(), persistenceEntity.getCreatedBy());
+    }
+
+    public static CommunityPersistenceEntity toEntity(Community community) {
+        return new CommunityPersistenceEntity(community.getId(), community.getName(), community.getDescription(),
+                community.getType(), community.getTopic(), community.getLocality(), community.getMemberLimit(),
+                community.getIconUrl(), community.getCreatedBy());
+    }
+}

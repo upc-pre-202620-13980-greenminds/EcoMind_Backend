@@ -1,3 +1,17 @@
 package pe.greenminds.ecomind.community.application.commandservices;
-import pe.greenminds.ecomind.community.domain.model.aggregates.Community;import pe.greenminds.ecomind.community.domain.model.aggregates.CommunityMembership;import pe.greenminds.ecomind.community.domain.model.commands.CreateLocalCommunityCommand;import pe.greenminds.ecomind.community.domain.model.commands.CreateTopicCommunityCommand;import pe.greenminds.ecomind.community.domain.model.commands.JoinCommunityCommand;import pe.greenminds.ecomind.shared.application.result.ApplicationError;import pe.greenminds.ecomind.shared.application.result.Result;
-public interface CommunityCommandService{Result<Community,ApplicationError> handle(CreateLocalCommunityCommand command);Result<Community,ApplicationError> handle(CreateTopicCommunityCommand command);Result<CommunityMembership,ApplicationError> handle(JoinCommunityCommand command);}
+
+import pe.greenminds.ecomind.community.domain.model.aggregates.Community;
+import pe.greenminds.ecomind.community.domain.model.aggregates.CommunityMembership;
+import pe.greenminds.ecomind.community.domain.model.commands.CreateLocalCommunityCommand;
+import pe.greenminds.ecomind.community.domain.model.commands.CreateTopicCommunityCommand;
+import pe.greenminds.ecomind.community.domain.model.commands.JoinCommunityCommand;
+import pe.greenminds.ecomind.shared.application.result.ApplicationError;
+import pe.greenminds.ecomind.shared.application.result.Result;
+
+public interface CommunityCommandService {
+    Result<Community, ApplicationError> handle(CreateLocalCommunityCommand command);
+
+    Result<Community, ApplicationError> handle(CreateTopicCommunityCommand command);
+
+    Result<CommunityMembership, ApplicationError> handle(JoinCommunityCommand command);
+}

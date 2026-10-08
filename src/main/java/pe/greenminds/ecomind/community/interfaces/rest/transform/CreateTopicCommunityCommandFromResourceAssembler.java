@@ -6,8 +6,8 @@ import pe.greenminds.ecomind.community.interfaces.rest.resources.CreateTopicComm
 public final class CreateTopicCommunityCommandFromResourceAssembler {
     private CreateTopicCommunityCommandFromResourceAssembler() {}
 
-    public static CreateTopicCommunityCommand toCommandFromResource(CreateTopicCommunityResource resource) {
+    public static CreateTopicCommunityCommand toCommandFromResource(CreateTopicCommunityResource resource, Long userId) {
         return new CreateTopicCommunityCommand(resource.name(), resource.description(), resource.topic(),
-                resource.member_limit(), resource.icon_url(), resource.user_id());
+                resource.member_limit(), resource.icon_url(), userId);
     }
 }
