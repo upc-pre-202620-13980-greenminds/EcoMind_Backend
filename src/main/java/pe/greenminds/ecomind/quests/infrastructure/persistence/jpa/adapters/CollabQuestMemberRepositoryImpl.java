@@ -27,6 +27,7 @@ public class CollabQuestMemberRepositoryImpl implements CollabQuestMemberReposit
     @Override
     public CollabQuestMember save(CollabQuestMember collabQuestMember) {
         boolean isNew = collabQuestMember.getId() == null;
+        var pendingEvents = collabQuestMember.domainEvents();
         var savedEntity = collabQuestMemberPersistenceRepository.save(
                 CollabQuestMemberPersistenceAssembler.toPersistenceFromDomain(collabQuestMember)
         );
@@ -38,6 +39,8 @@ public class CollabQuestMemberRepositoryImpl implements CollabQuestMemberReposit
             savedCollabQuestMember.domainEvents().forEach(applicationEventPublisher::publishEvent);
             savedCollabQuestMember.clearDomainEvents();
         }
+        pendingEvents.forEach(applicationEventPublisher::publishEvent);
+        collabQuestMember.clearDomainEvents();
 
         return savedCollabQuestMember;
     }

@@ -7,6 +7,11 @@ import pe.greenminds.ecomind.quests.interfaces.events.FamilyPlanCompletedIntegra
 import pe.greenminds.ecomind.quests.interfaces.events.MinigameCompletedIntegrationEvent;
 import pe.greenminds.ecomind.quests.interfaces.events.QuestCompletedIntegrationEvent;
 import pe.greenminds.ecomind.quests.domain.services.QuestEventPublisher;
+import pe.greenminds.ecomind.quests.interfaces.events.CollaborativeQuestInvitationSentIntegrationEvent;
+import pe.greenminds.ecomind.quests.interfaces.events.CollaborativeQuestInvitationAcceptedIntegrationEvent;
+import pe.greenminds.ecomind.quests.interfaces.events.CollaborativeQuestInvitationRejectedIntegrationEvent;
+import pe.greenminds.ecomind.quests.interfaces.events.CollaborativeQuestStartedIntegrationEvent;
+import pe.greenminds.ecomind.quests.interfaces.events.FamilyPlanActivatedIntegrationEvent;
 
 @Component
 public class SpringQuestEventPublisher implements QuestEventPublisher {
@@ -35,4 +40,10 @@ public class SpringQuestEventPublisher implements QuestEventPublisher {
     public void publish(FamilyPlanCompletedIntegrationEvent event) {
         applicationEventPublisher.publishEvent(event);
     }
+
+    @Override public void publish(CollaborativeQuestInvitationSentIntegrationEvent event) { applicationEventPublisher.publishEvent(event); }
+    @Override public void publish(CollaborativeQuestInvitationAcceptedIntegrationEvent event) { applicationEventPublisher.publishEvent(event); }
+    @Override public void publish(CollaborativeQuestInvitationRejectedIntegrationEvent event) { applicationEventPublisher.publishEvent(event); }
+    @Override public void publish(CollaborativeQuestStartedIntegrationEvent event) { applicationEventPublisher.publishEvent(event); }
+    @Override public void publish(FamilyPlanActivatedIntegrationEvent event) { applicationEventPublisher.publishEvent(event); }
 }

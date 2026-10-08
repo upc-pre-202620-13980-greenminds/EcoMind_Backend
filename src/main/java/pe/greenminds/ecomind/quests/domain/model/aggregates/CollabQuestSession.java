@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import pe.greenminds.ecomind.quests.domain.model.events.CollabQuestSessionCreatedEvent;
 import pe.greenminds.ecomind.quests.domain.model.events.CollaborativeQuestCompletedEvent;
+import pe.greenminds.ecomind.quests.domain.model.events.CollaborativeQuestStartedEvent;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabQuestStatus;
 
 import java.time.LocalDate;
@@ -64,6 +65,8 @@ public class CollabQuestSession extends AbstractDomainAggregateRoot<CollabQuestS
 
         this.status = CollabQuestStatus.STARTED;
         this.startDate = LocalDate.now();
+        registerDomainEvent(new CollaborativeQuestStartedEvent(
+                id, questId, ownerId, java.time.OffsetDateTime.now()));
     }
 
     public void complete() {

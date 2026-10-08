@@ -457,7 +457,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
             );
         }
 
-        member.declineInvite();
+        member.revokeInvite();
         return Result.success(collabQuestMemberRepository.save(member));
     }
 
