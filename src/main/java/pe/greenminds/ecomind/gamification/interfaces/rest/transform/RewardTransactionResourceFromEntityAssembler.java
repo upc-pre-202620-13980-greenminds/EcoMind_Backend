@@ -13,7 +13,6 @@ public final class RewardTransactionResourceFromEntityAssembler {
                 entity.sourceExecutionId(),
                 entity.beneficiary().value(),
                 entity.grantedReward().ecopoints(),
-                entity.grantedReward().experience(),
                 entity.grantedReward().gems(),
                 entity.occurredAt());
     }

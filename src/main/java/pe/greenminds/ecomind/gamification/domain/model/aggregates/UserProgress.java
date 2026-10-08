@@ -13,35 +13,28 @@ public class UserProgress {
 
     private final UserId userId;
     private long totalEcopoints;
-    private long totalExperience;
     private Streak streak;
 
     public UserProgress(
             UserId userId,
             long totalEcopoints,
-            long totalExperience,
             int currentStreak,
             int longestStreak,
             LocalDate lastActivityDate) {
-        if (totalEcopoints < 0
-                || totalExperience < 0
-                || currentStreak < 0
-                || longestStreak < currentStreak) {
+        if (totalEcopoints < 0 || currentStreak < 0 || longestStreak < currentStreak) {
             throw new IllegalArgumentException("Progress values are invalid");
         }
         this.userId = Objects.requireNonNull(userId);
         this.totalEcopoints = totalEcopoints;
-        this.totalExperience = totalExperience;
         this.streak = new Streak(currentStreak, longestStreak, lastActivityDate, null);
     }
 
     public static UserProgress empty(UserId userId) {
-        return new UserProgress(userId, 0, 0, 0, 0, null);
+        return new UserProgress(userId, 0, 0, 0, null);
     }
 
     public void applyReward(Reward reward, LocalDate activityDate, boolean countsForDailyStreak) {
         totalEcopoints = Math.addExact(totalEcopoints, reward.ecopoints());
-        totalExperience = Math.addExact(totalExperience, reward.experience());
         if (countsForDailyStreak)
             streak = new StreakService().registerDailyActivity(streak, activityDate);
     }
@@ -72,10 +65,6 @@ public class UserProgress {
 
     public long getTotalEcopoints() {
         return totalEcopoints;
-    }
-
-    public long getTotalExperience() {
-        return totalExperience;
     }
 
     public int getCurrentStreak() {

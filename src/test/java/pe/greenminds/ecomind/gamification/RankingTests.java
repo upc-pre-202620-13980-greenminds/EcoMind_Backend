@@ -281,7 +281,7 @@ class RankingTests {
                         occurredAt,
                         LocalDate.of(2026, 10, 7),
                         false,
-                        new Reward(points, 0, 0)));
+                        new Reward(points, 0)));
     }
 
     private String bearer(long id) {

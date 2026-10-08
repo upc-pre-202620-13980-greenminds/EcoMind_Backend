@@ -22,6 +22,6 @@ public final class RewardHistoryResourceFromEntityAssembler {
     }
 
     private static RewardResource toResource(Reward reward) {
-        return new RewardResource(reward.ecopoints(), reward.experience(), reward.gems());
+        return new RewardResource(reward.ecopoints(), reward.gems());
     }
 }

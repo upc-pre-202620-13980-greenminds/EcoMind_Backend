@@ -8,7 +8,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import pe.greenminds.ecomind.gamification.application.commandservices.FamilyRewardCommandService;
 import pe.greenminds.ecomind.gamification.application.commandservices.RewardCommandService;
-import pe.greenminds.ecomind.gamification.application.outboundservices.GamificationDependencyUnavailableException;
 import pe.greenminds.ecomind.gamification.application.outboundservices.QuestServiceClient;
 import pe.greenminds.ecomind.gamification.domain.model.commands.GrantCollaborativeQuestRewardCommand;
 import pe.greenminds.ecomind.gamification.domain.model.commands.GrantFamilyPlanRewardCommand;
@@ -17,7 +16,6 @@ import pe.greenminds.ecomind.gamification.domain.model.commands.GrantQuestReward
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.FamilyId;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.Reward;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.UserId;
-import pe.greenminds.ecomind.gamification.domain.repositories.QuestExperienceRepository;
 import pe.greenminds.ecomind.quests.interfaces.acl.events.CollaborativeQuestCompletedIntegrationEvent;
 import pe.greenminds.ecomind.quests.interfaces.acl.events.FamilyPlanCompletedIntegrationEvent;
 import pe.greenminds.ecomind.quests.interfaces.acl.events.MinigameCompletedIntegrationEvent;
@@ -34,95 +32,79 @@ import java.util.UUID;
 public class QuestCompletionConsumer {
     private final RewardCommandService rewards;
     private final FamilyRewardCommandService families;
-    private final QuestExperienceRepository experience;
     private final ZoneId zone;
     private final QuestServiceClient quests;
 
     public QuestCompletionConsumer(
             RewardCommandService rewards,
             FamilyRewardCommandService families,
-            QuestExperienceRepository experience,
             QuestServiceClient quests,
             @Value("${gamification.activity-zone:America/Lima}") String zone) {
         this.rewards = rewards;
         this.families = families;
-        this.experience = experience;
         this.zone = ZoneId.of(zone);
         this.quests = quests;
     }
 
     @EventListener
-    public void on(QuestCompletedIntegrationEvent e) {
-        var at = e.completedAt().toInstant();
-        rewards.handle(
-                new GrantQuestRewardCommand(
-                        execution("quest-user", e.questUserId()),
-                        new UserId(e.userId()),
-                        at,
-                        at.atZone(zone).toLocalDate(),
-                        "DAILY_QUEST".equals(e.questType().name()),
-                        base(e.questId(), e.baseEcopoints(), e.baseGems())));
+    public void on(QuestCompletedIntegrationEvent event) {
+        var completedAt = event.completedAt().toInstant();
+        rewards.handle(new GrantQuestRewardCommand(
+                execution("quest-user", event.questUserId()),
+                new UserId(event.userId()),
+                completedAt,
+                completedAt.atZone(zone).toLocalDate(),
+                "DAILY_QUEST".equals(event.questType().name()),
+                base(event.baseEcopoints(), event.baseGems())));
     }
 
     @EventListener
-    public void on(MinigameCompletedIntegrationEvent e) {
-        var at = e.completedAt().toInstant();
-        long prior =
-                quests
-                        .findPublishedValidatedAttempts(
-                                e.userId(), e.minigameId(), at.minus(Duration.ofHours(3)), at)
-                        .stream()
-                        .filter(a -> !a.attemptId().equals(e.attemptId()))
-                        .count();
-        rewards.handle(
-                new GrantMinigameRewardCommand(
-                        execution("minigame-attempt", e.attemptId()),
-                        execution("minigame", e.minigameId()),
-                        new UserId(e.userId()),
-                        at,
-                        base(e.questId(), e.baseEcopoints(), e.baseGems()),
-                        prior));
+    public void on(MinigameCompletedIntegrationEvent event) {
+        var completedAt = event.completedAt().toInstant();
+        long priorAttempts = quests.findPublishedValidatedAttempts(
+                        event.userId(), event.minigameId(),
+                        completedAt.minus(Duration.ofHours(3)), completedAt)
+                .stream()
+                .filter(attempt -> !attempt.attemptId().equals(event.attemptId()))
+                .count();
+        rewards.handle(new GrantMinigameRewardCommand(
+                execution("minigame-attempt", event.attemptId()),
+                execution("minigame", event.minigameId()),
+                new UserId(event.userId()),
+                completedAt,
+                base(event.baseEcopoints(), event.baseGems()),
+                priorAttempts));
     }
 
     @EventListener
-    public void on(CollaborativeQuestCompletedIntegrationEvent e) {
-        rewards.handle(
-                new GrantCollaborativeQuestRewardCommand(
-                        execution("collaborative-session", e.sessionId()),
-                        e.participantUserIds().stream().map(UserId::new).toList(),
-                        e.completedAt().toInstant(),
-                        base(e.questId(), e.baseEcopoints(), e.baseGems())));
+    public void on(CollaborativeQuestCompletedIntegrationEvent event) {
+        rewards.handle(new GrantCollaborativeQuestRewardCommand(
+                execution("collaborative-session", event.sessionId()),
+                event.participantUserIds().stream().map(UserId::new).toList(),
+                event.completedAt().toInstant(),
+                base(event.baseEcopoints(), event.baseGems())));
     }
 
     @EventListener
-    public void on(FamilyPlanCompletedIntegrationEvent e) {
-        var execution = execution("family-plan", e.familyPlanId());
-        var family = new FamilyId(e.familyId());
-        // Quests does not configure an additional plan bonus in this published contract.
-        var result =
-                families.handle(
-                        new GrantFamilyPlanRewardCommand(
-                                execution, family, 0, e.completedAt().toInstant()));
-        if (result.isFailure())
+    public void on(FamilyPlanCompletedIntegrationEvent event) {
+        var result = families.handle(new GrantFamilyPlanRewardCommand(
+                execution("family-plan", event.familyPlanId()),
+                new FamilyId(event.familyId()),
+                0,
+                event.completedAt().toInstant()));
+        if (result.isFailure()) {
             throw new IllegalStateException("Unknown family for completed plan");
+        }
     }
 
-    private Reward base(Long quest, Integer points, Integer gems) {
-        long xp =
-                experience
-                        .find(quest)
-                        .orElseThrow(
-                                () ->
-                                        new GamificationDependencyUnavailableException(
-                                                "Configure base experience for quest version "
-                                                        + quest
-                                                        + " before completion"));
-        return new Reward(Objects.requireNonNull(points), xp, Objects.requireNonNull(gems));
+    private Reward base(Integer ecopoints, Integer gems) {
+        return new Reward(Objects.requireNonNull(ecopoints), Objects.requireNonNull(gems));
     }
 
     private UUID execution(String type, Long id) {
-        if (id == null || id <= 0)
+        if (id == null || id <= 0) {
             throw new IllegalArgumentException("Execution identifier must be positive");
+        }
         return UUID.nameUUIDFromBytes((type + ":" + id).getBytes(StandardCharsets.UTF_8));
     }
 }

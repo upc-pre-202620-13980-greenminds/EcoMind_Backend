@@ -15,5 +15,5 @@ public record RewardHistoryResource(
 
     public record BeneficiaryResource(String type, Long id) {}
 
-    public record RewardResource(long ecopoints, long experience, int gems) {}
+    public record RewardResource(long ecopoints, int gems) {}
 }
