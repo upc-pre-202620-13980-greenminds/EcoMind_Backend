@@ -4,6 +4,7 @@ import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
 import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -51,7 +52,12 @@ public class OpenApiConfiguration {
 
   @Bean
   public GroupedOpenApi questsApi() {
-    return groupFor("quests");
+    return GroupedOpenApi.builder()
+        .group("quests")
+        .packagesToScan(BASE_PACKAGE + "quests")
+        .addOpenApiCustomizer(openApi -> openApi.addSecurityItem(
+            new SecurityRequirement().addList(BEARER_AUTH_SCHEME)))
+        .build();
   }
 
   @Bean
