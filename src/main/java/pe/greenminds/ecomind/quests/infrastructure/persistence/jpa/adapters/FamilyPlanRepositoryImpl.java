@@ -22,11 +22,12 @@ public class FamilyPlanRepositoryImpl implements FamilyPlanRepository {
 
     @Override
     public FamilyPlan save(FamilyPlan familyPlan) {
-        return FamilyPlanPersistenceAssembler.toDomainFromPersistence(
+        var savedPlan = FamilyPlanPersistenceAssembler.toDomainFromPersistence(
                 familyPlanPersistenceRepository.save(
                         FamilyPlanPersistenceAssembler.toPersistenceFromDomain(familyPlan)
                 )
         );
+        return savedPlan;
     }
 
     @Override

@@ -1,6 +1,5 @@
 package pe.greenminds.ecomind.quests.infrastructure.persistence.jpa.adapters;
 
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.ActivityUser;
 import pe.greenminds.ecomind.quests.domain.repositories.ActivityUserRepository;
@@ -13,32 +12,19 @@ import java.util.Optional;
 @Repository
 public class ActivityUserRepositoryImpl implements ActivityUserRepository {
     private final ActivityUserPersistenceRepository activityUserPersistenceRepository;
-    private final ApplicationEventPublisher applicationEventPublisher;
 
     public ActivityUserRepositoryImpl(
-            ActivityUserPersistenceRepository activityUserPersistenceRepository,
-            ApplicationEventPublisher applicationEventPublisher
+            ActivityUserPersistenceRepository activityUserPersistenceRepository
     ) {
         this.activityUserPersistenceRepository = activityUserPersistenceRepository;
-        this.applicationEventPublisher = applicationEventPublisher;
     }
 
     @Override
     public ActivityUser save(ActivityUser activityUser) {
-        boolean isNew = activityUser.getId() == null;
         var savedEntity = activityUserPersistenceRepository.save(
                 ActivityUserPersistenceAssembler.toPersistenceFromDomain(activityUser)
         );
-        var savedActivityUser =
-                ActivityUserPersistenceAssembler.toDomainFromPersistence(savedEntity);
-
-        if (isNew) {
-            savedActivityUser.onCreated();
-            savedActivityUser.domainEvents().forEach(applicationEventPublisher::publishEvent);
-            savedActivityUser.clearDomainEvents();
-        }
-
-        return savedActivityUser;
+        return ActivityUserPersistenceAssembler.toDomainFromPersistence(savedEntity);
     }
 
     @Override

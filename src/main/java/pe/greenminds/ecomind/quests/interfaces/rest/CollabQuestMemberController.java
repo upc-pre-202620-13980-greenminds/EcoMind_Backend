@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,15 +19,24 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import pe.greenminds.ecomind.quests.application.commandservices.CollabQuestMemberCommandService;
+import pe.greenminds.ecomind.quests.application.queryservices.CollabQuestMemberQueryService;
 import pe.greenminds.ecomind.quests.domain.model.commands.AcceptCollabQuestMemberCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.DeclineCollabQuestMemberCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.LeaveCollabQuestMemberCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.RemoveCollabQuestMemberCommand;
+import pe.greenminds.ecomind.quests.domain.model.queries.GetCollabQuestMemberByIdQuery;
+import pe.greenminds.ecomind.quests.domain.model.queries.GetCollabQuestMembersBySessionQuery;
+import pe.greenminds.ecomind.quests.domain.model.queries.GetCollabQuestMembersByUserQuery;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabMemberStatus;
 import pe.greenminds.ecomind.quests.interfaces.rest.resources.CollabQuestMemberResource;
 import pe.greenminds.ecomind.quests.interfaces.rest.resources.InviteCollabQuestMemberResource;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.CollabQuestMemberResourceFromEntityAssembler;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.InviteCollabQuestMemberCommandFromResourceAssembler;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.ResponseEntityAssembler;
+import pe.greenminds.ecomind.quests.interfaces.rest.transform.ErrorResponseAssembler;
+import pe.greenminds.ecomind.shared.application.result.ApplicationError;
+
+import java.util.List;
 
 @RestController
 @RequestMapping(
@@ -36,11 +46,50 @@ import pe.greenminds.ecomind.quests.interfaces.rest.transform.ResponseEntityAsse
 @Tag(name = "Collaborative Quest Members", description = "Collaborative quest member endpoints")
 public class CollabQuestMemberController {
     private final CollabQuestMemberCommandService collabQuestMemberCommandService;
+    private final CollabQuestMemberQueryService collabQuestMemberQueryService;
 
     public CollabQuestMemberController(
-            CollabQuestMemberCommandService collabQuestMemberCommandService
+            CollabQuestMemberCommandService collabQuestMemberCommandService,
+            CollabQuestMemberQueryService collabQuestMemberQueryService
     ) {
         this.collabQuestMemberCommandService = collabQuestMemberCommandService;
+        this.collabQuestMemberQueryService = collabQuestMemberQueryService;
+    }
+
+    @GetMapping("/{memberId}")
+    @Operation(summary = "Get a collaborative quest member by ID")
+    public ResponseEntity<?> getById(@PathVariable Long memberId) {
+        var member = collabQuestMemberQueryService.handle(
+                new GetCollabQuestMemberByIdQuery(memberId));
+        if (member.isEmpty()) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    ApplicationError.notFound("CollabQuestMember", memberId.toString()));
+        }
+        return ResponseEntity.ok(
+                CollabQuestMemberResourceFromEntityAssembler.toResourceFromEntity(member.get()));
+    }
+
+    @GetMapping("/sessions/{sessionId}")
+    @Operation(summary = "Get all members of a collaborative quest session")
+    public ResponseEntity<List<CollabQuestMemberResource>> getBySession(
+            @PathVariable Long sessionId) {
+        var resources = collabQuestMemberQueryService.handle(
+                        new GetCollabQuestMembersBySessionQuery(sessionId))
+                .stream().map(CollabQuestMemberResourceFromEntityAssembler::toResourceFromEntity)
+                .toList();
+        return ResponseEntity.ok(resources);
+    }
+
+    @GetMapping("/users/{userId}")
+    @Operation(summary = "Get collaborative quest memberships or invitations for a user")
+    public ResponseEntity<List<CollabQuestMemberResource>> getByUser(
+            @PathVariable Long userId,
+            @RequestParam(required = false) CollabMemberStatus status) {
+        var resources = collabQuestMemberQueryService.handle(
+                        new GetCollabQuestMembersByUserQuery(userId, status))
+                .stream().map(CollabQuestMemberResourceFromEntityAssembler::toResourceFromEntity)
+                .toList();
+        return ResponseEntity.ok(resources);
     }
 
     @PostMapping

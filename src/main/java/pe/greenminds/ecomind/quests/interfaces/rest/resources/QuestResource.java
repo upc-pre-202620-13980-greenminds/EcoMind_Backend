@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.Category;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestType;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.Theme;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestPublicationStatus;
 
 import java.time.LocalDate;
 
@@ -31,6 +32,12 @@ import java.time.LocalDate;
 public record QuestResource (
     @Schema(description = "Quest unique identifier", example = "1")
     Long id,
+
+    Long versionGroupId,
+
+    Integer versionNumber,
+
+    QuestPublicationStatus publicationStatus,
 
     @Schema(description = "MinigameId for quest with minigame")
     Long minigameId,

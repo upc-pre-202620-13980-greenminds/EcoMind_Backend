@@ -1,41 +1,38 @@
 package pe.greenminds.ecomind.shared.infrastructure.persistence.jpa.configuration.strategy;
 
+import static io.github.encryptorcode.pluralize.Pluralize.pluralize;
+
 import org.hibernate.boot.model.naming.Identifier;
 import org.hibernate.boot.model.naming.PhysicalNamingStrategy;
 import org.hibernate.engine.jdbc.env.spi.JdbcEnvironment;
 
-import static io.github.encryptorcode.pluralize.Pluralize.pluralize;
-
-public class SnakeCaseWithPluralizedTablePhysicalNamingStrategy
-        implements PhysicalNamingStrategy {
+public class SnakeCaseWithPluralizedTablePhysicalNamingStrategy implements PhysicalNamingStrategy {
 
     @Override
-    public Identifier toPhysicalCatalogName(Identifier identifier,
-                                            JdbcEnvironment jdbcEnvironment) {
+    public Identifier toPhysicalCatalogName(
+            Identifier identifier, JdbcEnvironment jdbcEnvironment) {
         return this.toSnakeCase(identifier);
     }
 
     @Override
-    public Identifier toPhysicalSchemaName(Identifier identifier,
-                                           JdbcEnvironment jdbcEnvironment) {
+    public Identifier toPhysicalSchemaName(Identifier identifier, JdbcEnvironment jdbcEnvironment) {
         return this.toSnakeCase(identifier);
     }
 
     @Override
-    public Identifier toPhysicalTableName(Identifier identifier,
-                                          JdbcEnvironment jdbcEnvironment) {
+    public Identifier toPhysicalTableName(Identifier identifier, JdbcEnvironment jdbcEnvironment) {
+        if (identifier != null && identifier.isQuoted()) return identifier;
         return this.toSnakeCase(this.toPlural(identifier));
     }
 
     @Override
-    public Identifier toPhysicalSequenceName(Identifier identifier,
-                                             JdbcEnvironment jdbcEnvironment) {
+    public Identifier toPhysicalSequenceName(
+            Identifier identifier, JdbcEnvironment jdbcEnvironment) {
         return this.toSnakeCase(identifier);
     }
 
     @Override
-    public Identifier toPhysicalColumnName(Identifier identifier,
-                                           JdbcEnvironment jdbcEnvironment) {
+    public Identifier toPhysicalColumnName(Identifier identifier, JdbcEnvironment jdbcEnvironment) {
         return this.toSnakeCase(identifier);
     }
 
@@ -43,9 +40,7 @@ public class SnakeCaseWithPluralizedTablePhysicalNamingStrategy
         if (identifier == null) return null;
         final String regex = "([a-z])([A-Z])";
         final String replacement = "$1_$2";
-        final String snakeName = identifier.getText()
-                .replaceAll(regex, replacement)
-                .toLowerCase();
+        final String snakeName = identifier.getText().replaceAll(regex, replacement).toLowerCase();
         return Identifier.toIdentifier(snakeName);
     }
 

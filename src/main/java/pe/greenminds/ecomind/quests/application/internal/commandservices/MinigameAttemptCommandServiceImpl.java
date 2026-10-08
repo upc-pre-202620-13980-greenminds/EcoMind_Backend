@@ -1,12 +1,14 @@
 package pe.greenminds.ecomind.quests.application.internal.commandservices;
 
 import jakarta.transaction.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import pe.greenminds.ecomind.quests.application.commandservices.MinigameAttemptCommandService;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.MinigameAttempt;
 import pe.greenminds.ecomind.quests.domain.model.commands.CancelMinigameAttemptCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.CreateMinigameAttemptCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.FinishMinigameAttemptCommand;
+import pe.greenminds.ecomind.quests.domain.model.events.MinigameCompletedEvent;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.MinigameAttemptStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestType;
 import pe.greenminds.ecomind.quests.domain.repositories.MinigameAttemptRepository;
@@ -24,15 +26,18 @@ public class MinigameAttemptCommandServiceImpl implements MinigameAttemptCommand
     private final MinigameAttemptRepository minigameAttemptRepository;
     private final MinigameRepository minigameRepository;
     private final QuestRepository questRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public MinigameAttemptCommandServiceImpl(
             MinigameAttemptRepository minigameAttemptRepository,
             MinigameRepository minigameRepository,
-            QuestRepository questRepository
+            QuestRepository questRepository,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.minigameAttemptRepository = minigameAttemptRepository;
         this.minigameRepository = minigameRepository;
         this.questRepository = questRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -51,6 +56,12 @@ public class MinigameAttemptCommandServiceImpl implements MinigameAttemptCommand
                             "Quest %d is %s".formatted(command.questId(), quest.get().getType())
                     )
             );
+        }
+
+        if (!quest.get().acceptsNewAssignments()) {
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "Quest is not published",
+                    "Only PUBLISHED quests accept new minigame attempts"));
         }
 
         if (quest.get().getMinigameId() == null) {
@@ -138,14 +149,15 @@ public class MinigameAttemptCommandServiceImpl implements MinigameAttemptCommand
 
         try {
             var successful = isSuccessful(command.score(), minigame.get().getCompletionRules());
-            attempt.get().finish(
-                    command.score(),
-                    command.metadata(),
-                    0,
-                    0
-            );
+            attempt.get().finish(command.score(), command.metadata(), successful);
 
             var savedAttempt = minigameAttemptRepository.save(attempt.get());
+            if (successful) {
+                eventPublisher.publishEvent(new MinigameCompletedEvent(
+                        savedAttempt.getId(), savedAttempt.getQuestId(),
+                        savedAttempt.getMinigameId(), savedAttempt.getUserId(),
+                        savedAttempt.getScore(), savedAttempt.getEndDate()));
+            }
             return Result.success(savedAttempt);
         } catch (IllegalArgumentException | NullPointerException exception) {
             return Result.failure(

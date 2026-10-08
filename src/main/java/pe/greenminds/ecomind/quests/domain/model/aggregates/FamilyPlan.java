@@ -7,7 +7,7 @@ import pe.greenminds.ecomind.quests.domain.model.valueobjects.FamilyPlanStatus;
 import java.time.OffsetDateTime;
 import java.util.Objects;
 
-public class FamilyPlan extends AbstractDomainAggregateRoot<FamilyPlan> {
+public class FamilyPlan {
     @Getter
     @Setter
     private Long id;

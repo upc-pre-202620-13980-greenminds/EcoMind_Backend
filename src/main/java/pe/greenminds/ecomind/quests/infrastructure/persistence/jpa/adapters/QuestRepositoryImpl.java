@@ -1,11 +1,11 @@
 package pe.greenminds.ecomind.quests.infrastructure.persistence.jpa.adapters;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.Quest;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.Category;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestType;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.Theme;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestPublicationStatus;
 import pe.greenminds.ecomind.quests.domain.repositories.QuestRepository;
 import pe.greenminds.ecomind.quests.infrastructure.persistence.jpa.assemblers.QuestPersistenceAssembler;
 import pe.greenminds.ecomind.quests.infrastructure.persistence.jpa.repositories.QuestPersistenceRepository;
@@ -17,11 +17,9 @@ import java.util.Optional;
 @Repository
 public class QuestRepositoryImpl implements QuestRepository {
     private final QuestPersistenceRepository questPersistenceRepository;
-    private final ApplicationEventPublisher applicationEventPublisher;
 
-    public QuestRepositoryImpl(QuestPersistenceRepository questPersistenceRepository, ApplicationEventPublisher applicationEventPublisher) {
+    public QuestRepositoryImpl(QuestPersistenceRepository questPersistenceRepository) {
         this.questPersistenceRepository = questPersistenceRepository;
-        this.applicationEventPublisher = applicationEventPublisher;
     }
 
     @Override
@@ -52,8 +50,27 @@ public class QuestRepositoryImpl implements QuestRepository {
     }
 
     @Override
+    public List<Quest> findByPublicationStatus(QuestPublicationStatus status) {
+        return questPersistenceRepository.findByPublicationStatus(status).stream()
+                .map(QuestPersistenceAssembler::toDomainFromPersistence).toList();
+    }
+
+    @Override
+    public List<Quest> findByVersionGroupId(Long versionGroupId) {
+        return questPersistenceRepository.findVersions(versionGroupId)
+                .stream().map(QuestPersistenceAssembler::toDomainFromPersistence).toList();
+    }
+
+    @Override
+    public Optional<Quest> findPublishedByVersionGroupId(Long versionGroupId) {
+        return questPersistenceRepository.findPublishedByVersionGroupId(versionGroupId)
+                .map(QuestPersistenceAssembler::toDomainFromPersistence);
+    }
+
+    @Override
     public Optional<Quest> findByTypeAndAssignedDate(QuestType questType, LocalDate assignedDate) {
-        return questPersistenceRepository.findByQuestTypeAndAssignedDate(questType, assignedDate)
+        return questPersistenceRepository.findByQuestTypeAndAssignedDateAndPublicationStatus(
+                        questType, assignedDate, QuestPublicationStatus.PUBLISHED)
                 .map(QuestPersistenceAssembler::toDomainFromPersistence);
     }
 
@@ -70,20 +87,8 @@ public class QuestRepositoryImpl implements QuestRepository {
 
     @Override
     public Quest save(Quest quest) {
-        boolean isNew = quest.getId() == null;
         var savedEntity = questPersistenceRepository.save(QuestPersistenceAssembler.toPersistenceFromDomain(quest));
-        var savedQuest = QuestPersistenceAssembler.toDomainFromPersistence(savedEntity);
-        if(isNew){
-            savedQuest.onCreated();
-            savedQuest.domainEvents().forEach(applicationEventPublisher::publishEvent);
-            savedQuest.clearDomainEvents();
-        }
-        return savedQuest;
-    }
-
-    @Override
-    public void deleteById(Long id){
-        questPersistenceRepository.deleteById(id);
+        return QuestPersistenceAssembler.toDomainFromPersistence(savedEntity);
     }
 
     @Override

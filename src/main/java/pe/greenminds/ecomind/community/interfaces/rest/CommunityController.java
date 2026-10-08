@@ -1,7 +1,7 @@
 package pe.greenminds.ecomind.community.interfaces.rest;
 
-import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -9,7 +9,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,9 +24,9 @@ import pe.greenminds.ecomind.community.interfaces.rest.resources.CreateTopicComm
 import pe.greenminds.ecomind.community.interfaces.rest.transform.CommunityResourceFromEntityAssembler;
 import pe.greenminds.ecomind.community.interfaces.rest.transform.CreateLocalCommunityCommandFromResourceAssembler;
 import pe.greenminds.ecomind.community.interfaces.rest.transform.CreateTopicCommunityCommandFromResourceAssembler;
-import pe.greenminds.ecomind.shared.interfaces.rest.transform.ResponseEntityAssembler;
 import pe.greenminds.ecomind.shared.infrastructure.documentation.openapi.configuration.OpenApiConfiguration;
 import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
+import pe.greenminds.ecomind.shared.interfaces.rest.transform.ResponseEntityAssembler;
 
 @RestController
 @Tag(name = "Community", description = "Community discovery, creation and membership")
@@ -38,7 +37,9 @@ public class CommunityController {
     private final CommunityQueryService queryService;
     private final ResponseEntityAssembler responseEntityAssembler;
 
-    public CommunityController(CommunityCommandService commandService, CommunityQueryService queryService,
+    public CommunityController(
+            CommunityCommandService commandService,
+            CommunityQueryService queryService,
             ResponseEntityAssembler responseEntityAssembler) {
         this.commandService = commandService;
         this.queryService = queryService;
@@ -46,25 +47,34 @@ public class CommunityController {
     }
 
     @GetMapping
-    public List<CommunityResource> search(@RequestParam(required = false) String type,
+    public List<CommunityResource> search(
+            @RequestParam(required = false) String type,
             @RequestParam(required = false) String locality) {
-        return queryService.handle(new SearchCommunitiesQuery(type == null ? null : CommunityType.fromValue(type), locality)).stream()
-                .map(CommunityResourceFromEntityAssembler::toResourceFromEntity).toList();
+        return queryService.handle(new SearchCommunitiesQuery(
+                        type == null ? null : CommunityType.fromValue(type), locality))
+                .stream()
+                .map(CommunityResourceFromEntityAssembler::toResourceFromEntity)
+                .toList();
     }
 
     @PostMapping(value = "/Local", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createLocal(@Valid @RequestBody CreateLocalCommunityResource resource) {
         var command = CreateLocalCommunityCommandFromResourceAssembler.toCommandFromResource(resource);
-        return responseEntityAssembler.toResponseEntityFromResult(commandService.handle(command),
-                CommunityResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.CREATED);
+        return responseEntityAssembler.toResponseEntityFromResult(
+                commandService.handle(command),
+                CommunityResourceFromEntityAssembler::toResourceFromEntity,
+                HttpStatus.CREATED);
     }
 
     @PostMapping(value = "/Topics", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> createTopic(@Valid @RequestBody CreateTopicCommunityResource resource,
+    public ResponseEntity<?> createTopic(
+            @Valid @RequestBody CreateTopicCommunityResource resource,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-        var command = CreateTopicCommunityCommandFromResourceAssembler.toCommandFromResource(resource, principal.accountId());
-        return responseEntityAssembler.toResponseEntityFromResult(commandService.handle(command),
-                CommunityResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.CREATED);
+        var command = CreateTopicCommunityCommandFromResourceAssembler.toCommandFromResource(
+                resource, principal.accountId());
+        return responseEntityAssembler.toResponseEntityFromResult(
+                commandService.handle(command),
+                CommunityResourceFromEntityAssembler::toResourceFromEntity,
+                HttpStatus.CREATED);
     }
-
 }

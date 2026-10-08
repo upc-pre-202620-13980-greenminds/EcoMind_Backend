@@ -1,0 +1,8 @@
+package pe.greenminds.ecomind.gamification.domain.model.valueobjects;
+
+public record FamilyId(Long value) {
+    public FamilyId {
+        if (value == null || value <= 0)
+            throw new IllegalArgumentException("Family id must be positive");
+    }
+}

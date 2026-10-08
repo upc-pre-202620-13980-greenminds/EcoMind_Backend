@@ -2,14 +2,13 @@ package pe.greenminds.ecomind.quests.domain.model.aggregates;
 
 import lombok.Getter;
 import lombok.Setter;
-import pe.greenminds.ecomind.quests.domain.model.events.CollabQuestMemberCreatedEvent;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabMemberStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.MemberRole;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
 
-public class CollabQuestMember extends AbstractDomainAggregateRoot<CollabQuestMember> {
+public class CollabQuestMember {
 
     @Getter
     @Setter
@@ -53,16 +52,18 @@ public class CollabQuestMember extends AbstractDomainAggregateRoot<CollabQuestMe
         this(null, sessionId, userId, ownerId, role, status, null, null);
     }
 
-    public void onCreated(){
-        registerDomainEvent(CollabQuestMemberCreatedEvent.from(this));
-    }
-
     public void answerInvite(CollabMemberStatus status){
         this.status = status;
         this.answerDate = LocalDateTime.now();
     }
 
     public void declineInvite(){
+        this.status = CollabMemberStatus.REJECTED;
+        this.answerDate = LocalDateTime.now();
+        this.revokeDate = LocalDateTime.now();
+    }
+
+    public void revokeInvite() {
         this.status = CollabMemberStatus.REJECTED;
         this.answerDate = LocalDateTime.now();
         this.revokeDate = LocalDateTime.now();

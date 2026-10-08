@@ -13,9 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pe.greenminds.ecomind.quests.application.commandservices.QuestUserCommandService;
 import pe.greenminds.ecomind.quests.application.queryservices.QuestUserQueryService;
-import pe.greenminds.ecomind.quests.domain.model.aggregates.QuestUser;
+import pe.greenminds.ecomind.quests.domain.model.commands.CancelQuestUserCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.CompleteQuestUserCommand;
-import pe.greenminds.ecomind.quests.domain.model.commands.DeleteQuestUserCommand;
 import pe.greenminds.ecomind.quests.domain.model.queries.GetQuestUserByIdQuery;
 import pe.greenminds.ecomind.quests.domain.model.queries.GetQuestUserByUserIdAndQuestIdQuery;
 import pe.greenminds.ecomind.quests.domain.model.queries.GetQuestUsersByUserIdAndStatusQuery;
@@ -28,7 +27,6 @@ import pe.greenminds.ecomind.quests.interfaces.rest.transform.CreateQuestUserCom
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.QuestUserResourceFromEntityAssembler;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.QuestUserVersionStatusResourceAssembler;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
-import pe.greenminds.ecomind.shared.application.result.Result;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.ErrorResponseAssembler;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.ResponseEntityAssembler;
 
@@ -196,29 +194,21 @@ public class QuestUserController {
         return ResponseEntity.ok(resources);
     }
 
-    @DeleteMapping("/{questUserId}")
+    @PatchMapping("/{questUserId}/cancel")
     @Operation(
-            summary = "Delete a user's quest assignment",
-            description = """
-                    Deletes the quest assignment and all ActivityUser records associated
-                    with it in a single transaction.
-                    """
+            summary = "Cancel a user's quest assignment",
+            description = "Cancels the assignment while preserving its progress history."
     )
     @ApiResponses({
             @ApiResponse(
-                    responseCode = "204",
-                    description = "Quest assignment and activity assignments deleted successfully"
+                    responseCode = "200",
+                    description = "Quest assignment cancelled successfully"
             ),
             @ApiResponse(responseCode = "404", description = "Quest assignment not found")
     })
-    public ResponseEntity<?> deleteQuestUser(@PathVariable Long questUserId) {
-        var result = questUserCommandService.handle(new DeleteQuestUserCommand(questUserId));
-
-        return switch (result) {
-            case Result.Success<QuestUser, ApplicationError> ignored ->
-                    ResponseEntity.noContent().build();
-            case Result.Failure<QuestUser, ApplicationError> failure ->
-                    ErrorResponseAssembler.toErrorResponseFromApplicationError(failure.error());
-        };
+    public ResponseEntity<?> cancelQuestUser(@PathVariable Long questUserId) {
+        var result = questUserCommandService.handle(new CancelQuestUserCommand(questUserId));
+        return ResponseEntityAssembler.toResponseEntityFromResult(
+                result, QuestUserResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.OK);
     }
 }
