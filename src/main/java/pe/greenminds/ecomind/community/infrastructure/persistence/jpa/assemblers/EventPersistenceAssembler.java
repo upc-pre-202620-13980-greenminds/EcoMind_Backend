@@ -7,14 +7,16 @@ public final class EventPersistenceAssembler {
     private EventPersistenceAssembler() {
     }
 
-    public static Event toDomain(EventPersistenceEntity e) {
-        return new Event(e.getId(), e.getCommunityId(), e.getAuthorId(), e.getName(), e.getDescription(), e.getDate(),
-                e.getStartTime(), e.getLocation(), e.getLatitude(), e.getLongitude(), e.getCapacity(), e.getImageUrl());
+    public static Event toDomain(EventPersistenceEntity persistenceEntity) {
+        return new Event(persistenceEntity.getId(), persistenceEntity.getCommunityId(), persistenceEntity.getAuthorId(),
+                persistenceEntity.getName(), persistenceEntity.getDescription(), persistenceEntity.getDate(),
+                persistenceEntity.getStartTime(), persistenceEntity.getLocation(), persistenceEntity.getLatitude(),
+                persistenceEntity.getLongitude(), persistenceEntity.getCapacity(), persistenceEntity.getImageUrl());
     }
 
-    public static EventPersistenceEntity toEntity(Event e) {
-        return new EventPersistenceEntity(e.getId(), e.getCommunityId(), e.getAuthorId(), e.getName(),
-                e.getDescription(), e.getDate(), e.getStartTime(), e.getLocation(), e.getLatitude(), e.getLongitude(),
-                e.getCapacity(), e.getImageUrl());
+    public static EventPersistenceEntity toEntity(Event event) {
+        return new EventPersistenceEntity(event.getId(), event.getCommunityId(), event.getAuthorId(), event.getName(),
+                event.getDescription(), event.getDate(), event.getStartTime(), event.getLocation(), event.getLatitude(),
+                event.getLongitude(), event.getCapacity(), event.getImageUrl());
     }
 }

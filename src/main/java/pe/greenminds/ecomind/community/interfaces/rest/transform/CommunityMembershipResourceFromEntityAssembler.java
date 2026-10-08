@@ -7,7 +7,8 @@ public final class CommunityMembershipResourceFromEntityAssembler {
     private CommunityMembershipResourceFromEntityAssembler() {
     }
 
-    public static CommunityMembershipResource toResourceFromEntity(CommunityMembership m) {
-        return new CommunityMembershipResource(m.id(), m.communityId(), m.userId(), m.role());
+    public static CommunityMembershipResource toResourceFromEntity(CommunityMembership communityMembership) {
+        return new CommunityMembershipResource(communityMembership.id(), communityMembership.communityId(),
+                communityMembership.userId(), communityMembership.role());
     }
 }

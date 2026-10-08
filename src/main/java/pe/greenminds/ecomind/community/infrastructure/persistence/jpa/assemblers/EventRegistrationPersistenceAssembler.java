@@ -8,16 +8,18 @@ public final class EventRegistrationPersistenceAssembler {
     private EventRegistrationPersistenceAssembler() {
     }
 
-    public static EventRegistration toDomain(EventRegistrationPersistenceEntity e) {
-        return new EventRegistration(e.getId(), e.getEventId(), e.getUserId(), e.getRegistrationType(), e.getFamilyId(),
-                e.getParticipantCount(), e.getStatus());
+    public static EventRegistration toDomain(EventRegistrationPersistenceEntity persistenceEntity) {
+        return new EventRegistration(persistenceEntity.getId(), persistenceEntity.getEventId(),
+                persistenceEntity.getUserId(), persistenceEntity.getRegistrationType(), persistenceEntity.getFamilyId(),
+                persistenceEntity.getParticipantCount(), persistenceEntity.getStatus());
     }
 
-    public static EventRegistrationPersistenceEntity toEntity(EventRegistration r) {
-        var e = new EventRegistrationPersistenceEntity(r.eventId(), r.userId(), r.registrationType(), r.familyId(),
-                r.participantCount());
-        if (r.status() == EventRegistrationStatus.CANCELLED)
-            e.cancel();
-        return e;
+    public static EventRegistrationPersistenceEntity toEntity(EventRegistration eventRegistration) {
+        var persistenceEntity = new EventRegistrationPersistenceEntity(eventRegistration.eventId(),
+                eventRegistration.userId(), eventRegistration.registrationType(), eventRegistration.familyId(),
+                eventRegistration.participantCount());
+        if (eventRegistration.status() == EventRegistrationStatus.CANCELLED)
+            persistenceEntity.cancel();
+        return persistenceEntity;
     }
 }

@@ -11,11 +11,12 @@ import pe.greenminds.ecomind.community.domain.repositories.CommunityGoalReposito
 public class CommunityGoalQueryServiceImpl implements CommunityGoalQueryService {
     private final CommunityGoalRepository goals;
 
-    public CommunityGoalQueryServiceImpl(CommunityGoalRepository g) {
-        goals = g;
+    public CommunityGoalQueryServiceImpl(CommunityGoalRepository communityGoalRepository) {
+        goals = communityGoalRepository;
     }
 
-    public List<CommunityGoal> handle(SearchCommunityGoalsQuery q) {
-        return goals.findAll(q.communityId());
+    @Override
+    public List<CommunityGoal> handle(SearchCommunityGoalsQuery query) {
+        return goals.findAll(query.communityId());
     }
 }

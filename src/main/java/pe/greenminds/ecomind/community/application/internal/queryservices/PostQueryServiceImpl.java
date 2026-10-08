@@ -11,11 +11,12 @@ import pe.greenminds.ecomind.community.domain.repositories.PostRepository;
 public class PostQueryServiceImpl implements PostQueryService {
     private final PostRepository posts;
 
-    public PostQueryServiceImpl(PostRepository p) {
-        posts = p;
+    public PostQueryServiceImpl(PostRepository postRepository) {
+        posts = postRepository;
     }
 
-    public List<Post> handle(SearchPostsQuery q) {
-        return posts.findAll(q.communityId());
+    @Override
+    public List<Post> handle(SearchPostsQuery query) {
+        return posts.findAll(query.communityId());
     }
 }

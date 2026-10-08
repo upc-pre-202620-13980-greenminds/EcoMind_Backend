@@ -28,10 +28,11 @@ public class EventController {
     private final EventQueryService queries;
     private final ResponseEntityAssembler responses;
 
-    public EventController(EventCommandService c, EventQueryService q, ResponseEntityAssembler r) {
-        commands = c;
-        queries = q;
-        responses = r;
+    public EventController(EventCommandService eventCommandService, EventQueryService eventQueryService,
+            ResponseEntityAssembler responseEntityAssembler) {
+        commands = eventCommandService;
+        queries = eventQueryService;
+        responses = responseEntityAssembler;
     }
 
     @GetMapping
@@ -41,17 +42,17 @@ public class EventController {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> create(@Valid @RequestBody CreateEventResource r,
+    public ResponseEntity<?> create(@Valid @RequestBody CreateEventResource resource,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-        var c = CreateEventCommandFromResourceAssembler.toCommandFromResource(r, principal.accountId());
-        return responses.toResponseEntityFromResult(commands.handle(c),
+        var command = CreateEventCommandFromResourceAssembler.toCommandFromResource(resource, principal.accountId());
+        return responses.toResponseEntityFromResult(commands.handle(command),
                 EventResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.CREATED);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> delete(@PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-        return responses.toResponseEntityFromResult(commands.handle(new DeleteEventCommand(id, principal.accountId())), v -> null,
+        return responses.toResponseEntityFromResult(commands.handle(new DeleteEventCommand(id, principal.accountId())), result -> null,
                 HttpStatus.NO_CONTENT);
     }
 }

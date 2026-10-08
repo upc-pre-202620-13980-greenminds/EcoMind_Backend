@@ -28,10 +28,11 @@ public class PostReactionController {
     private final PostReactionQueryService queries;
     private final ResponseEntityAssembler responses;
 
-    public PostReactionController(PostReactionCommandService c, PostReactionQueryService q, ResponseEntityAssembler r) {
-        commands = c;
-        queries = q;
-        responses = r;
+    public PostReactionController(PostReactionCommandService postReactionCommandService,
+            PostReactionQueryService postReactionQueryService, ResponseEntityAssembler responseEntityAssembler) {
+        commands = postReactionCommandService;
+        queries = postReactionQueryService;
+        responses = responseEntityAssembler;
     }
 
     @GetMapping("/Posts/{postId}/Reactions")
@@ -41,19 +42,21 @@ public class PostReactionController {
     }
 
     @PostMapping(value = "/Post-Reactions", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> create(@Valid @RequestBody CreatePostReactionResource r,
+    public ResponseEntity<?> create(@Valid @RequestBody CreatePostReactionResource resource,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         return responses.toResponseEntityFromResult(
-                commands.handle(ReactToPostCommandFromResourceAssembler.toCommandFromResource(r, principal.accountId())),
+                commands.handle(ReactToPostCommandFromResourceAssembler.toCommandFromResource(
+                        resource, principal.accountId())),
                 PostReactionResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.CREATED);
     }
 
     @PatchMapping(value = "/Posts/{postId}/Reactions", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> update(@PathVariable Long postId, @Valid @RequestBody UpdatePostReactionTypeResource r,
+    public ResponseEntity<?> update(@PathVariable Long postId,
+            @Valid @RequestBody UpdatePostReactionTypeResource resource,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         return responses.toResponseEntityFromResult(
                 commands.handle(UpdatePostReactionTypeCommandFromResourceAssembler.toCommandFromResource(
-                        r, postId, principal.accountId())),
+                        resource, postId, principal.accountId())),
                 PostReactionResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.OK);
     }
 
@@ -61,6 +64,6 @@ public class PostReactionController {
     public ResponseEntity<?> delete(@PathVariable Long postId,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         return responses.toResponseEntityFromResult(commands.handle(new RemovePostReactionCommand(postId, principal.accountId())),
-                v -> null, HttpStatus.NO_CONTENT);
+                result -> null, HttpStatus.NO_CONTENT);
     }
 }

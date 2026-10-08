@@ -7,11 +7,13 @@ public final class CommunityMembershipPersistenceAssembler {
     private CommunityMembershipPersistenceAssembler() {
     }
 
-    public static CommunityMembership toDomain(CommunityMembershipPersistenceEntity e) {
-        return new CommunityMembership(e.getId(), e.getCommunityId(), e.getUserId(), e.getRole());
+    public static CommunityMembership toDomain(CommunityMembershipPersistenceEntity persistenceEntity) {
+        return new CommunityMembership(persistenceEntity.getId(), persistenceEntity.getCommunityId(),
+                persistenceEntity.getUserId(), persistenceEntity.getRole());
     }
 
-    public static CommunityMembershipPersistenceEntity toEntity(CommunityMembership m) {
-        return new CommunityMembershipPersistenceEntity(m.communityId(), m.userId(), m.role());
+    public static CommunityMembershipPersistenceEntity toEntity(CommunityMembership communityMembership) {
+        return new CommunityMembershipPersistenceEntity(communityMembership.communityId(),
+                communityMembership.userId(), communityMembership.role());
     }
 }

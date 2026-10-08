@@ -7,13 +7,14 @@ public final class PostPersistenceAssembler {
     private PostPersistenceAssembler() {
     }
 
-    public static Post toDomain(PostPersistenceEntity e) {
-        return new Post(e.getId(), e.getCommunityId(), e.getAuthorId(), e.getContent(), e.getPostType(),
-                e.getImageUrl(), e.getRelatedEventId());
+    public static Post toDomain(PostPersistenceEntity persistenceEntity) {
+        return new Post(persistenceEntity.getId(), persistenceEntity.getCommunityId(), persistenceEntity.getAuthorId(),
+                persistenceEntity.getContent(), persistenceEntity.getPostType(), persistenceEntity.getImageUrl(),
+                persistenceEntity.getRelatedEventId());
     }
 
-    public static PostPersistenceEntity toEntity(Post p) {
-        return new PostPersistenceEntity(p.communityId(), p.authorId(), p.content(), p.postType(), p.imageUrl(),
-                p.relatedEventId());
+    public static PostPersistenceEntity toEntity(Post post) {
+        return new PostPersistenceEntity(post.communityId(), post.authorId(), post.content(), post.postType(),
+                post.imageUrl(), post.relatedEventId());
     }
 }

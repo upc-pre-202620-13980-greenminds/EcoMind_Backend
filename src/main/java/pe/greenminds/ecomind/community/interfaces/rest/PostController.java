@@ -29,33 +29,33 @@ public class PostController {
     private final PostReactionQueryService reactions;
     private final ResponseEntityAssembler responses;
 
-    public PostController(PostCommandService c, PostQueryService q, PostReactionQueryService r,
-            ResponseEntityAssembler a) {
-        commands = c;
-        queries = q;
-        reactions = r;
-        responses = a;
+    public PostController(PostCommandService postCommandService, PostQueryService postQueryService,
+            PostReactionQueryService postReactionQueryService, ResponseEntityAssembler responseEntityAssembler) {
+        commands = postCommandService;
+        queries = postQueryService;
+        reactions = postReactionQueryService;
+        responses = responseEntityAssembler;
     }
 
     @GetMapping
     public List<PostResource> list(@RequestParam(required = false) Long community_id) {
         return queries.handle(new SearchPostsQuery(community_id)).stream()
-                .map(p -> PostResourceFromEntityAssembler.toResourceFromEntity(p, reactions.countByPostId(p.id())))
+                .map(post -> PostResourceFromEntityAssembler.toResourceFromEntity(post, reactions.countByPostId(post.id())))
                 .toList();
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> create(@Valid @RequestBody CreatePostResource r,
+    public ResponseEntity<?> create(@Valid @RequestBody CreatePostResource resource,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-        var c = CreatePostCommandFromResourceAssembler.toCommandFromResource(r, principal.accountId());
-        return responses.toResponseEntityFromResult(commands.handle(c),
+        var command = CreatePostCommandFromResourceAssembler.toCommandFromResource(resource, principal.accountId());
+        return responses.toResponseEntityFromResult(commands.handle(command),
                 post -> PostResourceFromEntityAssembler.toResourceFromEntity(post, 0), HttpStatus.CREATED);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> delete(@PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-        return responses.toResponseEntityFromResult(commands.handle(new DeletePostCommand(id, principal.accountId())), v -> null,
+        return responses.toResponseEntityFromResult(commands.handle(new DeletePostCommand(id, principal.accountId())), result -> null,
                 HttpStatus.NO_CONTENT);
     }
 }

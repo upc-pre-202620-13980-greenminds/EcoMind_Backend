@@ -24,51 +24,53 @@ public class EventCommandServiceImpl implements EventCommandService {
     private final CommunityActorGateway actors;
     private final ApplicationEventPublisher publisher;
 
-    public EventCommandServiceImpl(EventRepository e, CommunityRepository c, CommunityMembershipRepository m,
-            EventRegistrationRepository registrations, PostRepository p, CommunityActorGateway a,
+    public EventCommandServiceImpl(EventRepository eventRepository, CommunityRepository communityRepository, CommunityMembershipRepository communityMembershipRepository,
+            EventRegistrationRepository registrations, PostRepository postRepository, CommunityActorGateway communityActorGateway,
             ApplicationEventPublisher publisher) {
-        events = e;
-        communities = c;
-        memberships = m;
+        events = eventRepository;
+        communities = communityRepository;
+        memberships = communityMembershipRepository;
         this.registrations = registrations;
-        posts = p;
-        actors = a;
+        posts = postRepository;
+        actors = communityActorGateway;
         this.publisher = publisher;
     }
 
     @Transactional
-    public Result<Event, ApplicationError> handle(CreateEventCommand c) {
-        if (!communities.existsById(c.communityId()))
-            return Result.failure(ApplicationError.notFound("Community", String.valueOf(c.communityId())));
+    @Override
+    public Result<Event, ApplicationError> handle(CreateEventCommand command) {
+        if (!communities.existsById(command.communityId()))
+            return Result.failure(ApplicationError.notFound("Community", String.valueOf(command.communityId())));
         try {
-            actors.requireParent(c.authorId());
-            var event = events.save(new Event(null, c.communityId(), c.authorId(), c.name(), c.description(), c.date(),
-                    c.startTime(), c.location(), c.latitude(), c.longitude(), c.capacity(), c.imageUrl()));
+            actors.requireParent(command.authorId());
+            var event = events.save(new Event(null, command.communityId(), command.authorId(), command.name(), command.description(), command.date(),
+                    command.startTime(), command.location(), command.latitude(), command.longitude(), command.capacity(), command.imageUrl()));
             registrations.save(
-                    new EventRegistration(null, event.getId(), c.authorId(), EventRegistrationType.INDIVIDUAL, null, 1,
+                    new EventRegistration(null, event.getId(), command.authorId(), EventRegistrationType.INDIVIDUAL, null, 1,
                             EventRegistrationStatus.REGISTERED));
-            posts.save(new Post(null, c.communityId(), null, "A new event was created: " + event.getName(),
-                    "EVENT_CREATED", c.imageUrl(), event.getId()));
+            posts.save(new Post(null, command.communityId(), null, "A new event was created: " + event.getName(),
+                    "EVENT_CREATED", command.imageUrl(), event.getId()));
             publisher.publishEvent(
                     new EventCreatedEvent(event.getId(), event.getCommunityId(), event.getAuthorId(), event.getName()));
             return Result.success(event);
-        } catch (SecurityException e) {
-            return Result.failure(ApplicationError.forbidden("EVENT_CREATOR_NOT_PARENT", e.getMessage()));
-        } catch (IllegalArgumentException | NullPointerException e) {
-            return Result.failure(ApplicationError.validationError("Event", e.getMessage()));
-        } catch (Exception e) {
-            return Result.failure(ApplicationError.unexpected("Event creation", e.getMessage()));
+        } catch (SecurityException exception) {
+            return Result.failure(ApplicationError.forbidden("EVENT_CREATOR_NOT_PARENT", exception.getMessage()));
+        } catch (IllegalArgumentException | NullPointerException exception) {
+            return Result.failure(ApplicationError.validationError("Event", exception.getMessage()));
+        } catch (Exception exception) {
+            return Result.failure(ApplicationError.unexpected("Event creation", exception.getMessage()));
         }
     }
 
     @Transactional
-    public Result<Void, ApplicationError> handle(DeleteEventCommand c) {
-        var found = events.findById(c.eventId());
+    @Override
+    public Result<Void, ApplicationError> handle(DeleteEventCommand command) {
+        var found = events.findById(command.eventId());
         if (found.isEmpty())
-            return Result.failure(ApplicationError.notFound("Event", String.valueOf(c.eventId())));
-        boolean creator = found.get().getAuthorId().equals(c.requestedBy());
-        boolean admin = memberships.findByCommunityIdAndUserId(found.get().getCommunityId(), c.requestedBy())
-                .map(m -> CommunityRole.ADMIN == m.role()).orElse(false);
+            return Result.failure(ApplicationError.notFound("Event", String.valueOf(command.eventId())));
+        boolean creator = found.get().getAuthorId().equals(command.requestedBy());
+        boolean admin = memberships.findByCommunityIdAndUserId(found.get().getCommunityId(), command.requestedBy())
+                .map(membership -> CommunityRole.ADMIN == membership.role()).orElse(false);
         if (!creator && !admin)
             return Result.failure(ApplicationError.forbidden("EVENT_DELETE_FORBIDDEN",
                     "Only the event creator or community administrator may delete it"));

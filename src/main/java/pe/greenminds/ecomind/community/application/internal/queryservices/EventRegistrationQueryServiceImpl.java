@@ -13,14 +13,15 @@ public class EventRegistrationQueryServiceImpl implements EventRegistrationQuery
     private final EventRegistrationRepository registrations;
     private final EventRepository events;
 
-    public EventRegistrationQueryServiceImpl(EventRegistrationRepository r, EventRepository e) {
-        registrations = r;
-        events = e;
+    public EventRegistrationQueryServiceImpl(EventRegistrationRepository eventRegistrationRepository, EventRepository eventRepository) {
+        registrations = eventRegistrationRepository;
+        events = eventRepository;
     }
 
-    public List<EventRegistration> handle(GetEventRegistrationsQuery q) {
-        if (events.findById(q.eventId()).isEmpty())
+    @Override
+    public List<EventRegistration> handle(GetEventRegistrationsQuery query) {
+        if (events.findById(query.eventId()).isEmpty())
             throw new IllegalArgumentException("Event not found");
-        return registrations.findByEventId(q.eventId());
+        return registrations.findByEventId(query.eventId());
     }
 }

@@ -7,9 +7,9 @@ public final class EventResourceFromEntityAssembler {
     private EventResourceFromEntityAssembler() {
     }
 
-    public static EventResource toResourceFromEntity(Event e) {
-        return new EventResource(e.getId(), e.getCommunityId(), e.getAuthorId(), e.getName(), e.getDescription(),
-                e.getDate(), e.getStartTime(), e.getLocation(), e.getLatitude(), e.getLongitude(), e.getCapacity(),
-                e.getImageUrl());
+    public static EventResource toResourceFromEntity(Event event) {
+        return new EventResource(event.getId(), event.getCommunityId(), event.getAuthorId(), event.getName(),
+                event.getDescription(), event.getDate(), event.getStartTime(), event.getLocation(), event.getLatitude(),
+                event.getLongitude(), event.getCapacity(), event.getImageUrl());
     }
 }

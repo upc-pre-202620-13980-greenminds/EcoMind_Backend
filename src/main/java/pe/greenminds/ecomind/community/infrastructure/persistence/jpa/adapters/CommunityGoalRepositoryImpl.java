@@ -9,23 +9,37 @@ import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityGoalSt
 import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.assemblers.CommunityGoalPersistenceAssembler;
 import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.repositories.CommunityGoalPersistenceRepository;
 
-@Repository public class CommunityGoalRepositoryImpl implements CommunityGoalRepository{
+@Repository
+public class CommunityGoalRepositoryImpl implements CommunityGoalRepository {
     private final CommunityGoalPersistenceRepository repository;
-    public CommunityGoalRepositoryImpl(CommunityGoalPersistenceRepository r){
-        repository=r;
+
+    public CommunityGoalRepositoryImpl(CommunityGoalPersistenceRepository persistenceRepository) {
+        repository = persistenceRepository;
     }
-    public CommunityGoal save(CommunityGoal g){
-        var entity=g.id()==null?CommunityGoalPersistenceAssembler.toEntity(g):repository.findById(g.id()).orElseThrow();
-        if(g.id()!=null)entity.applyProgress(g.progress(),g.participants());
-        return CommunityGoalPersistenceAssembler.toDomain(repository.save(entity));
+
+    @Override
+    public CommunityGoal save(CommunityGoal communityGoal) {
+        var persistenceEntity = communityGoal.id() == null
+                ? CommunityGoalPersistenceAssembler.toEntity(communityGoal)
+                : repository.findById(communityGoal.id()).orElseThrow();
+        if (communityGoal.id() != null)
+            persistenceEntity.applyProgress(communityGoal.progress(), communityGoal.participants());
+        return CommunityGoalPersistenceAssembler.toDomain(repository.save(persistenceEntity));
     }
-    public Optional<CommunityGoal> findById(Long id){
+
+    @Override
+    public Optional<CommunityGoal> findById(Long id) {
         return repository.findById(id).map(CommunityGoalPersistenceAssembler::toDomain);
     }
-    public List<CommunityGoal> findAll(Long c){
-        return (c==null?repository.findAll():repository.findByCommunityId(c)).stream().map(CommunityGoalPersistenceAssembler::toDomain).toList();
+
+    @Override
+    public List<CommunityGoal> findAll(Long communityId) {
+        return (communityId == null ? repository.findAll() : repository.findByCommunityId(communityId)).stream()
+                .map(CommunityGoalPersistenceAssembler::toDomain).toList();
     }
-    public boolean existsActiveByCommunityId(Long c){
-        return repository.existsByCommunityIdAndStatus(c, CommunityGoalStatus.ACTIVE);
+
+    @Override
+    public boolean existsActiveByCommunityId(Long communityId) {
+        return repository.existsByCommunityIdAndStatus(communityId, CommunityGoalStatus.ACTIVE);
     }
 }

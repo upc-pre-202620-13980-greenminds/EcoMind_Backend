@@ -12,32 +12,37 @@ import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.repositori
 public class PostReactionRepositoryImpl implements PostReactionRepository {
     private final PostReactionPersistenceRepository repository;
 
-    public PostReactionRepositoryImpl(PostReactionPersistenceRepository r) {
-        repository = r;
+    public PostReactionRepositoryImpl(PostReactionPersistenceRepository persistenceRepository) {
+        repository = persistenceRepository;
     }
 
-    public PostReaction save(PostReaction r) {
-        var existing = repository.findByPostIdAndUserId(r.postId(), r.userId());
+    @Override
+    public PostReaction save(PostReaction postReaction) {
+        var existing = repository.findByPostIdAndUserId(postReaction.postId(), postReaction.userId());
         if (existing.isPresent()) {
-            existing.get().changeType(r.reactionType());
+            existing.get().changeType(postReaction.reactionType());
             return PostReactionPersistenceAssembler.toDomain(existing.get());
         }
-        return PostReactionPersistenceAssembler.toDomain(repository.save(PostReactionPersistenceAssembler.toEntity(r)));
+        return PostReactionPersistenceAssembler.toDomain(repository.save(PostReactionPersistenceAssembler.toEntity(postReaction)));
     }
 
+    @Override
     public List<PostReaction> findByPostId(Long id) {
         return repository.findByPostId(id).stream().map(PostReactionPersistenceAssembler::toDomain).toList();
     }
 
-    public Optional<PostReaction> findByPostIdAndUserId(Long p, Long u) {
-        return repository.findByPostIdAndUserId(p, u).map(PostReactionPersistenceAssembler::toDomain);
+    @Override
+    public Optional<PostReaction> findByPostIdAndUserId(Long postId, Long userId) {
+        return repository.findByPostIdAndUserId(postId, userId).map(PostReactionPersistenceAssembler::toDomain);
     }
 
+    @Override
     public long countByPostId(Long id) {
         return repository.countByPostId(id);
     }
 
-    public void delete(PostReaction r) {
-        repository.findByPostIdAndUserId(r.postId(), r.userId()).ifPresent(repository::delete);
+    @Override
+    public void delete(PostReaction postReaction) {
+        repository.findByPostIdAndUserId(postReaction.postId(), postReaction.userId()).ifPresent(repository::delete);
     }
 }

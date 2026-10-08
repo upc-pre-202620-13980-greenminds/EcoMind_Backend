@@ -9,13 +9,14 @@ import pe.greenminds.ecomind.community.domain.repositories.CommunityAchievementR
 
 @Service
 public class CommunityAchievementQueryServiceImpl implements CommunityAchievementQueryService {
-    private final CommunityAchievementRepository achievements;
+    private final CommunityAchievementRepository communityAchievementRepositorychievements;
 
-    public CommunityAchievementQueryServiceImpl(CommunityAchievementRepository a) {
-        achievements = a;
+    public CommunityAchievementQueryServiceImpl(CommunityAchievementRepository communityAchievementRepository) {
+        communityAchievementRepositorychievements = communityAchievementRepository;
     }
 
-    public List<CommunityAchievement> handle(SearchCommunityAchievementsQuery q) {
-        return achievements.findAll(q.communityId());
+    @Override
+    public List<CommunityAchievement> handle(SearchCommunityAchievementsQuery query) {
+        return communityAchievementRepositorychievements.findAll(query.communityId());
     }
 }

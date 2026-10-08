@@ -5,12 +5,13 @@ import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.entities.C
 
 public final class CommunityGoalPersistenceAssembler{
     private CommunityGoalPersistenceAssembler(){}
-    public static CommunityGoal toDomain(CommunityGoalPersistenceEntity e){
-        return new CommunityGoal(e.getId(), e.getCommunityId(), e.getTopic(), e.getTarget(),
-                e.getProgress(), e.getParticipants(), e.getStatus());
+    public static CommunityGoal toDomain(CommunityGoalPersistenceEntity persistenceEntity){
+        return new CommunityGoal(persistenceEntity.getId(), persistenceEntity.getCommunityId(),
+                persistenceEntity.getTopic(), persistenceEntity.getTarget(), persistenceEntity.getProgress(),
+                persistenceEntity.getParticipants(), persistenceEntity.getStatus());
     }
-    public static CommunityGoalPersistenceEntity toEntity(CommunityGoal g){
-        return new CommunityGoalPersistenceEntity(g.communityId(), g.topic(), g.target(),
-                g.progress(), g.participants(), g.status());
+    public static CommunityGoalPersistenceEntity toEntity(CommunityGoal communityGoal){
+        return new CommunityGoalPersistenceEntity(communityGoal.communityId(), communityGoal.topic(),
+                communityGoal.target(), communityGoal.progress(), communityGoal.participants(), communityGoal.status());
     }
 }

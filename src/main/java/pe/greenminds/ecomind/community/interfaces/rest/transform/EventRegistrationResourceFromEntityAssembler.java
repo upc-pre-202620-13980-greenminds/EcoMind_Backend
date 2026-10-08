@@ -7,8 +7,9 @@ public final class EventRegistrationResourceFromEntityAssembler {
     private EventRegistrationResourceFromEntityAssembler() {
     }
 
-    public static EventRegistrationResource toResourceFromEntity(EventRegistration r) {
-        return new EventRegistrationResource(r.id(), r.eventId(), r.userId(), r.registrationType(), r.familyId(),
-                r.participantCount(), r.status());
+    public static EventRegistrationResource toResourceFromEntity(EventRegistration eventRegistration) {
+        return new EventRegistrationResource(eventRegistration.id(), eventRegistration.eventId(),
+                eventRegistration.userId(), eventRegistration.registrationType(), eventRegistration.familyId(),
+                eventRegistration.participantCount(), eventRegistration.status());
     }
 }

@@ -7,8 +7,8 @@ public final class PostResourceFromEntityAssembler {
     private PostResourceFromEntityAssembler() {
     }
 
-    public static PostResource toResourceFromEntity(Post p, long likes) {
-        return new PostResource(p.id(), p.communityId(), p.authorId(), p.content(), p.postType(), p.imageUrl(),
-                p.relatedEventId(), likes);
+    public static PostResource toResourceFromEntity(Post post, long likes) {
+        return new PostResource(post.id(), post.communityId(), post.authorId(), post.content(), post.postType(),
+                post.imageUrl(), post.relatedEventId(), likes);
     }
 }

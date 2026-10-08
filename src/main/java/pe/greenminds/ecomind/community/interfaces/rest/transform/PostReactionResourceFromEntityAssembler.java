@@ -7,7 +7,8 @@ public final class PostReactionResourceFromEntityAssembler {
     private PostReactionResourceFromEntityAssembler() {
     }
 
-    public static PostReactionResource toResourceFromEntity(PostReaction r) {
-        return new PostReactionResource(r.id(), r.postId(), r.userId(), r.reactionType());
+    public static PostReactionResource toResourceFromEntity(PostReaction postReaction) {
+        return new PostReactionResource(postReaction.id(), postReaction.postId(), postReaction.userId(),
+                postReaction.reactionType());
     }
 }

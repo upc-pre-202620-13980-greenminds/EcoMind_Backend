@@ -16,13 +16,14 @@ import pe.greenminds.ecomind.shared.infrastructure.documentation.openapi.configu
 @SecurityRequirement(name = OpenApiConfiguration.BEARER_AUTH_SCHEME)
 @RequestMapping(value="/api/v1/Community/Achievements",produces=MediaType.APPLICATION_JSON_VALUE)
 public class CommunityAchievementController{
-    private final CommunityAchievementQueryService service;
-    public CommunityAchievementController(CommunityAchievementQueryService s){
-        service=s;
+    private final CommunityAchievementQueryService communityAchievementQueryService;
+    public CommunityAchievementController(CommunityAchievementQueryService communityAchievementQueryService){
+        this.communityAchievementQueryService = communityAchievementQueryService;
     }
 
     @GetMapping
     public List<CommunityAchievementResource> list(@RequestParam(required=false)Long community_id){
-        return service.handle(new SearchCommunityAchievementsQuery(community_id)).stream().map(CommunityAchievementResourceFromEntityAssembler::toResourceFromEntity).toList();
+        return communityAchievementQueryService.handle(new SearchCommunityAchievementsQuery(community_id)).stream()
+                .map(CommunityAchievementResourceFromEntityAssembler::toResourceFromEntity).toList();
     }
 }

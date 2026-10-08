@@ -14,29 +14,33 @@ import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.repositori
 public class CommunityRepositoryImpl implements CommunityRepository {
     private final CommunityPersistenceRepository repository;
 
-    public CommunityRepositoryImpl(CommunityPersistenceRepository r) {
-        repository = r;
+    public CommunityRepositoryImpl(CommunityPersistenceRepository persistenceRepository) {
+        repository = persistenceRepository;
     }
 
-    public Community save(Community c) {
-        return CommunityPersistenceAssembler.toDomain(repository.save(CommunityPersistenceAssembler.toEntity(c)));
+    @Override
+    public Community save(Community community) {
+        return CommunityPersistenceAssembler.toDomain(repository.save(CommunityPersistenceAssembler.toEntity(community)));
     }
 
+    @Override
     public Optional<Community> findById(Long id) {
         return repository.findById(id).map(CommunityPersistenceAssembler::toDomain);
     }
 
+    @Override
     public boolean existsById(Long id) {
         return repository.existsById(id);
     }
 
-    public List<Community> search(SearchCommunitiesQuery q) {
-        var list = q.type() == null
-                ? (q.locality() == null ? repository.findAll()
-                        : repository.findByTypeAndLocalityIgnoreCase(CommunityType.LOCAL, q.locality()))
-                : q.type() == CommunityType.LOCAL && q.locality() != null
-                        ? repository.findByTypeAndLocalityIgnoreCase(CommunityType.LOCAL, q.locality())
-                        : repository.findByType(q.type());
+    @Override
+    public List<Community> search(SearchCommunitiesQuery query) {
+        var list = query.type() == null
+                ? (query.locality() == null ? repository.findAll()
+                        : repository.findByTypeAndLocalityIgnoreCase(CommunityType.LOCAL, query.locality()))
+                : query.type() == CommunityType.LOCAL && query.locality() != null
+                        ? repository.findByTypeAndLocalityIgnoreCase(CommunityType.LOCAL, query.locality())
+                        : repository.findByType(query.type());
         return list.stream().map(CommunityPersistenceAssembler::toDomain).toList();
     }
 }

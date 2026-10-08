@@ -12,24 +12,28 @@ import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.repositori
 public class EventRepositoryImpl implements EventRepository {
     private final EventPersistenceRepository repository;
 
-    public EventRepositoryImpl(EventPersistenceRepository r) {
-        repository = r;
+    public EventRepositoryImpl(EventPersistenceRepository persistenceRepository) {
+        repository = persistenceRepository;
     }
 
-    public Event save(Event e) {
-        return EventPersistenceAssembler.toDomain(repository.save(EventPersistenceAssembler.toEntity(e)));
+    @Override
+    public Event save(Event event) {
+        return EventPersistenceAssembler.toDomain(repository.save(EventPersistenceAssembler.toEntity(event)));
     }
 
+    @Override
     public Optional<Event> findById(Long id) {
         return repository.findById(id).map(EventPersistenceAssembler::toDomain);
     }
 
-    public List<Event> findAll(Long c) {
-        return (c == null ? repository.findAll() : repository.findByCommunityId(c)).stream()
+    @Override
+    public List<Event> findAll(Long communityId) {
+        return (communityId == null ? repository.findAll() : repository.findByCommunityId(communityId)).stream()
                 .map(EventPersistenceAssembler::toDomain).toList();
     }
 
-    public void delete(Event e) {
-        repository.deleteById(e.getId());
+    @Override
+    public void delete(Event event) {
+        repository.deleteById(event.getId());
     }
 }

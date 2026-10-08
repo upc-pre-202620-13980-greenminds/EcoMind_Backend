@@ -7,7 +7,8 @@ public final class CommunityAchievementResourceFromEntityAssembler {
     private CommunityAchievementResourceFromEntityAssembler() {
     }
 
-    public static CommunityAchievementResource toResourceFromEntity(CommunityAchievement a) {
-        return new CommunityAchievementResource(a.id(), a.communityId(), a.title(), a.description(), a.communityGoalId());
+    public static CommunityAchievementResource toResourceFromEntity(CommunityAchievement communityAchievement) {
+        return new CommunityAchievementResource(communityAchievement.id(), communityAchievement.communityId(),
+                communityAchievement.title(), communityAchievement.description(), communityAchievement.communityGoalId());
     }
 }

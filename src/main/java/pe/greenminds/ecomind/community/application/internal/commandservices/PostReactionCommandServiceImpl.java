@@ -13,38 +13,41 @@ public class PostReactionCommandServiceImpl implements PostReactionCommandServic
     private final PostRepository posts;
     private final PostReactionRepository reactions;
 
-    public PostReactionCommandServiceImpl(PostRepository p, PostReactionRepository r) {
-        posts = p;
-        reactions = r;
+    public PostReactionCommandServiceImpl(PostRepository postRepository, PostReactionRepository postReactionRepository) {
+        posts = postRepository;
+        reactions = postReactionRepository;
     }
 
     @Transactional
-    public Result<PostReaction, ApplicationError> handle(ReactToPostCommand c) {
-        if (!posts.existsById(c.postId()))
-            return Result.failure(ApplicationError.notFound("Post", String.valueOf(c.postId())));
+    @Override
+    public Result<PostReaction, ApplicationError> handle(ReactToPostCommand command) {
+        if (!posts.existsById(command.postId()))
+            return Result.failure(ApplicationError.notFound("Post", String.valueOf(command.postId())));
         try {
-            return Result.success(reactions.save(new PostReaction(null, c.postId(), c.userId(), c.reactionType())));
-        } catch (IllegalArgumentException e) {
-            return Result.failure(ApplicationError.validationError("Post reaction", e.getMessage()));
+            return Result.success(reactions.save(new PostReaction(null, command.postId(), command.userId(), command.reactionType())));
+        } catch (IllegalArgumentException exception) {
+            return Result.failure(ApplicationError.validationError("Post reaction", exception.getMessage()));
         }
     }
 
     @Transactional
-    public Result<PostReaction, ApplicationError> handle(UpdatePostReactionTypeCommand c) {
-        var current = reactions.findByPostIdAndUserId(c.postId(), c.userId());
+    @Override
+    public Result<PostReaction, ApplicationError> handle(UpdatePostReactionTypeCommand command) {
+        var current = reactions.findByPostIdAndUserId(command.postId(), command.userId());
         if (current.isEmpty())
-            return Result.failure(ApplicationError.notFound("Post reaction", c.postId() + ":" + c.userId()));
+            return Result.failure(ApplicationError.notFound("Post reaction", command.postId() + ":" + command.userId()));
         try {
             return Result.success(
-                    reactions.save(new PostReaction(current.get().id(), c.postId(), c.userId(), c.reactionType())));
-        } catch (IllegalArgumentException e) {
-            return Result.failure(ApplicationError.validationError("Post reaction", e.getMessage()));
+                    reactions.save(new PostReaction(current.get().id(), command.postId(), command.userId(), command.reactionType())));
+        } catch (IllegalArgumentException exception) {
+            return Result.failure(ApplicationError.validationError("Post reaction", exception.getMessage()));
         }
     }
 
     @Transactional
-    public Result<Void, ApplicationError> handle(RemovePostReactionCommand c) {
-        reactions.findByPostIdAndUserId(c.postId(), c.userId()).ifPresent(reactions::delete);
+    @Override
+    public Result<Void, ApplicationError> handle(RemovePostReactionCommand command) {
+        reactions.findByPostIdAndUserId(command.postId(), command.userId()).ifPresent(reactions::delete);
         return Result.success(null);
     }
 }

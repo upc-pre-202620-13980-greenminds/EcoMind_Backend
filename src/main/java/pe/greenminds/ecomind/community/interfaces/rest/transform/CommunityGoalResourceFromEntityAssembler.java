@@ -5,8 +5,9 @@ import pe.greenminds.ecomind.community.interfaces.rest.resources.CommunityGoalRe
 
 public final class CommunityGoalResourceFromEntityAssembler{
     private CommunityGoalResourceFromEntityAssembler(){}
-    public static CommunityGoalResource toResourceFromEntity(CommunityGoal g){
-        return new CommunityGoalResource(g.id(), g.communityId(), g.topic(), g.title(), g.target(),
-                g.progress(), g.participants(), g.status());
+    public static CommunityGoalResource toResourceFromEntity(CommunityGoal communityGoal){
+        return new CommunityGoalResource(communityGoal.id(), communityGoal.communityId(), communityGoal.topic(),
+                communityGoal.title(), communityGoal.target(), communityGoal.progress(), communityGoal.participants(),
+                communityGoal.status());
     }
 }

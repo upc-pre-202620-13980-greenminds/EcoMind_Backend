@@ -12,27 +12,32 @@ import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.repositori
 public class PostRepositoryImpl implements PostRepository {
     private final PostPersistenceRepository repository;
 
-    public PostRepositoryImpl(PostPersistenceRepository r) {
-        repository = r;
+    public PostRepositoryImpl(PostPersistenceRepository persistenceRepository) {
+        repository = persistenceRepository;
     }
 
-    public Post save(Post p) {
-        return PostPersistenceAssembler.toDomain(repository.save(PostPersistenceAssembler.toEntity(p)));
+    @Override
+    public Post save(Post post) {
+        return PostPersistenceAssembler.toDomain(repository.save(PostPersistenceAssembler.toEntity(post)));
     }
 
+    @Override
     public Optional<Post> findById(Long id) {
         return repository.findById(id).map(PostPersistenceAssembler::toDomain);
     }
 
-    public List<Post> findAll(Long c) {
-        return (c == null ? repository.findAll() : repository.findByCommunityIdOrderByCreatedAtDesc(c)).stream()
+    @Override
+    public List<Post> findAll(Long communityId) {
+        return (communityId == null ? repository.findAll() : repository.findByCommunityIdOrderByCreatedAtDesc(communityId)).stream()
                 .map(PostPersistenceAssembler::toDomain).toList();
     }
 
-    public void delete(Post p) {
-        repository.deleteById(p.id());
+    @Override
+    public void delete(Post post) {
+        repository.deleteById(post.id());
     }
 
+    @Override
     public boolean existsById(Long id) {
         return repository.existsById(id);
     }

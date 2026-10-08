@@ -11,11 +11,12 @@ import pe.greenminds.ecomind.community.domain.repositories.EventRepository;
 public class EventQueryServiceImpl implements EventQueryService {
     private final EventRepository events;
 
-    public EventQueryServiceImpl(EventRepository e) {
-        events = e;
+    public EventQueryServiceImpl(EventRepository eventRepository) {
+        events = eventRepository;
     }
 
-    public List<Event> handle(SearchEventsQuery q) {
-        return events.findAll(q.communityId());
+    @Override
+    public List<Event> handle(SearchEventsQuery query) {
+        return events.findAll(query.communityId());
     }
 }

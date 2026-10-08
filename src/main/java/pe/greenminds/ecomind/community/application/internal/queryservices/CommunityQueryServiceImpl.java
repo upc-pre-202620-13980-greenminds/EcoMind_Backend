@@ -12,20 +12,24 @@ public class CommunityQueryServiceImpl implements CommunityQueryService {
     private final CommunityRepository communities;
     private final CommunityMembershipRepository memberships;
 
-    public CommunityQueryServiceImpl(CommunityRepository c, CommunityMembershipRepository m) {
-        communities = c;
-        memberships = m;
+    public CommunityQueryServiceImpl(CommunityRepository communityRepository,
+            CommunityMembershipRepository communityMembershipRepository) {
+        communities = communityRepository;
+        memberships = communityMembershipRepository;
     }
 
-    public List<Community> handle(SearchCommunitiesQuery q) {
-        return communities.search(q);
+    @Override
+    public List<Community> handle(SearchCommunitiesQuery query) {
+        return communities.search(query);
     }
 
-    public List<CommunityMembership> handle(GetCommunityMembershipsByUserQuery q) {
-        return memberships.findByUserId(q.userId());
+    @Override
+    public List<CommunityMembership> handle(GetCommunityMembershipsByUserQuery query) {
+        return memberships.findByUserId(query.userId());
     }
 
-    public List<CommunityMembership> handle(GetCommunityMembershipsByCommunityQuery q) {
-        return memberships.findByCommunityId(q.communityId());
+    @Override
+    public List<CommunityMembership> handle(GetCommunityMembershipsByCommunityQuery query) {
+        return memberships.findByCommunityId(query.communityId());
     }
 }

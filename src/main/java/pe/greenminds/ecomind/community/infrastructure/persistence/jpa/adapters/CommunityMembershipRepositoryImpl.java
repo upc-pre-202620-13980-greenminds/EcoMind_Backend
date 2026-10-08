@@ -12,28 +12,33 @@ import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.repositori
 public class CommunityMembershipRepositoryImpl implements CommunityMembershipRepository {
     private final CommunityMembershipPersistenceRepository repository;
 
-    public CommunityMembershipRepositoryImpl(CommunityMembershipPersistenceRepository r) {
-        repository = r;
+    public CommunityMembershipRepositoryImpl(CommunityMembershipPersistenceRepository persistenceRepository) {
+        repository = persistenceRepository;
     }
 
-    public CommunityMembership save(CommunityMembership m) {
+    @Override
+    public CommunityMembership save(CommunityMembership communityMembership) {
         return CommunityMembershipPersistenceAssembler
-                .toDomain(repository.save(CommunityMembershipPersistenceAssembler.toEntity(m)));
+                .toDomain(repository.save(CommunityMembershipPersistenceAssembler.toEntity(communityMembership)));
     }
 
+    @Override
     public List<CommunityMembership> findByUserId(Long id) {
         return repository.findByUserId(id).stream().map(CommunityMembershipPersistenceAssembler::toDomain).toList();
     }
 
-    public Optional<CommunityMembership> findByCommunityIdAndUserId(Long c, Long u) {
-        return repository.findByCommunityIdAndUserId(c, u).map(CommunityMembershipPersistenceAssembler::toDomain);
+    @Override
+    public Optional<CommunityMembership> findByCommunityIdAndUserId(Long communityId, Long userId) {
+        return repository.findByCommunityIdAndUserId(communityId, userId).map(CommunityMembershipPersistenceAssembler::toDomain);
     }
 
+    @Override
     public List<CommunityMembership> findByCommunityId(Long id) {
         return repository.findByCommunityId(id).stream().map(CommunityMembershipPersistenceAssembler::toDomain)
                 .toList();
     }
 
+    @Override
     public long countByCommunityId(Long id) {
         return repository.countByCommunityId(id);
     }

@@ -13,30 +13,32 @@ public class PostCommandServiceImpl implements PostCommandService {
     private final PostRepository posts;
     private final CommunityMembershipRepository memberships;
 
-    public PostCommandServiceImpl(PostRepository p, CommunityMembershipRepository m) {
-        posts = p;
-        memberships = m;
+    public PostCommandServiceImpl(PostRepository postRepository, CommunityMembershipRepository communityMembershipRepository) {
+        posts = postRepository;
+        memberships = communityMembershipRepository;
     }
 
     @Transactional
-    public Result<Post, ApplicationError> handle(CreatePostCommand c) {
-        if (memberships.findByCommunityIdAndUserId(c.communityId(), c.authorId()).isEmpty())
+    @Override
+    public Result<Post, ApplicationError> handle(CreatePostCommand command) {
+        if (memberships.findByCommunityIdAndUserId(command.communityId(), command.authorId()).isEmpty())
             return Result.failure(
                     ApplicationError.forbidden("COMMUNITY_MEMBERSHIP_REQUIRED", "Community membership is required"));
         try {
             return Result.success(
-                    posts.save(new Post(null, c.communityId(), c.authorId(), c.content(), "USER", c.imageUrl(), null)));
-        } catch (IllegalArgumentException e) {
-            return Result.failure(ApplicationError.validationError("Post", e.getMessage()));
+                    posts.save(new Post(null, command.communityId(), command.authorId(), command.content(), "USER", command.imageUrl(), null)));
+        } catch (IllegalArgumentException exception) {
+            return Result.failure(ApplicationError.validationError("Post", exception.getMessage()));
         }
     }
 
     @Transactional
-    public Result<Void, ApplicationError> handle(DeletePostCommand c) {
-        var found = posts.findById(c.postId());
+    @Override
+    public Result<Void, ApplicationError> handle(DeletePostCommand command) {
+        var found = posts.findById(command.postId());
         if (found.isEmpty())
-            return Result.failure(ApplicationError.notFound("Post", String.valueOf(c.postId())));
-        if (found.get().authorId() == null || !found.get().authorId().equals(c.requestedBy()))
+            return Result.failure(ApplicationError.notFound("Post", String.valueOf(command.postId())));
+        if (found.get().authorId() == null || !found.get().authorId().equals(command.requestedBy()))
             return Result
                     .failure(ApplicationError.forbidden("POST_DELETE_FORBIDDEN", "Only the post author may delete it"));
         posts.delete(found.get());

@@ -7,13 +7,13 @@ public final class CommunityAchievementPersistenceAssembler {
     private CommunityAchievementPersistenceAssembler() {
     }
 
-    public static CommunityAchievement toDomain(CommunityAchievementPersistenceEntity e) {
-        return new CommunityAchievement(e.getId(), e.getCommunityId(), e.getTitle(), e.getDescription(),
-                e.getCommunityGoalId());
+    public static CommunityAchievement toDomain(CommunityAchievementPersistenceEntity persistenceEntity) {
+        return new CommunityAchievement(persistenceEntity.getId(), persistenceEntity.getCommunityId(),
+                persistenceEntity.getTitle(), persistenceEntity.getDescription(), persistenceEntity.getCommunityGoalId());
     }
 
-    public static CommunityAchievementPersistenceEntity toEntity(CommunityAchievement a) {
-        return new CommunityAchievementPersistenceEntity(a.communityId(), a.title(), a.description(),
-                a.communityGoalId());
+    public static CommunityAchievementPersistenceEntity toEntity(CommunityAchievement communityAchievement) {
+        return new CommunityAchievementPersistenceEntity(communityAchievement.communityId(),
+                communityAchievement.title(), communityAchievement.description(), communityAchievement.communityGoalId());
     }
 }

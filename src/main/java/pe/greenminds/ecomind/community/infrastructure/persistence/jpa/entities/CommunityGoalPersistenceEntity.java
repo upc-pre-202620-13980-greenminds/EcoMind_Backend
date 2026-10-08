@@ -34,15 +34,18 @@ public class CommunityGoalPersistenceEntity extends AuditableAbstractPersistence
 
     protected CommunityGoalPersistenceEntity(){}
 
-    public CommunityGoalPersistenceEntity(Long c, CommunityGoalTopic topic, Integer t){this(c,topic,t,0,0,CommunityGoalStatus.ACTIVE);}
+    public CommunityGoalPersistenceEntity(Long communityId, CommunityGoalTopic topic, Integer target) {
+        this(communityId, topic, target, 0, 0, CommunityGoalStatus.ACTIVE);
+    }
 
-    public CommunityGoalPersistenceEntity(Long c, CommunityGoalTopic topic, Integer t,Integer p,Integer n,CommunityGoalStatus s){
-        communityId=c;
-        this.topic=topic;
-        target=t;
-        progress=p;
-        participants=n;
-        status=s;
+    public CommunityGoalPersistenceEntity(Long communityId, CommunityGoalTopic topic, Integer target,
+            Integer progress, Integer participants, CommunityGoalStatus status) {
+        this.communityId = communityId;
+        this.topic = topic;
+        this.target = target;
+        this.progress = progress;
+        this.participants = participants;
+        this.status = status;
     }
 
     public Long getId(){
@@ -73,10 +76,10 @@ public class CommunityGoalPersistenceEntity extends AuditableAbstractPersistence
         return status;
     }
 
-    public void applyProgress(Integer p,Integer n){
-        progress=Math.min(target,p);
-        participants=n;
-        status=progress>=target?CommunityGoalStatus.COMPLETED:CommunityGoalStatus.ACTIVE;
+    public void applyProgress(Integer progress, Integer participants) {
+        this.progress = Math.min(target, progress);
+        this.participants = participants;
+        status = this.progress >= target ? CommunityGoalStatus.COMPLETED : CommunityGoalStatus.ACTIVE;
     }
 
     public void increment(){

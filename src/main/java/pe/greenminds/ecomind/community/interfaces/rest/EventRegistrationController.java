@@ -27,11 +27,12 @@ public class EventRegistrationController {
     private final EventRegistrationQueryService queries;
     private final ResponseEntityAssembler responses;
 
-    public EventRegistrationController(EventRegistrationCommandService c, EventRegistrationQueryService q,
-            ResponseEntityAssembler r) {
-        commands = c;
-        queries = q;
-        responses = r;
+    public EventRegistrationController(EventRegistrationCommandService eventRegistrationCommandService,
+            EventRegistrationQueryService eventRegistrationQueryService,
+            ResponseEntityAssembler responseEntityAssembler) {
+        commands = eventRegistrationCommandService;
+        queries = eventRegistrationQueryService;
+        responses = responseEntityAssembler;
     }
 
     @GetMapping
@@ -42,10 +43,11 @@ public class EventRegistrationController {
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> register(@PathVariable Long eventId,
-            @Valid @RequestBody CreateEventRegistrationResource r,
+            @Valid @RequestBody CreateEventRegistrationResource resource,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-        var c = RegisterForEventCommandFromResourceAssembler.toCommandFromResource(r, eventId, principal.accountId());
-        return responses.toResponseEntityFromResult(commands.handle(c),
+        var command = RegisterForEventCommandFromResourceAssembler.toCommandFromResource(
+                resource, eventId, principal.accountId());
+        return responses.toResponseEntityFromResult(commands.handle(command),
                 EventRegistrationResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.CREATED);
     }
 
@@ -53,7 +55,7 @@ public class EventRegistrationController {
     public ResponseEntity<?> cancel(@PathVariable Long eventId, @PathVariable Long registrationId,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         return responses.toResponseEntityFromResult(
-                commands.handle(new CancelEventRegistrationCommand(eventId, registrationId, principal.accountId())), v -> null,
+                commands.handle(new CancelEventRegistrationCommand(eventId, registrationId, principal.accountId())), result -> null,
                 HttpStatus.NO_CONTENT);
     }
 }

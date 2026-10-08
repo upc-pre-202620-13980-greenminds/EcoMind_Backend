@@ -7,14 +7,16 @@ public final class PostReactionPersistenceAssembler {
     private PostReactionPersistenceAssembler() {
     }
 
-    public static PostReaction toDomain(PostReactionPersistenceEntity e) {
-        return new PostReaction(e.getId(), e.getPostId(), e.getUserId(), e.getReactionType());
+    public static PostReaction toDomain(PostReactionPersistenceEntity persistenceEntity) {
+        return new PostReaction(persistenceEntity.getId(), persistenceEntity.getPostId(), persistenceEntity.getUserId(),
+                persistenceEntity.getReactionType());
     }
 
-    public static PostReactionPersistenceEntity toEntity(PostReaction r) {
-        var e = new PostReactionPersistenceEntity(r.postId(), r.userId(), r.reactionType());
-        if (r.id() != null)
-            e.changeType(r.reactionType());
-        return e;
+    public static PostReactionPersistenceEntity toEntity(PostReaction postReaction) {
+        var persistenceEntity = new PostReactionPersistenceEntity(postReaction.postId(), postReaction.userId(),
+                postReaction.reactionType());
+        if (postReaction.id() != null)
+            persistenceEntity.changeType(postReaction.reactionType());
+        return persistenceEntity;
     }
 }

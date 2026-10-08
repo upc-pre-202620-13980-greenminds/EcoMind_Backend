@@ -27,11 +27,11 @@ public class CommunityGoalController {
     private final CommunityGoalQueryService queries;
     private final ResponseEntityAssembler responses;
 
-    public CommunityGoalController(CommunityGoalCommandService c, CommunityGoalQueryService q,
-            ResponseEntityAssembler r) {
-        commands = c;
-        queries = q;
-        responses = r;
+    public CommunityGoalController(CommunityGoalCommandService communityGoalCommandService,
+            CommunityGoalQueryService communityGoalQueryService, ResponseEntityAssembler responseEntityAssembler) {
+        commands = communityGoalCommandService;
+        queries = communityGoalQueryService;
+        responses = responseEntityAssembler;
     }
 
     @GetMapping
@@ -41,10 +41,11 @@ public class CommunityGoalController {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> create(@Valid @RequestBody CreateCommunityGoalResource r,
+    public ResponseEntity<?> create(@Valid @RequestBody CreateCommunityGoalResource resource,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-        var c = CreateCommunityGoalCommandFromResourceAssembler.toCommandFromResource(r, principal.accountId());
-        return responses.toResponseEntityFromResult(commands.handle(c),
+        var command = CreateCommunityGoalCommandFromResourceAssembler.toCommandFromResource(
+                resource, principal.accountId());
+        return responses.toResponseEntityFromResult(commands.handle(command),
                 CommunityGoalResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.CREATED);
     }
 

@@ -13,17 +13,19 @@ public class PostReactionQueryServiceImpl implements PostReactionQueryService {
     private final PostReactionRepository reactions;
     private final PostRepository posts;
 
-    public PostReactionQueryServiceImpl(PostReactionRepository r, PostRepository p) {
-        reactions = r;
-        posts = p;
+    public PostReactionQueryServiceImpl(PostReactionRepository postReactionRepository, PostRepository postRepository) {
+        reactions = postReactionRepository;
+        posts = postRepository;
     }
 
-    public List<PostReaction> handle(GetPostReactionsQuery q) {
-        if (!posts.existsById(q.postId()))
+    @Override
+    public List<PostReaction> handle(GetPostReactionsQuery query) {
+        if (!posts.existsById(query.postId()))
             throw new IllegalArgumentException("Post not found");
-        return reactions.findByPostId(q.postId());
+        return reactions.findByPostId(query.postId());
     }
 
+    @Override
     public long countByPostId(Long id) {
         return reactions.countByPostId(id);
     }

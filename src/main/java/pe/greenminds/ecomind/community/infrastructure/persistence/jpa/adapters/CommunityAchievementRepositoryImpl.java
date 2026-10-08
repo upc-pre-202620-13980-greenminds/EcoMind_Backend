@@ -11,17 +11,19 @@ import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.repositori
 public class CommunityAchievementRepositoryImpl implements CommunityAchievementRepository {
     private final CommunityAchievementPersistenceRepository repository;
 
-    public CommunityAchievementRepositoryImpl(CommunityAchievementPersistenceRepository r) {
-        repository = r;
+    public CommunityAchievementRepositoryImpl(CommunityAchievementPersistenceRepository persistenceRepository) {
+        repository = persistenceRepository;
     }
 
-    public CommunityAchievement save(CommunityAchievement a) {
+    @Override
+    public CommunityAchievement save(CommunityAchievement communityAchievement) {
         return CommunityAchievementPersistenceAssembler
-                .toDomain(repository.save(CommunityAchievementPersistenceAssembler.toEntity(a)));
+                .toDomain(repository.save(CommunityAchievementPersistenceAssembler.toEntity(communityAchievement)));
     }
 
-    public List<CommunityAchievement> findAll(Long c) {
-        return (c == null ? repository.findAll() : repository.findByCommunityId(c)).stream()
+    @Override
+    public List<CommunityAchievement> findAll(Long communityId) {
+        return (communityId == null ? repository.findAll() : repository.findByCommunityId(communityId)).stream()
                 .map(CommunityAchievementPersistenceAssembler::toDomain).toList();
     }
 }
