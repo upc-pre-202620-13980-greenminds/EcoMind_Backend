@@ -1,0 +1,3 @@
+package pe.greenminds.ecomind.community.infrastructure.persistence.jpa.assemblers;
+import pe.greenminds.ecomind.community.domain.model.aggregates.PostReaction;import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.entities.PostReactionPersistenceEntity;
+public final class PostReactionPersistenceAssembler{private PostReactionPersistenceAssembler(){}public static PostReaction toDomain(PostReactionPersistenceEntity e){return new PostReaction(e.getId(),e.getPostId(),e.getUserId(),e.getReactionType());}public static PostReactionPersistenceEntity toEntity(PostReaction r){var e=new PostReactionPersistenceEntity(r.postId(),r.userId(),r.reactionType());if(r.id()!=null)e.changeType(r.reactionType());return e;}}
