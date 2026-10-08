@@ -5,7 +5,7 @@ RESTful web services of the EcoMind platform, built with Spring Boot and Java.
 ## Requirements
 
 - Java 21 (JDK)
-- PostgreSQL
+- PostgreSQL 14 or later
 - The Maven Wrapper included in this repository (no local Maven installation is needed)
 
 ## Project structure
@@ -25,7 +25,7 @@ Credentials are never stored in the repository. Set these variables before runni
 
 | Variable | Profile | Description |
 |---|---|---|
-| `DATABASE_URL` | dev (optional), prod | JDBC URL of the PostgreSQL database. In `dev` it defaults to `jdbc:postgresql://localhost:5432/ecomind` |
+| `DATABASE_URL` | dev, prod | JDBC URL of the PostgreSQL database. See [Database URL](#database-url) |
 | `DATABASE_USERNAME` | dev, prod | Database user |
 | `DATABASE_PASSWORD` | dev, prod | Database password |
 | `JWT_SECRET` | dev, prod | Secret used to sign access tokens. At least 32 characters |
@@ -36,19 +36,42 @@ Credentials are never stored in the repository. Set these variables before runni
 | `PORT` | prod | HTTP port the application listens on |
 | `SPRING_PROFILES_ACTIVE` | prod | Must be `prod` in the production environment |
 
+None of these variables has a default value: the application does not start if one required by
+the active profile is missing.
+
+### Database URL
+
+The URL uses the PostgreSQL JDBC format. For a local database:
+
+```
+jdbc:postgresql://localhost:5432/ecomind
+```
+
+In production the connection must be encrypted and the schema must be stated explicitly:
+
+```
+jdbc:postgresql://<host>:5432/<database>?sslmode=require&currentSchema=<schema>
+```
+
+`sslmode=require` rejects connections that are not encrypted. `currentSchema` is the schema where
+the tables are created and read; it must exist before the application starts (PostgreSQL creates
+`public` by default). The user and the password are never part of the URL: they go in
+`DATABASE_USERNAME` and `DATABASE_PASSWORD`.
+
 ## Profiles
 
 | Profile | Use | Notes |
 |---|---|---|
 | `dev` | Local development (default) | Port 8092, SQL statements are logged. Emails are not sent: verification codes and recovery tokens are written to the console |
 | `prod` | Production | Every setting comes from environment variables |
-| `test` | Automated tests | In-memory H2 database, activated by the tests themselves |
+| `test` | Automated tests | In-memory H2 database in PostgreSQL compatibility mode, activated by the tests themselves. It needs no environment variables |
 
 ## Running the application
 
 Create an empty PostgreSQL database named `ecomind`, set the environment variables and start the server:
 
 ```bash
+export DATABASE_URL=jdbc:postgresql://localhost:5432/ecomind
 export DATABASE_USERNAME=<your-user>
 export DATABASE_PASSWORD=<your-password>
 export JWT_SECRET=<a-random-secret-of-at-least-32-characters>
@@ -59,6 +82,7 @@ export JWT_EXPIRATION_MINUTES=60
 On Windows (PowerShell):
 
 ```powershell
+$env:DATABASE_URL = "jdbc:postgresql://localhost:5432/ecomind"
 $env:DATABASE_USERNAME = "<your-user>"
 $env:DATABASE_PASSWORD = "<your-password>"
 $env:JWT_SECRET = "<a-random-secret-of-at-least-32-characters>"
@@ -66,7 +90,7 @@ $env:JWT_EXPIRATION_MINUTES = "60"
 .\mvnw.cmd spring-boot:run
 ```
 
-The API is available at `http://localhost:8092`.
+The tables are created on the first start. The API is available at `http://localhost:8092`.
 
 To run with the production profile:
 
