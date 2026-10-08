@@ -3,6 +3,7 @@ package pe.greenminds.ecomind.quests.application.internal.commandservices;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 import pe.greenminds.ecomind.quests.application.commandservices.CollabQuestMemberCommandService;
+import pe.greenminds.ecomind.quests.application.internal.outboundservices.acl.UsersServiceClient;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.CollabQuestMember;
 import pe.greenminds.ecomind.quests.domain.model.commands.AcceptCollabQuestMemberCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.DeclineCollabQuestMemberCommand;
@@ -35,19 +36,22 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
     private final QuestUserRepository questUserRepository;
     private final ActivityUserRepository activityUserRepository;
     private final FamilyPlanItemRepository familyPlanItemRepository;
+    private final UsersServiceClient usersServiceClient;
 
     public CollabQuestMemberCommandServiceImpl(
             CollabQuestMemberRepository collabQuestMemberRepository,
             CollabQuestSessionRepository collabQuestSessionRepository,
             QuestUserRepository questUserRepository,
             ActivityUserRepository activityUserRepository,
-            FamilyPlanItemRepository familyPlanItemRepository
+            FamilyPlanItemRepository familyPlanItemRepository,
+            UsersServiceClient usersServiceClient
     ) {
         this.collabQuestMemberRepository = collabQuestMemberRepository;
         this.collabQuestSessionRepository = collabQuestSessionRepository;
         this.questUserRepository = questUserRepository;
         this.activityUserRepository = activityUserRepository;
         this.familyPlanItemRepository = familyPlanItemRepository;
+        this.usersServiceClient = usersServiceClient;
     }
 
     @Override
@@ -100,6 +104,17 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
                             )
                     )
             );
+        }
+
+        if (!usersServiceClient.existsUser(command.invitedUserId())) {
+            return Result.failure(ApplicationError.notFound("User", command.invitedUserId().toString()));
+        }
+        if (!usersServiceClient.areFriends(command.invitedByUserId(), command.invitedUserId())
+                && !usersServiceClient.belongToSameFamily(command.invitedByUserId(), command.invitedUserId())) {
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "Invited user must be a friend or family member",
+                    "Users %d and %d have no accepted social relationship".formatted(
+                            command.invitedByUserId(), command.invitedUserId())));
         }
 
         if (collabQuestMemberRepository.existsBySessionIdAndUserId(
