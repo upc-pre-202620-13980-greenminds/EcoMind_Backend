@@ -60,9 +60,9 @@ public class AchievementShareRequestRepositoryImpl implements AchievementShareRe
                 UUID.fromString(r.getId()),
                 UUID.fromString(r.getAwardId()),
                 r.getRequestedBy(),
-                UUID.fromString(r.getCommunityId()),
+                Long.valueOf(r.getCommunityId()),
                 AchievementShareStatus.valueOf(r.getStatus()),
-                r.getPublicationId() == null ? null : UUID.fromString(r.getPublicationId()),
+                r.getPublicationId() == null ? null : Long.valueOf(r.getPublicationId()),
                 r.getCreatedAt(),
                 r.getConfirmedAt());
     }

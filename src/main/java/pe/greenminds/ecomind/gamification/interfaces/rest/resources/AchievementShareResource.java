@@ -7,8 +7,8 @@ public record AchievementShareResource(
         UUID requestId,
         UUID awardId,
         Long requestedBy,
-        UUID communityId,
+        Long communityId,
         String status,
-        UUID publicationId,
+        Long publicationId,
         Instant createdAt,
         Instant confirmedAt) {}

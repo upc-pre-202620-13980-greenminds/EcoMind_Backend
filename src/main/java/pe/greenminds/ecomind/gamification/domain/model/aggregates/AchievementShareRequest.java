@@ -10,18 +10,18 @@ public record AchievementShareRequest(
         UUID id,
         UUID awardId,
         Long requestedBy,
-        UUID communityId,
+        Long communityId,
         AchievementShareStatus status,
-        UUID publicationId,
+        Long publicationId,
         Instant createdAt,
         Instant confirmedAt) {
     public AchievementShareRequest(
             UUID id,
             UUID awardId,
             Long requestedBy,
-            UUID communityId,
+            Long communityId,
             AchievementShareStatus status,
-            UUID publicationId,
+            Long publicationId,
             Instant createdAt) {
         this(
                 id,
@@ -40,7 +40,9 @@ public record AchievementShareRequest(
         Objects.requireNonNull(communityId);
         Objects.requireNonNull(status);
         Objects.requireNonNull(createdAt);
-        if (requestedBy == null
+        if (communityId <= 0
+                || (publicationId != null && publicationId <= 0)
+                || requestedBy == null
                 || requestedBy <= 0
                 || (status == AchievementShareStatus.PUBLISHED) != (publicationId != null))
             throw new IllegalArgumentException("Invalid share request");
@@ -50,7 +52,7 @@ public record AchievementShareRequest(
     }
 
     public AchievementShareRequest confirm(
-            UUID award, Long user, UUID community, UUID publication, Instant confirmedAt) {
+            UUID award, Long user, Long community, Long publication, Instant confirmedAt) {
         if (!awardId.equals(award) || !requestedBy.equals(user) || !communityId.equals(community))
             throw new IllegalArgumentException("Publication does not match its request");
         Objects.requireNonNull(publication);

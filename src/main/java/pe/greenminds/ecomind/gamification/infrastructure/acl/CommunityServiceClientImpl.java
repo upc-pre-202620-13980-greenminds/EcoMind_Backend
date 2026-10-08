@@ -9,7 +9,6 @@ import pe.greenminds.ecomind.gamification.application.outboundservices.Gamificat
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Resolves the real supplier when implemented; absence fails explicitly, never as an empty/success
@@ -23,19 +22,19 @@ public class CommunityServiceClientImpl implements CommunityServiceClient {
         this.provider = provider;
     }
 
-    public Optional<UUID> findLocalCommunity(Long userId) {
+    public Optional<Long> findLocalCommunity(Long userId) {
         return requireSupplier().findLocalCommunity(userId);
     }
 
-    public boolean isMember(UUID communityId, Long userId) {
+    public boolean isMember(Long communityId, Long userId) {
         return requireSupplier().isMember(communityId, userId);
     }
 
-    public boolean mayPublishAchievement(UUID communityId, Long userId) {
+    public boolean mayPublishAchievement(Long communityId, Long userId) {
         return requireSupplier().mayPublishAchievement(communityId, userId);
     }
 
-    public List<CommunityContextFacade.Member> findMembers(UUID communityId) {
+    public List<CommunityContextFacade.Member> findMembers(Long communityId) {
         return requireSupplier().findMembers(communityId);
     }
 

@@ -135,3 +135,18 @@ sources, canonical retries/concurrency, multipliers, repetition/reset, actual ge
 services, atomic rollback, collective/individual achievement criteria, sharing/correlation, missing
 suppliers/configuration, closure recovery, authorization and read-only ranking periods. QA media and
 synthetic fixtures stay local outside repositories under `~/Downloads/EcoMind-qa-evidence/`.
+
+## Community integration (2026-10-08)
+
+The branch now imports Leo's `feature/community` implementation. Gamification uses its numeric
+community ids and real membership repositories through `CommunityContextFacade`; LOCAL participants
+come from those memberships and public Users names. Share input `communityId` and confirmed
+`publicationId` are positive numbers. Request and award ids remain UUIDs.
+
+A voluntary share is delivered through the existing durable outbox. Community stores an achievement
+post and confirms it atomically with Gamification's share state. Notice delivery is deduplicated and
+never creates a post. Authorized members can read/filter achievement publications at
+`GET /api/v1/Community/Communities/{communityId}/AchievementPosts`.
+
+Community goal/event completion remains a contract dependency until those producers are implemented.
+Production Quests XP remains an explicit configuration decision; no default XP values were added.

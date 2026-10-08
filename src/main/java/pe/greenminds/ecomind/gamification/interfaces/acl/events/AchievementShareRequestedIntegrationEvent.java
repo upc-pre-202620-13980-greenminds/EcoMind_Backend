@@ -12,7 +12,7 @@ public record AchievementShareRequestedIntegrationEvent(
         UUID requestId,
         UUID awardId,
         Long requestedBy,
-        UUID communityId,
+        Long communityId,
         Instant occurredAt) {
     public AchievementShareRequestedIntegrationEvent {
         Objects.requireNonNull(eventId);

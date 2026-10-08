@@ -12,8 +12,8 @@ or explicit external dependencies; interface existence alone is not evidence of 
 | Quests | Proposed `QuestsContextFacade` | Separate UUID contract; no supplier; fails explicitly when called |
 | Monetization | `MonetizationContextFacade` | Real supplier for active XP multiplier, gem credit, cosmetic grant and protector consumption from merged store branch |
 | Monetization | Protected/unavailable events | Real correlated results consumed by Gamification; technical failure is not missing inventory |
-| Community | `CommunityContextFacade` | Public port; supplier absent from published branches integrated here |
-| Community | Goal/event completion, publication confirmation events | Gamification consumers implemented; actual Community producer pending |
+| Community | `CommunityContextFacade` | Real supplier backed by imported Community memberships and Users public facade |
+| Community | Goal/event completion, publication confirmation events | Real persisted achievement post confirmation; goal/event producers remain pending |
 | Gamification | `GamificationContextFacade` | Read-only progress snapshot used by Users/Monetization |
 | Gamification | Domain events + `SpringGamificationEventPublisher` | Working synchronous internal delivery + transactional outgoing outbox |
 | Gamification | `GamificationOutboxPublisher` | Durable retry/acknowledgement delivery to public supplier ports |
@@ -49,7 +49,28 @@ not an empty result, denied membership or success. Outbox failures preserve pend
 ## Integration evidence boundaries
 
 JUnit validates the **real** Monetization services and actual Quests public events/history against H2
-and can run against PostgreSQL. Community permissions, goal recognition and acknowledgements use an
-explicit test mock until a real supplier is published. This is not Community end-to-end evidence.
+and can run against PostgreSQL. The real Community membership/notice/publication supplier is verified by `CommunityGamificationIntegrationTests`, including transactional publication confirmation. Goal/event recognition still uses explicit contract fixtures because those producers are absent from the imported branch.
 Android ViewModels, dialog drafts, weekly ordering and Community feed animation are separate mobile/
 Community responsibilities; backend completion does not imply those interfaces have been implemented.
+
+## Published Community identity and transaction adaptation
+
+`CommunityContextFacade` uses positive numeric `communityId` values from the published community and
+membership endpoints. Publication confirmation returns the numeric id of the persisted
+`community_achievement_posts` row. Award/request/event identities remain UUIDs owned by Gamification.
+The existing Gamification VARCHAR columns serialize the numeric references; there is no alternate
+community-id registry. Apply `docs/migrations/20261008-community-gamification.sql` after importing
+Community's schema. Prototype UUID community/post references need an explicit authoritative mapping
+before migration; the script stops rather than fabricating identities.
+
+The durable Gamification outbox delivers publication requests into Community. Community persists the
+post then emits `PublicationCreatedIntegrationEvent` synchronously inside that same transaction.
+A listener failure rolls back both persistence and acknowledgement and leaves the outbox pending.
+On retry, the request id must carry the same award, author and community. This monolithic transaction
+requires no second Community publication outbox. Notice receipt is independently deduplicated by
+award id and never creates a post. Future remote delivery would require its own durable boundary.
+
+Community membership permits achievement publishing for ADMIN and MEMBER. No additional moderation
+state exists in the imported branch; future restrictions must be added to the public supplier check.
+Member-only publication reads accept optional `authorId` and `awardId` filters with pagination at
+`GET /api/v1/Community/Communities/{communityId}/AchievementPosts`.

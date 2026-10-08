@@ -112,7 +112,7 @@ class GamificationReportIntegrationTests {
     static final UserId USER = new UserId(5101L), OTHER = new UserId(5102L);
     static final Instant AT = Instant.parse("2026-10-07T17:00:00Z");
     static final LocalDate DAY = LocalDate.of(2026, 10, 7);
-    final UUID communityId = UUID.randomUUID();
+    final Long communityId = 73L;
 
     @BeforeEach
     void prepare() {
@@ -338,7 +338,7 @@ class GamificationReportIntegrationTests {
         assertEquals(AchievementShareStatus.PENDING, first.status());
         assertNull(first.publicationId());
         assertEquals(first, achievements.handle(c).toOptional().orElseThrow());
-        UUID publication = UUID.randomUUID();
+        Long publication = 73L;
         var confirmation =
                 new ConfirmAchievementPublicationCommand(
                         c.requestId(), award.id(), USER.value(), communityId, publication);
@@ -360,7 +360,7 @@ class GamificationReportIntegrationTests {
                                         award.id(),
                                         USER.value(),
                                         communityId,
-                                        UUID.randomUUID())));
+                                        94L)));
     }
 
     @Test
@@ -414,18 +414,10 @@ class GamificationReportIntegrationTests {
                 () ->
                         achievements.handle(
                                 new ConfirmAchievementPublicationCommand(
-                                        request,
-                                        award.id(),
-                                        OTHER.value(),
-                                        communityId,
-                                        UUID.randomUUID())));
+                                        request, award.id(), OTHER.value(), communityId, 94L)));
         achievements.handle(
                 new ConfirmAchievementPublicationCommand(
-                        UUID.randomUUID(),
-                        UUID.randomUUID(),
-                        OTHER.value(),
-                        communityId,
-                        UUID.randomUUID()));
+                        UUID.randomUUID(), UUID.randomUUID(), OTHER.value(), communityId, 94L));
         assertEquals(
                 AchievementShareStatus.PENDING,
                 queries.shareStatus(request, USER).toOptional().orElseThrow().status());
@@ -471,7 +463,7 @@ class GamificationReportIntegrationTests {
                                             c.awardId(),
                                             c.requestedBy(),
                                             c.communityId(),
-                                            UUID.randomUUID(),
+                                            95L,
                                             AT));
                             return null;
                         })
@@ -739,7 +731,7 @@ class GamificationReportIntegrationTests {
         assertNull(outbox.findById(message.getId()).orElseThrow().getDeliveredAt());
         achievements.handle(
                 new ConfirmAchievementPublicationCommand(
-                        request, award.id(), USER.value(), communityId, UUID.randomUUID()));
+                        request, award.id(), USER.value(), communityId, 94L));
         var row = outbox.findById(message.getId()).orElseThrow();
         row.setNextAttemptAt(Instant.EPOCH);
         outbox.save(row);

@@ -90,7 +90,7 @@ public class AchievementController {
                     "Requires community membership. Shared individual achievements remain in"
                             + " Community's feed.")
     public ResponseEntity<?> forCommunity(
-            @PathVariable UUID communityId,
+            @PathVariable Long communityId,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {

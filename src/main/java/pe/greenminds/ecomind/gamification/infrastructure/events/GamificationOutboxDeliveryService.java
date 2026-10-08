@@ -87,7 +87,7 @@ public class GamificationOutboxDeliveryService {
                                     correlation,
                                     UUID.fromString(row.getAwardId()),
                                     row.getUserId(),
-                                    UUID.fromString(row.getCommunityId())));
+                                    Long.valueOf(row.getCommunityId())));
             default -> throw new IllegalStateException("Unknown outbox message type");
         }
         if (!row.getMessageType().equals("SHARE_ACHIEVEMENT")

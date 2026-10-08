@@ -21,7 +21,7 @@ public interface AchievementCommandService {
     void register(Achievement achievement);
 
     void evaluateCommunity(
-            UUID communityId, List<Long> eligible, UUID executionId, Instant occurredAt);
+            Long communityId, List<Long> eligible, UUID executionId, Instant occurredAt);
 
     void recognizeFamilyPlan(FamilyId familyId, UUID executionId, Instant occurredAt);
 

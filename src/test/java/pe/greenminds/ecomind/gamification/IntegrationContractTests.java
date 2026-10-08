@@ -52,8 +52,8 @@ class IntegrationContractTests {
     void publicationConfirmationRequiresOriginalRequestAndPersistedPublication() {
         UUID requestId = UUID.randomUUID();
         UUID awardId = UUID.randomUUID();
-        UUID communityId = UUID.randomUUID();
-        UUID publicationId = UUID.randomUUID();
+        Long communityId = 73L;
+        Long publicationId = 73L;
         var event =
                 new PublicationCreatedIntegrationEvent(
                         UUID.randomUUID(),

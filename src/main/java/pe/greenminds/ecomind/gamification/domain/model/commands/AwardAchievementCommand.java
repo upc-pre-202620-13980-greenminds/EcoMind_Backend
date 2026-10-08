@@ -7,6 +7,6 @@ import java.util.UUID;
 public record AwardAchievementCommand(
         UUID achievementId,
         Long beneficiaryId,
-        UUID communityId,
+        Long communityId,
         UUID sourceEventId,
         Instant occurredAt) {}

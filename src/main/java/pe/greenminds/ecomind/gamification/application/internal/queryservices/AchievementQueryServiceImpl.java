@@ -76,7 +76,7 @@ public class AchievementQueryServiceImpl implements AchievementQueryService {
     }
 
     public Result<List<AchievementAward>, ApplicationError> forCommunity(
-            UUID id, UserId user, int page, int size) {
+            Long id, UserId user, int page, int size) {
         validatePage(page, size);
         if (!community.isMember(id, user.value()))
             return Result.failure(

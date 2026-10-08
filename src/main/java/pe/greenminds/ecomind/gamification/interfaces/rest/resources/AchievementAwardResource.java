@@ -10,4 +10,4 @@ public record AchievementAwardResource(
         Long beneficiaryId,
         UUID sourceEventId,
         Instant awardedAt,
-        UUID communityId) {}
+        Long communityId) {}

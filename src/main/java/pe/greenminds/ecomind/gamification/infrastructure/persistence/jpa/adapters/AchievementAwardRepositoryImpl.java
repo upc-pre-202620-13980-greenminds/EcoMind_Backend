@@ -54,7 +54,7 @@ public class AchievementAwardRepositoryImpl implements AchievementAwardRepositor
                 .map(this::map);
     }
 
-    public List<AchievementAward> findByCommunity(UUID community, int page, int size) {
+    public List<AchievementAward> findByCommunity(Long community, int page, int size) {
         return entities
                 .createQuery(
                         "from AchievementAwardPersistenceEntity where scope='COMMUNITY' and"
@@ -77,7 +77,7 @@ public class AchievementAwardRepositoryImpl implements AchievementAwardRepositor
                 row.getBeneficiaryId(),
                 UUID.fromString(row.getSourceEventId()),
                 row.getAwardedAt(),
-                row.getCommunityId() == null ? null : UUID.fromString(row.getCommunityId()));
+                row.getCommunityId() == null ? null : Long.valueOf(row.getCommunityId()));
     }
 
     public List<AchievementAward> findByBeneficiary(
@@ -104,7 +104,7 @@ public class AchievementAwardRepositoryImpl implements AchievementAwardRepositor
                                         row.getAwardedAt(),
                                         row.getCommunityId() == null
                                                 ? null
-                                                : UUID.fromString(row.getCommunityId())))
+                                                : Long.valueOf(row.getCommunityId())))
                 .toList();
     }
 }

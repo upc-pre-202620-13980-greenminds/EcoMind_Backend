@@ -14,7 +14,7 @@ public record AchievementAward(
         Long beneficiaryId,
         UUID sourceEventId,
         Instant awardedAt,
-        UUID communityId) {
+        Long communityId) {
     public AchievementAward(
             UUID id,
             UUID achievementId,

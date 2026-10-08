@@ -5,20 +5,34 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-/** Contract only. A null configuredReward means the goal has no monetary/point reward configured. */
-public record CommunityGoalCompletedIntegrationEvent(UUID eventId, UUID executionId, UUID goalId,
-    UUID communityId, List<Long> eligibleParticipantIds, ConfiguredReward configuredReward, Instant occurredAt) {
-  public record ConfiguredReward(long ecopoints, long experience, int gems) {
-    public ConfiguredReward {
-      if (ecopoints < 0 || experience < 0 || gems < 0) throw new IllegalArgumentException("Invalid reward amounts");
+/**
+ * Contract only. A null configuredReward means the goal has no monetary/point reward configured.
+ */
+public record CommunityGoalCompletedIntegrationEvent(
+        UUID eventId,
+        UUID executionId,
+        UUID goalId,
+        Long communityId,
+        List<Long> eligibleParticipantIds,
+        ConfiguredReward configuredReward,
+        Instant occurredAt) {
+    public record ConfiguredReward(long ecopoints, long experience, int gems) {
+        public ConfiguredReward {
+            if (ecopoints < 0 || experience < 0 || gems < 0)
+                throw new IllegalArgumentException("Invalid reward amounts");
+        }
     }
-  }
-  public CommunityGoalCompletedIntegrationEvent {
-    Objects.requireNonNull(eventId); Objects.requireNonNull(executionId); Objects.requireNonNull(goalId);
-    Objects.requireNonNull(communityId); Objects.requireNonNull(occurredAt);
-    eligibleParticipantIds = List.copyOf(eligibleParticipantIds);
-    if (eligibleParticipantIds.stream().anyMatch(id -> id <= 0)
-        || eligibleParticipantIds.stream().distinct().count() != eligibleParticipantIds.size())
-      throw new IllegalArgumentException("Eligible participants must be unique positive ids");
-  }
+
+    public CommunityGoalCompletedIntegrationEvent {
+        Objects.requireNonNull(eventId);
+        Objects.requireNonNull(executionId);
+        Objects.requireNonNull(goalId);
+        Objects.requireNonNull(communityId);
+        Objects.requireNonNull(occurredAt);
+        eligibleParticipantIds = List.copyOf(eligibleParticipantIds);
+        if (eligibleParticipantIds.stream().anyMatch(id -> id <= 0)
+                || eligibleParticipantIds.stream().distinct().count()
+                        != eligibleParticipantIds.size())
+            throw new IllegalArgumentException("Eligible participants must be unique positive ids");
+    }
 }

@@ -166,8 +166,7 @@ class QuestIntegrationTests {
     @Test
     void suppliersReportRealAbsenceAndUnimplementedContextsStillFailExplicitly() {
         assertTrue(monetization.getActiveMultiplier(USER, NOW).isEmpty());
-        assertThrows(
-                IllegalStateException.class, () -> community.isMember(UUID.randomUUID(), USER));
+        assertFalse(community.isMember(73L, USER));
         assertThrows(
                 IllegalStateException.class,
                 () -> quests.findValidatedMinigameAttempt(UUID.randomUUID()));

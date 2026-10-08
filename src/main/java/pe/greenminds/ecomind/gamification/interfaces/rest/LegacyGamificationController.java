@@ -30,7 +30,6 @@ import pe.greenminds.ecomind.shared.interfaces.rest.transform.ResponseEntityAsse
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping(value = "/api/v1", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -83,7 +82,7 @@ public class LegacyGamificationController {
     @GetMapping("/community_achievement")
     @Operation(summary = "TS-006: get collective community awards")
     public ResponseEntity<?> collective(
-            @RequestParam(name = "community_id") UUID communityId,
+            @RequestParam(name = "community_id") Long communityId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {

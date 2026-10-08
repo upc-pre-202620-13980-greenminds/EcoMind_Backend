@@ -12,7 +12,7 @@ public interface AchievementAwardRepository {
 
     Optional<AchievementAward> findById(UUID id);
 
-    List<AchievementAward> findByCommunity(UUID communityId, int page, int size);
+    List<AchievementAward> findByCommunity(Long communityId, int page, int size);
 
     List<AchievementAward> findByBeneficiary(
             AchievementScope scope, Long beneficiaryId, int page, int size);

@@ -98,7 +98,7 @@ public class AchievementCommandServiceImpl implements AchievementCommandService 
 
     @Transactional(propagation = Propagation.MANDATORY)
     public void evaluateCommunity(
-            UUID communityId, List<Long> eligible, UUID execution, Instant at) {
+            Long communityId, List<Long> eligible, UUID execution, Instant at) {
         milestones.lock("COMMUNITY:" + communityId);
         milestones.record(
                 AchievementMetric.COMPLETED_COMMUNITY_GOALS, "COMMUNITY:" + communityId, execution);

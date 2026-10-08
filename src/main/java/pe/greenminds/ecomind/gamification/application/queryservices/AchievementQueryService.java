@@ -46,7 +46,7 @@ public interface AchievementQueryService {
     }
 
     Result<List<AchievementAward>, ApplicationError> forCommunity(
-            UUID communityId, UserId requester, int page, int size);
+            Long communityId, UserId requester, int page, int size);
 
     Result<AchievementShareRequest, ApplicationError> shareStatus(UUID requestId, UserId requester);
 
