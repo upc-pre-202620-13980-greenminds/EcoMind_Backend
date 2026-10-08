@@ -1,2 +1,5 @@
 package pe.greenminds.ecomind.community.domain.model.queries;
-public record SearchCommunitiesQuery(String type,String locality){}
+
+import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityType;
+
+public record SearchCommunitiesQuery(CommunityType type, String locality) {}

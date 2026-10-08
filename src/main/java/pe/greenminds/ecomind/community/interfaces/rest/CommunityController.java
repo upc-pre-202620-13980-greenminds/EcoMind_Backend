@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import pe.greenminds.ecomind.community.application.commandservices.CommunityCommandService;
 import pe.greenminds.ecomind.community.application.queryservices.CommunityQueryService;
 import pe.greenminds.ecomind.community.domain.model.queries.SearchCommunitiesQuery;
+import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityType;
 import pe.greenminds.ecomind.community.interfaces.rest.resources.CommunityResource;
 import pe.greenminds.ecomind.community.interfaces.rest.resources.CreateLocalCommunityResource;
 import pe.greenminds.ecomind.community.interfaces.rest.resources.CreateTopicCommunityResource;
@@ -42,7 +43,7 @@ public class CommunityController {
     @GetMapping
     public List<CommunityResource> search(@RequestParam(required = false) String type,
             @RequestParam(required = false) String locality) {
-        return queryService.handle(new SearchCommunitiesQuery(type, locality)).stream()
+        return queryService.handle(new SearchCommunitiesQuery(type == null ? null : CommunityType.fromValue(type), locality)).stream()
                 .map(CommunityResourceFromEntityAssembler::toResourceFromEntity).toList();
     }
 
