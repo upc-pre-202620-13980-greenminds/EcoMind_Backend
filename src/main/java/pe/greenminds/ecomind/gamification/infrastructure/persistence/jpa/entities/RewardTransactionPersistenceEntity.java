@@ -27,15 +27,15 @@ import java.time.Instant;
 @Check(
         name = "ck_rewardtransaction",
         constraints =
-                "base_ecopoints >= 0 AND base_experience >= 0 AND base_gems >= 0 AND ecopoints >= 0"
-                    + " AND experience >= 0 AND gems >= 0 AND applied_factor >= 0 AND"
+                "base_ecopoints >= 0 AND base_gems >= 0 AND ecopoints >= 0"
+                    + " AND gems >= 0 AND applied_factor >= 0 AND"
                     + " repetition_factor BETWEEN 0 AND 1 AND source_type IN"
                     + " ('QUEST','MINIGAME','COLLABORATIVE_QUEST','FAMILY_PLAN','COMMUNITY_GOAL','COMMUNITY_EVENT')"
                     + " AND ((beneficiary_type = 'USER' AND user_progress_id IS NOT NULL AND"
                     + " user_progress_id = beneficiary_id AND family_score_id IS NULL) OR"
                     + " (beneficiary_type = 'FAMILY' AND family_score_id IS NOT NULL AND"
                     + " family_score_id = beneficiary_id AND user_progress_id IS NULL AND"
-                    + " base_experience = 0 AND base_gems = 0 AND experience = 0 AND gems = 0))")
+                    + " base_gems = 0 AND gems = 0))")
 @Table(
         name = "reward_transactions",
         uniqueConstraints =
@@ -71,19 +71,11 @@ public class RewardTransactionPersistenceEntity {
     @Column(nullable = false)
     private long baseEcopoints;
 
-    /** Deprecated schema column; base_ecopoints is authoritative. */
-    @Column(name = "base_experience", nullable = false)
-    private long legacyBaseExperience;
-
     @Column(nullable = false)
     private int baseGems;
 
     @Column(nullable = false)
     private long ecopoints;
-
-    /** Deprecated schema column; ecopoints is authoritative. */
-    @Column(name = "experience", nullable = false)
-    private long legacyExperience;
 
     @Column(nullable = false)
     private int gems;

@@ -34,7 +34,6 @@ public record Achievement(
         Objects.requireNonNull(id);
         Objects.requireNonNull(scope);
         Objects.requireNonNull(metric);
-        if (metric == AchievementMetric.EXPERIENCE) metric = AchievementMetric.ECOPOINTS;
         if (code == null || !code.matches("[A-Z0-9_]{1,80}"))
             throw new IllegalArgumentException(
                     "Achievement code must contain uppercase letters, digits or underscores");

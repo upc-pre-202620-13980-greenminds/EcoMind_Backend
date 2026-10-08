@@ -36,8 +36,8 @@ public class UserProgressRepositoryImpl implements UserProgressRepository {
         jdbcTemplate.update(
                 """
                 INSERT INTO user_progresses
-                  (user_id, total_ecopoints, total_experience, current_streak, longest_streak, version)
-                VALUES (?, 0, 0, 0, 0, 0)
+                  (user_id, total_ecopoints, current_streak, longest_streak, version)
+                VALUES (?, 0, 0, 0, 0)
                 ON CONFLICT DO NOTHING
                 """,
                 userId.value());
@@ -53,7 +53,6 @@ public class UserProgressRepositoryImpl implements UserProgressRepository {
     public UserProgress save(UserProgress progress) {
         var entity = persistenceRepository.findById(progress.getUserId().value()).orElseThrow();
         entity.setTotalEcopoints(progress.getTotalEcopoints());
-        entity.setLegacyTotalExperience(progress.getTotalEcopoints());
         entity.setCurrentStreak(progress.getCurrentStreak());
         entity.setLongestStreak(progress.getLongestStreak());
         entity.setLastActivityDate(progress.getLastActivityDate());

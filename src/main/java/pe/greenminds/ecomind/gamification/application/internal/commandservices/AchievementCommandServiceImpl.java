@@ -195,7 +195,6 @@ public class AchievementCommandServiceImpl implements AchievementCommandService 
                 confirmedValue =
                         switch (definition.metric()) {
                             case ECOPOINTS -> progress.getTotalEcopoints();
-                            case EXPERIENCE -> progress.getTotalEcopoints();
                             case LONGEST_STREAK -> progress.getLongestStreak();
                             case COMPLETED_COMMUNITY_GOALS ->
                                     milestones.count(

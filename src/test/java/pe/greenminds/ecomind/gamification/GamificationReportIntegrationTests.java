@@ -229,12 +229,21 @@ class GamificationReportIntegrationTests {
     }
 
     @Test
-    void historicalXpColumnsDoNotCreateAnotherScoreOrChangeRewardAmounts() throws Exception {
-        var grant = rewards.handle(quest(USER, AT, false, new Reward(19, 4)));
-        jdbc.update("UPDATE user_progresses SET total_experience=900 WHERE user_id=?", USER.value());
-        jdbc.update(
-                "UPDATE reward_transactions SET base_experience=500,experience=750 WHERE id=?",
-                grant.id().toString());
+    void progressAndRewardsPersistWithoutDuplicatedXpColumnsOrConfigurationTable() throws Exception {
+        rewards.handle(quest(USER, AT, false, new Reward(19, 4)));
+        assertEquals(
+                0,
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.columns"
+                                + " WHERE LOWER(table_name) IN ('user_progresses','reward_transactions')"
+                                + " AND LOWER(column_name) IN ('total_experience','base_experience','experience')",
+                        Integer.class));
+        assertEquals(
+                0,
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.tables"
+                                + " WHERE LOWER(table_name)='gamification_quest_experiences'",
+                        Integer.class));
         assertEquals(19, progress.getUserProgress(USER).getTotalEcopoints());
         assertEquals(new Reward(19, 4), progress.getRecentRewards(USER).getFirst().grantedReward());
         http.perform(get("/api/v1/gamification/me/progress").header("Authorization", bearer(USER)))
