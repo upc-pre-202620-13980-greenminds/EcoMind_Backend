@@ -50,6 +50,11 @@ public class Friendship {
     return status == FriendshipStatus.PENDING;
   }
 
+  /** Two users are friends only once the request was accepted. */
+  public boolean isAccepted() {
+    return status == FriendshipStatus.ACCEPTED;
+  }
+
   public boolean isReceivedBy(UserId userId) {
     return receiverId.equals(userId);
   }
