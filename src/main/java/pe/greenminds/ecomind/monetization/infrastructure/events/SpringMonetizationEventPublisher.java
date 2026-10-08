@@ -1,0 +1,3 @@
+package pe.greenminds.ecomind.monetization.infrastructure.events;
+import org.springframework.context.ApplicationEventPublisher; import org.springframework.stereotype.Component; import pe.greenminds.ecomind.monetization.application.outboundservices.MonetizationEventPublisher; import pe.greenminds.ecomind.monetization.interfaces.acl.events.*;
+@Component public class SpringMonetizationEventPublisher implements MonetizationEventPublisher {private final ApplicationEventPublisher publisher;public SpringMonetizationEventPublisher(ApplicationEventPublisher p){publisher=p;}public void publish(StreakProtectedIntegrationEvent e){publisher.publishEvent(e);}public void publish(StreakProtectionUnavailableIntegrationEvent e){publisher.publishEvent(e);}}

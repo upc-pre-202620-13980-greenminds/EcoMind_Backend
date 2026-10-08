@@ -1,0 +1,16 @@
+package pe.greenminds.ecomind.community.application.queryservices;
+
+import java.util.List;
+import pe.greenminds.ecomind.community.domain.model.aggregates.Community;
+import pe.greenminds.ecomind.community.domain.model.aggregates.CommunityMembership;
+import pe.greenminds.ecomind.community.domain.model.queries.GetCommunityMembershipsByCommunityQuery;
+import pe.greenminds.ecomind.community.domain.model.queries.GetCommunityMembershipsByUserQuery;
+import pe.greenminds.ecomind.community.domain.model.queries.SearchCommunitiesQuery;
+
+public interface CommunityQueryService {
+    List<Community> handle(SearchCommunitiesQuery query);
+
+    List<CommunityMembership> handle(GetCommunityMembershipsByUserQuery query);
+
+    List<CommunityMembership> handle(GetCommunityMembershipsByCommunityQuery query);
+}
