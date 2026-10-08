@@ -4,5 +4,6 @@ public enum QuestStatus {
     READY_TO_COMPLETE,
     IN_PROGRESS,
     COMPLETED,
-    EXPIRED
+    EXPIRED,
+    CANCELLED
 }

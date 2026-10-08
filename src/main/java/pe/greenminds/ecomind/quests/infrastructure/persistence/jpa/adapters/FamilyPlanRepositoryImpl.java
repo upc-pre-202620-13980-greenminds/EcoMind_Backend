@@ -1,5 +1,6 @@
 package pe.greenminds.ecomind.quests.infrastructure.persistence.jpa.adapters;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.FamilyPlan;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.FamilyPlanStatus;
@@ -13,20 +14,27 @@ import java.util.Optional;
 @Repository
 public class FamilyPlanRepositoryImpl implements FamilyPlanRepository {
     private final FamilyPlanPersistenceRepository familyPlanPersistenceRepository;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     public FamilyPlanRepositoryImpl(
-            FamilyPlanPersistenceRepository familyPlanPersistenceRepository
+            FamilyPlanPersistenceRepository familyPlanPersistenceRepository,
+            ApplicationEventPublisher applicationEventPublisher
     ) {
         this.familyPlanPersistenceRepository = familyPlanPersistenceRepository;
+        this.applicationEventPublisher = applicationEventPublisher;
     }
 
     @Override
     public FamilyPlan save(FamilyPlan familyPlan) {
-        return FamilyPlanPersistenceAssembler.toDomainFromPersistence(
+        var pendingEvents = familyPlan.domainEvents();
+        var savedPlan = FamilyPlanPersistenceAssembler.toDomainFromPersistence(
                 familyPlanPersistenceRepository.save(
                         FamilyPlanPersistenceAssembler.toPersistenceFromDomain(familyPlan)
                 )
         );
+        pendingEvents.forEach(applicationEventPublisher::publishEvent);
+        familyPlan.clearDomainEvents();
+        return savedPlan;
     }
 
     @Override

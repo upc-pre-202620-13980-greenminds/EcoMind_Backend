@@ -10,6 +10,7 @@ import pe.greenminds.ecomind.quests.domain.model.commands.UpdateActivityCommand;
 import pe.greenminds.ecomind.quests.domain.repositories.ActivityRepository;
 import pe.greenminds.ecomind.quests.domain.repositories.ActivityUserRepository;
 import pe.greenminds.ecomind.quests.domain.repositories.QuestRepository;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestPublicationStatus;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 import pe.greenminds.ecomind.shared.application.result.Result;
 
@@ -34,10 +35,14 @@ public class ActivityCommandServiceImpl implements ActivityCommandService {
     @Override
     @Transactional
     public Result<Activity, ApplicationError> handle(CreateActivityCommand command){
-        if(!questRepository.existsById(command.questId())){
+        var quest = questRepository.findById(command.questId());
+        if (quest.isEmpty()) {
             return Result.failure(
                     ApplicationError.notFound("Quest", command.questId().toString())
             );
+        }
+        if (quest.get().getPublicationStatus() != QuestPublicationStatus.DRAFT) {
+            return immutableQuestActivitiesError();
         }
         try{
             var activities = activityRepository.findByQuestsIdOrderByOrderAsc(command.questId());
@@ -83,6 +88,15 @@ public class ActivityCommandServiceImpl implements ActivityCommandService {
             );
         }
 
+        var quest = questRepository.findById(activity.get().getQuestId());
+        if (quest.isEmpty()) {
+            return Result.failure(ApplicationError.notFound(
+                    "Quest", activity.get().getQuestId().toString()));
+        }
+        if (quest.get().getPublicationStatus() != QuestPublicationStatus.DRAFT) {
+            return immutableQuestActivitiesError();
+        }
+
         var deletedActivity = activity.get();
         activityUserRepository.deleteByActivityId(command.activityId());
         activityRepository.deleteById(command.activityId());
@@ -109,6 +123,15 @@ public class ActivityCommandServiceImpl implements ActivityCommandService {
             return Result.failure(
                     ApplicationError.notFound("Activity", command.activityId().toString())
             );
+        }
+
+        var quest = questRepository.findById(activity.get().getQuestId());
+        if (quest.isEmpty()) {
+            return Result.failure(ApplicationError.notFound(
+                    "Quest", activity.get().getQuestId().toString()));
+        }
+        if (quest.get().getPublicationStatus() != QuestPublicationStatus.DRAFT) {
+            return immutableQuestActivitiesError();
         }
 
         if (command.order() == null || command.order() < 1) {
@@ -183,5 +206,10 @@ public class ActivityCommandServiceImpl implements ActivityCommandService {
                     ApplicationError.validationError("Activity", exception.getMessage())
             );
         }
+    }
+
+    private Result<Activity, ApplicationError> immutableQuestActivitiesError() {
+        return Result.failure(ApplicationError.conflict(
+                "Quest", "Activities can only be changed while the quest is DRAFT"));
     }
 }

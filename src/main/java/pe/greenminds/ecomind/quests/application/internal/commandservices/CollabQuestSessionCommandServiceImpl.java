@@ -82,6 +82,12 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
             );
         }
 
+        if (!quest.get().acceptsNewAssignments()) {
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "Quest is not published",
+                    "Only PUBLISHED quests accept new collaborative sessions"));
+        }
+
         if (activityRepository.countByQuestId(command.questId()) < 1) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(

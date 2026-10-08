@@ -5,15 +5,12 @@ import org.springframework.stereotype.Service;
 import pe.greenminds.ecomind.quests.application.commandservices.QuestCommandService;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.Quest;
 import pe.greenminds.ecomind.quests.domain.model.commands.CreateQuestCommand;
-import pe.greenminds.ecomind.quests.domain.model.commands.DeleteQuestCommand;
+import pe.greenminds.ecomind.quests.domain.model.commands.ArchiveQuestCommand;
+import pe.greenminds.ecomind.quests.domain.model.commands.PublishQuestCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.UpdateQuestCommand;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.Reward;
 import pe.greenminds.ecomind.quests.domain.repositories.ActivityRepository;
-import pe.greenminds.ecomind.quests.domain.repositories.ActivityUserRepository;
-import pe.greenminds.ecomind.quests.domain.repositories.CollabQuestMemberRepository;
-import pe.greenminds.ecomind.quests.domain.repositories.CollabQuestSessionRepository;
 import pe.greenminds.ecomind.quests.domain.repositories.QuestRepository;
-import pe.greenminds.ecomind.quests.domain.repositories.QuestUserRepository;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 import pe.greenminds.ecomind.shared.application.result.Result;
 
@@ -21,36 +18,19 @@ import pe.greenminds.ecomind.shared.application.result.Result;
 public class QuestCommandServiceImpl implements QuestCommandService {
 
     private final QuestRepository questRepository;
-    private final QuestUserRepository questUserRepository;
     private final ActivityRepository activityRepository;
-    private final ActivityUserRepository activityUserRepository;
-    private final CollabQuestSessionRepository collabQuestSessionRepository;
-    private final CollabQuestMemberRepository collabQuestMemberRepository;
 
     public QuestCommandServiceImpl(
             QuestRepository questRepository,
-            QuestUserRepository questUserRepository,
-            ActivityRepository activityRepository,
-            ActivityUserRepository activityUserRepository,
-            CollabQuestSessionRepository collabQuestSessionRepository,
-            CollabQuestMemberRepository collabQuestMemberRepository
+            ActivityRepository activityRepository
     ) {
         this.questRepository = questRepository;
-        this.questUserRepository = questUserRepository;
         this.activityRepository = activityRepository;
-        this.activityUserRepository = activityUserRepository;
-        this.collabQuestSessionRepository = collabQuestSessionRepository;
-        this.collabQuestMemberRepository = collabQuestMemberRepository;
     }
 
     @Override
     public Result<Quest, ApplicationError> handle(CreateQuestCommand command) {
         try {
-            var reward = new Reward(
-                    command.reward_gems(),
-                    command.reward_ecopoints()
-            );
-
             var quest = new Quest(
                 command.minimageId(),
                 command.title(),
@@ -66,7 +46,9 @@ public class QuestCommandServiceImpl implements QuestCommandService {
                 command.assignedDate()
             );
 
-            return Result.success(questRepository.save(quest));
+            var savedQuest = questRepository.save(quest);
+            savedQuest.initializeVersionGroup(savedQuest.getId());
+            return Result.success(questRepository.save(savedQuest));
         } catch (IllegalArgumentException e) {
             return Result.failure(
                     ApplicationError.validationError("Quest", e.getMessage())
@@ -80,7 +62,7 @@ public class QuestCommandServiceImpl implements QuestCommandService {
 
     @Transactional
     @Override
-    public Result<Quest, ApplicationError> handle(DeleteQuestCommand command) {
+    public Result<Quest, ApplicationError> handle(ArchiveQuestCommand command) {
         var quest = questRepository.findById(command.questId());
 
         if (quest.isEmpty()) {
@@ -89,22 +71,31 @@ public class QuestCommandServiceImpl implements QuestCommandService {
             );
         }
 
-        var questUsers = questUserRepository.findByQuestId(command.questId());
-        questUsers.forEach(
-                questUser -> activityUserRepository.deleteByQuestUserId(questUser.getId())
-        );
+        try {
+            quest.get().archive();
+            return Result.success(questRepository.save(quest.get()));
+        } catch (IllegalStateException exception) {
+            return Result.failure(ApplicationError.conflict("Quest", exception.getMessage()));
+        }
+    }
 
-        var collabQuestSessions = collabQuestSessionRepository.findByQuestId(command.questId());
-        collabQuestSessions.forEach(
-                session -> collabQuestMemberRepository.deleteBySessionId(session.getId())
-        );
-        collabQuestSessionRepository.deleteByQuestId(command.questId());
-
-        questUserRepository.deleteByQuestId(command.questId());
-        activityRepository.deleteByQuestId(command.questId());
-        questRepository.deleteById(command.questId());
-
-        return Result.success(quest.get());
+    @Transactional
+    @Override
+    public Result<Quest, ApplicationError> handle(PublishQuestCommand command) {
+        var quest = questRepository.findById(command.questId());
+        if (quest.isEmpty()) {
+            return Result.failure(ApplicationError.notFound("Quest", command.questId().toString()));
+        }
+        if (questRepository.findPublishedByVersionGroupId(quest.get().getVersionGroupId()).isPresent()) {
+            return Result.failure(ApplicationError.conflict(
+                    "Quest", "The version group already has a published quest"));
+        }
+        try {
+            quest.get().publish();
+            return Result.success(questRepository.save(quest.get()));
+        } catch (IllegalStateException exception) {
+            return Result.failure(ApplicationError.conflict("Quest", exception.getMessage()));
+        }
     }
 
     @Transactional
@@ -119,6 +110,24 @@ public class QuestCommandServiceImpl implements QuestCommandService {
         }
 
         try {
+            if (quest.get().getPublicationStatus()
+                    == pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestPublicationStatus.PUBLISHED) {
+                var originalActivities = activityRepository.findByQuestsIdOrderByOrderAsc(command.questId());
+                var nextDraft = quest.get().createNextDraft(
+                        command.minigameId(), command.title(), command.category(), command.description(),
+                        command.type(), command.age(), new Reward(command.gemReward(), command.ecopoints()),
+                        command.time(), command.image(), command.theme(), command.assignedDate());
+                quest.get().archive();
+                questRepository.save(quest.get());
+                var savedDraft = questRepository.save(nextDraft);
+                for (var activity : originalActivities) {
+                    activityRepository.save(new pe.greenminds.ecomind.quests.domain.model.aggregates.Activity(
+                            savedDraft.getId(), activity.getDescription(), activity.getOrder(),
+                            activity.getActivityType(), activity.getActivityConfiguration(), activity.getImage()));
+                }
+                return Result.success(savedDraft);
+            }
+
             quest.get().update(
                     command.minigameId(),
                     command.title(),
@@ -138,6 +147,8 @@ public class QuestCommandServiceImpl implements QuestCommandService {
             return Result.failure(
                     ApplicationError.validationError("Quest", exception.getMessage())
             );
+        } catch (IllegalStateException exception) {
+            return Result.failure(ApplicationError.conflict("Quest", exception.getMessage()));
         }
     }
 }

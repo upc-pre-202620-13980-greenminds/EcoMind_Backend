@@ -12,6 +12,9 @@ public interface CollabQuestMemberRepository {
     boolean existsBySessionIdAndUserId(Long sessionId, Long userId);
     CollabQuestMember findById(Long id);
     CollabQuestMember findBySessionIdAndUserId(Long sessionId, Long userId);
+    List<CollabQuestMember> findBySessionId(Long sessionId);
+    List<CollabQuestMember> findByUserId(Long userId);
+    List<CollabQuestMember> findByUserIdAndStatus(Long userId, CollabMemberStatus status);
     void deleteBySessionId(Long sessionId);
     List<CollabQuestMember> findBySessionIdAndStatusIn(
             Long sessionId,

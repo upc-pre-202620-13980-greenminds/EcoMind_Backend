@@ -3,6 +3,7 @@ package pe.greenminds.ecomind.quests.domain.model.aggregates;
 import lombok.Getter;
 import lombok.Setter;
 import pe.greenminds.ecomind.quests.domain.model.events.QuestUserCreatedEvent;
+import pe.greenminds.ecomind.quests.domain.model.events.QuestCompletedEvent;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestStatus;
 
 import java.time.LocalDate;
@@ -55,6 +56,9 @@ public class QuestUser extends AbstractDomainAggregateRoot<QuestUser> {
     }
 
     public void updateProgress(Double progress) {
+        if (status == QuestStatus.COMPLETED || status == QuestStatus.CANCELLED) {
+            throw new IllegalStateException("A completed or cancelled quest assignment cannot change progress");
+        }
         if (progress == null || progress < 0 || progress > 100) {
             throw new IllegalArgumentException(
                     "Progress must be between 0 and 100"
@@ -86,12 +90,27 @@ public class QuestUser extends AbstractDomainAggregateRoot<QuestUser> {
         this.progress = 100.0;
         this.status = QuestStatus.COMPLETED;
         this.endDate = LocalDate.now(DAILY_ZONE);
+        registerDomainEvent(new QuestCompletedEvent(
+                id, questId, userId, CollaborativeSessionId,
+                java.time.OffsetDateTime.now(DAILY_ZONE)
+        ));
     }
 
     public void expire() {
-        if (this.status != QuestStatus.COMPLETED) {
+        if (this.status != QuestStatus.COMPLETED && this.status != QuestStatus.CANCELLED) {
             this.status = QuestStatus.EXPIRED;
         }
+    }
+
+    public void cancel() {
+        if (status == QuestStatus.COMPLETED) {
+            throw new IllegalStateException("A completed quest assignment cannot be cancelled");
+        }
+        if (status == QuestStatus.CANCELLED) {
+            throw new IllegalStateException("Quest assignment is already cancelled");
+        }
+        status = QuestStatus.CANCELLED;
+        endDate = LocalDate.now(DAILY_ZONE);
     }
 
     public boolean isExpired() {

@@ -27,6 +27,7 @@ public class CollabQuestMemberRepositoryImpl implements CollabQuestMemberReposit
     @Override
     public CollabQuestMember save(CollabQuestMember collabQuestMember) {
         boolean isNew = collabQuestMember.getId() == null;
+        var pendingEvents = collabQuestMember.domainEvents();
         var savedEntity = collabQuestMemberPersistenceRepository.save(
                 CollabQuestMemberPersistenceAssembler.toPersistenceFromDomain(collabQuestMember)
         );
@@ -38,6 +39,8 @@ public class CollabQuestMemberRepositoryImpl implements CollabQuestMemberReposit
             savedCollabQuestMember.domainEvents().forEach(applicationEventPublisher::publishEvent);
             savedCollabQuestMember.clearDomainEvents();
         }
+        pendingEvents.forEach(applicationEventPublisher::publishEvent);
+        collabQuestMember.clearDomainEvents();
 
         return savedCollabQuestMember;
     }
@@ -73,6 +76,29 @@ public class CollabQuestMemberRepositoryImpl implements CollabQuestMemberReposit
     @Override
     public void deleteBySessionId(Long sessionId) {
         collabQuestMemberPersistenceRepository.deleteBySessionId(sessionId);
+    }
+
+    @Override
+    public List<CollabQuestMember> findBySessionId(Long sessionId) {
+        return collabQuestMemberPersistenceRepository.findBySessionIdOrderByIdAsc(sessionId)
+                .stream().map(CollabQuestMemberPersistenceAssembler::toDomainFromPersistence)
+                .toList();
+    }
+
+    @Override
+    public List<CollabQuestMember> findByUserId(Long userId) {
+        return collabQuestMemberPersistenceRepository.findByUserIdOrderByIdDesc(userId)
+                .stream().map(CollabQuestMemberPersistenceAssembler::toDomainFromPersistence)
+                .toList();
+    }
+
+    @Override
+    public List<CollabQuestMember> findByUserIdAndStatus(
+            Long userId, CollabMemberStatus status) {
+        return collabQuestMemberPersistenceRepository.findByUserIdAndStatusOrderByIdDesc(
+                        userId, status)
+                .stream().map(CollabQuestMemberPersistenceAssembler::toDomainFromPersistence)
+                .toList();
     }
 
     @Override

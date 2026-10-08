@@ -3,6 +3,8 @@ package pe.greenminds.ecomind.quests.domain.model.aggregates;
 import lombok.Getter;
 import lombok.Setter;
 import pe.greenminds.ecomind.quests.domain.model.events.CollabQuestSessionCreatedEvent;
+import pe.greenminds.ecomind.quests.domain.model.events.CollaborativeQuestCompletedEvent;
+import pe.greenminds.ecomind.quests.domain.model.events.CollaborativeQuestStartedEvent;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabQuestStatus;
 
 import java.time.LocalDate;
@@ -63,15 +65,30 @@ public class CollabQuestSession extends AbstractDomainAggregateRoot<CollabQuestS
 
         this.status = CollabQuestStatus.STARTED;
         this.startDate = LocalDate.now();
+        registerDomainEvent(new CollaborativeQuestStartedEvent(
+                id, questId, ownerId, java.time.OffsetDateTime.now()));
     }
 
     public void complete() {
+        complete(true);
+    }
+
+    public void completeAsFamilyPlanItem() {
+        complete(false);
+    }
+
+    private void complete(boolean publishCompletion) {
         if (this.status != CollabQuestStatus.STARTED) {
             throw new IllegalStateException("Collaborative quest session must be STARTED");
         }
 
         this.status = CollabQuestStatus.COMPLETED;
         this.endDate = LocalDate.now();
+        if (publishCompletion) {
+            registerDomainEvent(new CollaborativeQuestCompletedEvent(
+                    id, questId, java.time.OffsetDateTime.now()
+            ));
+        }
     }
 
     public void cancel() {

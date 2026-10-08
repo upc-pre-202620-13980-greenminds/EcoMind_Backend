@@ -3,6 +3,8 @@ package pe.greenminds.ecomind.quests.domain.model.aggregates;
 import lombok.Getter;
 import lombok.Setter;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.FamilyPlanStatus;
+import pe.greenminds.ecomind.quests.domain.model.events.FamilyPlanCompletedEvent;
+import pe.greenminds.ecomind.quests.domain.model.events.FamilyPlanActivatedEvent;
 
 import java.time.OffsetDateTime;
 import java.util.Objects;
@@ -38,6 +40,8 @@ public class FamilyPlan extends AbstractDomainAggregateRoot<FamilyPlan> {
             throw new IllegalStateException("Family plan must be DRAFT");
         }
         status = FamilyPlanStatus.ACTIVE;
+        registerDomainEvent(new FamilyPlanActivatedEvent(
+                id, familyId, ownerUserId, OffsetDateTime.now()));
     }
 
     public void cancel() {
@@ -53,6 +57,9 @@ public class FamilyPlan extends AbstractDomainAggregateRoot<FamilyPlan> {
         }
         status = FamilyPlanStatus.COMPLETED;
         completedAt = OffsetDateTime.now();
+        registerDomainEvent(new FamilyPlanCompletedEvent(
+                id, familyId, ownerUserId, completedAt
+        ));
     }
 
     public Long getFamilyId() { return familyId; }

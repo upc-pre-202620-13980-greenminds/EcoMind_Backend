@@ -3,13 +3,17 @@ import jakarta.persistence.*;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.Category;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestType;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.Theme;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestPublicationStatus;
 import pe.greenminds.ecomind.quests.infrastructure.persistence.jpa.embedddables.RewardPersistenceEmbeddable;
 import pe.greenminds.ecomind.shared.infrastructure.persistence.jpa.entities.AuditableAbstractPersistenceEntity;
 
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "quests")
+@Table(name = "quests", uniqueConstraints = @UniqueConstraint(
+        name = "uk_quest_version_group_number",
+        columnNames = {"version_group_id", "version_number"}
+))
 public class QuestPersistenceEntity extends AuditableAbstractPersistenceEntity {
 
     @Id
@@ -63,6 +67,17 @@ public class QuestPersistenceEntity extends AuditableAbstractPersistenceEntity {
     @Column(name="assignedDate")
     private LocalDate assignedDate;
 
+    @Column(name = "version_group_id")
+    private Long versionGroupId;
+
+    @Column(name = "version_number", nullable = false, columnDefinition = "integer default 1")
+    private Integer versionNumber;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "publication_status", nullable = false, length = 20,
+            columnDefinition = "varchar(20) default 'PUBLISHED'")
+    private QuestPublicationStatus publicationStatus;
+
     public RewardPersistenceEmbeddable getReward() {
         return reward;
     }
@@ -104,6 +119,12 @@ public class QuestPersistenceEntity extends AuditableAbstractPersistenceEntity {
     public LocalDate getAssignedDate() {
         return assignedDate;
     }
+    public Long getVersionGroupId() { return versionGroupId; }
+    public void setVersionGroupId(Long versionGroupId) { this.versionGroupId = versionGroupId; }
+    public Integer getVersionNumber() { return versionNumber; }
+    public void setVersionNumber(Integer versionNumber) { this.versionNumber = versionNumber; }
+    public QuestPublicationStatus getPublicationStatus() { return publicationStatus; }
+    public void setPublicationStatus(QuestPublicationStatus publicationStatus) { this.publicationStatus = publicationStatus; }
 
     public void setMinigameId(Long minigameId) {
         this.minigameId = minigameId;

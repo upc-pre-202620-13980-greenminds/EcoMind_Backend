@@ -1,4 +1,4 @@
 package pe.greenminds.ecomind.quests.domain.model.commands;
 
-public record DeleteQuestCommand(Long questId) {
+public record PublishQuestCommand(Long questId) {
 }

@@ -141,11 +141,12 @@ public class ActivityUserCommandServiceImpl implements ActivityUserCommandServic
             );
         }
 
-        if (questUser.get().getStatus() == QuestStatus.COMPLETED) {
+        if (questUser.get().getStatus() == QuestStatus.COMPLETED
+                || questUser.get().getStatus() == QuestStatus.CANCELLED) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Completed quest attempts cannot be modified",
-                            "The quest is already completed"
+                            "Closed quest assignments cannot be modified",
+                            "The quest assignment is completed or cancelled"
                     )
             );
         }

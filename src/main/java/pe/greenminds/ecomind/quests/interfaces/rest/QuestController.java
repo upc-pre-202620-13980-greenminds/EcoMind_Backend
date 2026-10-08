@@ -13,9 +13,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pe.greenminds.ecomind.quests.application.commandservices.QuestCommandService;
 import pe.greenminds.ecomind.quests.application.queryservices.QuestQueryService;
-import pe.greenminds.ecomind.quests.domain.model.aggregates.Quest;
-import pe.greenminds.ecomind.quests.domain.model.commands.DeleteQuestCommand;
-import pe.greenminds.ecomind.quests.domain.model.queries.GetAllQuestsQuery;
+import pe.greenminds.ecomind.quests.domain.model.commands.ArchiveQuestCommand;
+import pe.greenminds.ecomind.quests.domain.model.commands.PublishQuestCommand;
+import pe.greenminds.ecomind.quests.domain.model.queries.GetPublishedQuestsQuery;
+import pe.greenminds.ecomind.quests.domain.model.queries.GetQuestVersionsQuery;
 import pe.greenminds.ecomind.quests.domain.model.queries.GetQuestByIdQuery;
 import pe.greenminds.ecomind.quests.domain.model.queries.SearchQuestQuery;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.Category;
@@ -28,7 +29,6 @@ import pe.greenminds.ecomind.quests.interfaces.rest.transform.CreateQuestCommand
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.QuestResourceFromEntityAssembler;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.UpdateQuestCommandFromResourceAssembler;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
-import pe.greenminds.ecomind.shared.application.result.Result;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.ErrorResponseAssembler;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.ResponseEntityAssembler;
 
@@ -73,20 +73,26 @@ public class QuestController {
 
     @GetMapping
     @Operation(
-            summary = "Get all quests",
-            description = "Retrieves all available quests."
+            summary = "Get published quests",
+            description = "Retrieves the public quest catalog."
     )
     @ApiResponse(
             responseCode = "200",
             description = "Quests retrieved succesfully."
     )
     public ResponseEntity<List<QuestResource>> getAllQuests(){
-        var quests = questQueryService.handle(new GetAllQuestsQuery());
+        var quests = questQueryService.handle(new GetPublishedQuestsQuery());
 
         var resources = quests.stream()
                 .map(QuestResourceFromEntityAssembler::toResourceFromEntity)
                 .toList();
         return ResponseEntity.ok(resources);
+    }
+
+    @GetMapping("/version-groups/{versionGroupId}/versions")
+    public ResponseEntity<List<QuestResource>> getQuestVersions(@PathVariable Long versionGroupId) {
+        return ResponseEntity.ok(questQueryService.handle(new GetQuestVersionsQuery(versionGroupId))
+                .stream().map(QuestResourceFromEntityAssembler::toResourceFromEntity).toList());
     }
 
     @GetMapping("/{questId}")
@@ -129,7 +135,7 @@ public class QuestController {
     @PutMapping("/{questId}")
     @Operation(
             summary = "Update a quest",
-            description = "Completely updates a quest while preserving its identity and progress"
+            description = "Updates a draft directly, or archives a published quest and creates a new draft version"
     )
     @ApiResponses({
             @ApiResponse(
@@ -186,29 +192,29 @@ public class QuestController {
         return ResponseEntity.ok(resources);
     }
 
-    @DeleteMapping("/{questId}")
+    @PatchMapping("/{questId}/archive")
     @Operation(
-            summary = "Delete a quest",
-            description = """
-                    Deletes the quest, its activities, all user quest progress,
-                    and all user activity progress in a single transaction.
-                    """
+            summary = "Archive a quest",
+            description = "Archives the quest without deleting its history."
     )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "204",
-                    description = "Quest and all related data deleted successfully"
+                    description = "Quest archived successfully"
             ),
             @ApiResponse(responseCode = "404", description = "Quest not found")
     })
-    public ResponseEntity<?> deleteQuest(@PathVariable Long questId) {
-        var result = questCommandService.handle(new DeleteQuestCommand(questId));
+    public ResponseEntity<?> archiveQuest(@PathVariable Long questId) {
+        var result = questCommandService.handle(new ArchiveQuestCommand(questId));
+        return ResponseEntityAssembler.toResponseEntityFromResult(
+                result, QuestResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.OK);
+    }
 
-        return switch (result) {
-            case Result.Success<Quest, ApplicationError> ignored ->
-                    ResponseEntity.noContent().build();
-            case Result.Failure<Quest, ApplicationError> failure ->
-                    ErrorResponseAssembler.toErrorResponseFromApplicationError(failure.error());
-        };
+    @PatchMapping("/{questId}/publish")
+    @Operation(summary = "Publish a draft quest")
+    public ResponseEntity<?> publishQuest(@PathVariable Long questId) {
+        var result = questCommandService.handle(new PublishQuestCommand(questId));
+        return ResponseEntityAssembler.toResponseEntityFromResult(
+                result, QuestResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.OK);
     }
 }
