@@ -1,6 +1,7 @@
 package pe.greenminds.ecomind.quests.application.internal.commandservices;
 
 import jakarta.transaction.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import pe.greenminds.ecomind.quests.application.commandservices.CollabQuestMemberCommandService;
 import pe.greenminds.ecomind.quests.application.internal.outboundservices.acl.UsersServiceClient;
@@ -10,6 +11,9 @@ import pe.greenminds.ecomind.quests.domain.model.commands.DeclineCollabQuestMemb
 import pe.greenminds.ecomind.quests.domain.model.commands.InviteCollabQuestMemberCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.LeaveCollabQuestMemberCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.RemoveCollabQuestMemberCommand;
+import pe.greenminds.ecomind.quests.domain.model.events.CollaborativeQuestInvitationAcceptedEvent;
+import pe.greenminds.ecomind.quests.domain.model.events.CollaborativeQuestInvitationRejectedEvent;
+import pe.greenminds.ecomind.quests.domain.model.events.CollaborativeQuestInvitationSentEvent;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabMemberStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabQuestStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.MemberRole;
@@ -37,6 +41,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
     private final ActivityUserRepository activityUserRepository;
     private final FamilyPlanItemRepository familyPlanItemRepository;
     private final UsersServiceClient usersServiceClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     public CollabQuestMemberCommandServiceImpl(
             CollabQuestMemberRepository collabQuestMemberRepository,
@@ -44,7 +49,8 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
             QuestUserRepository questUserRepository,
             ActivityUserRepository activityUserRepository,
             FamilyPlanItemRepository familyPlanItemRepository,
-            UsersServiceClient usersServiceClient
+            UsersServiceClient usersServiceClient,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.collabQuestMemberRepository = collabQuestMemberRepository;
         this.collabQuestSessionRepository = collabQuestSessionRepository;
@@ -52,6 +58,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
         this.activityUserRepository = activityUserRepository;
         this.familyPlanItemRepository = familyPlanItemRepository;
         this.usersServiceClient = usersServiceClient;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -156,7 +163,11 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
                     CollabMemberStatus.PENDING
             );
 
-            return Result.success(collabQuestMemberRepository.save(member));
+            var savedMember = collabQuestMemberRepository.save(member);
+            eventPublisher.publishEvent(new CollaborativeQuestInvitationSentEvent(
+                    savedMember.getId(), savedMember.getSessionId(), savedMember.getUserId(),
+                    savedMember.getOwnerId(), java.time.OffsetDateTime.now()));
+            return Result.success(savedMember);
         } catch (IllegalArgumentException | NullPointerException exception) {
             return Result.failure(
                     ApplicationError.validationError("CollabQuestMember", exception.getMessage())
@@ -267,7 +278,11 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
 
         try {
             member.answerInvite(CollabMemberStatus.ACCEPTED);
-            return Result.success(collabQuestMemberRepository.save(member));
+            var savedMember = collabQuestMemberRepository.save(member);
+            eventPublisher.publishEvent(new CollaborativeQuestInvitationAcceptedEvent(
+                    savedMember.getId(), savedMember.getSessionId(), savedMember.getUserId(),
+                    savedMember.getOwnerId(), java.time.OffsetDateTime.now()));
+            return Result.success(savedMember);
         } catch (IllegalArgumentException | NullPointerException exception) {
             return Result.failure(
                     ApplicationError.validationError("CollabQuestMember", exception.getMessage())
@@ -321,7 +336,9 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
 
         try {
             member.declineInvite();
-            return Result.success(collabQuestMemberRepository.save(member));
+            var savedMember = collabQuestMemberRepository.save(member);
+            publishInvitationRejected(savedMember);
+            return Result.success(savedMember);
         } catch (IllegalArgumentException | NullPointerException exception) {
             return Result.failure(
                     ApplicationError.validationError("CollabQuestMember", exception.getMessage())
@@ -377,7 +394,9 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
             }
 
             member.declineInvite();
-            return Result.success(collabQuestMemberRepository.save(member));
+            var savedMember = collabQuestMemberRepository.save(member);
+            publishInvitationRejected(savedMember);
+            return Result.success(savedMember);
         }
 
         if (session.get().getStatus() != CollabQuestStatus.STARTED) {
@@ -508,5 +527,11 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
 
     private boolean isFamilyPlanSession(Long sessionId) {
         return familyPlanItemRepository.existsByCollaborativeSessionId(sessionId);
+    }
+
+    private void publishInvitationRejected(CollabQuestMember member) {
+        eventPublisher.publishEvent(new CollaborativeQuestInvitationRejectedEvent(
+                member.getId(), member.getSessionId(), member.getUserId(), member.getOwnerId(),
+                java.time.OffsetDateTime.now()));
     }
 }

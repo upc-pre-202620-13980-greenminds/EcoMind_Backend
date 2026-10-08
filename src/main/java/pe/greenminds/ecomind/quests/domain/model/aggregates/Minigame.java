@@ -8,7 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
-public class Minigame extends AbstractDomainAggregateRoot<Minigame> {
+public class Minigame {
     @Getter
     @Setter
     private Long id;

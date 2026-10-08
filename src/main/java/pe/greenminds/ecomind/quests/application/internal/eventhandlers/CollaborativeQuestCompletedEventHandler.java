@@ -3,12 +3,11 @@ package pe.greenminds.ecomind.quests.application.internal.eventhandlers;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import pe.greenminds.ecomind.quests.domain.model.events.CollaborativeQuestCompletedEvent;
-import pe.greenminds.ecomind.quests.domain.model.events.IntegrationEventId;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabMemberStatus;
 import pe.greenminds.ecomind.quests.domain.repositories.CollabQuestMemberRepository;
 import pe.greenminds.ecomind.quests.domain.repositories.QuestRepository;
-import pe.greenminds.ecomind.quests.domain.services.QuestEventPublisher;
-import pe.greenminds.ecomind.quests.interfaces.events.CollaborativeQuestCompletedIntegrationEvent;
+import pe.greenminds.ecomind.quests.application.outboundservices.QuestEventPublisher;
+import pe.greenminds.ecomind.quests.interfaces.acl.events.CollaborativeQuestCompletedIntegrationEvent;
 
 import java.util.List;
 

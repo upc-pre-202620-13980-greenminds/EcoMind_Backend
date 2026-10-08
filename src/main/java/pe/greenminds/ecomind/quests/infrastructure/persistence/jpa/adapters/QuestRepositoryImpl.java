@@ -1,5 +1,4 @@
 package pe.greenminds.ecomind.quests.infrastructure.persistence.jpa.adapters;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.Quest;
@@ -18,11 +17,9 @@ import java.util.Optional;
 @Repository
 public class QuestRepositoryImpl implements QuestRepository {
     private final QuestPersistenceRepository questPersistenceRepository;
-    private final ApplicationEventPublisher applicationEventPublisher;
 
-    public QuestRepositoryImpl(QuestPersistenceRepository questPersistenceRepository, ApplicationEventPublisher applicationEventPublisher) {
+    public QuestRepositoryImpl(QuestPersistenceRepository questPersistenceRepository) {
         this.questPersistenceRepository = questPersistenceRepository;
-        this.applicationEventPublisher = applicationEventPublisher;
     }
 
     @Override
@@ -90,15 +87,8 @@ public class QuestRepositoryImpl implements QuestRepository {
 
     @Override
     public Quest save(Quest quest) {
-        boolean isNew = quest.getId() == null;
         var savedEntity = questPersistenceRepository.save(QuestPersistenceAssembler.toPersistenceFromDomain(quest));
-        var savedQuest = QuestPersistenceAssembler.toDomainFromPersistence(savedEntity);
-        if(isNew){
-            savedQuest.onCreated();
-            savedQuest.domainEvents().forEach(applicationEventPublisher::publishEvent);
-            savedQuest.clearDomainEvents();
-        }
-        return savedQuest;
+        return QuestPersistenceAssembler.toDomainFromPersistence(savedEntity);
     }
 
     @Override

@@ -5,10 +5,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.Minigame;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.MinigameAttempt;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.Quest;
 import pe.greenminds.ecomind.quests.domain.model.commands.FinishMinigameAttemptCommand;
+import pe.greenminds.ecomind.quests.domain.model.events.MinigameCompletedEvent;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.*;
 import pe.greenminds.ecomind.quests.domain.repositories.MinigameAttemptRepository;
 import pe.greenminds.ecomind.quests.domain.repositories.MinigameRepository;
@@ -19,6 +21,9 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -26,13 +31,14 @@ class MinigameAttemptCommandServiceImplTests {
     @Mock private MinigameAttemptRepository attemptRepository;
     @Mock private MinigameRepository minigameRepository;
     @Mock private QuestRepository questRepository;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     private MinigameAttemptCommandServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new MinigameAttemptCommandServiceImpl(
-                attemptRepository, minigameRepository, questRepository);
+                attemptRepository, minigameRepository, questRepository, eventPublisher);
     }
 
     @Test
@@ -43,6 +49,7 @@ class MinigameAttemptCommandServiceImplTests {
 
         assertTrue(result.toOptional().orElseThrow().getSuccessful());
         assertSame(attempt, result.toOptional().orElseThrow());
+        verify(eventPublisher).publishEvent(isA(MinigameCompletedEvent.class));
     }
 
     @Test
@@ -52,6 +59,7 @@ class MinigameAttemptCommandServiceImplTests {
         var result = service.handle(new FinishMinigameAttemptCommand(5L, 69, Map.of()));
 
         assertFalse(result.toOptional().orElseThrow().getSuccessful());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     private MinigameAttempt prepareAttemptWithMinimumScore(int minimumScore) {

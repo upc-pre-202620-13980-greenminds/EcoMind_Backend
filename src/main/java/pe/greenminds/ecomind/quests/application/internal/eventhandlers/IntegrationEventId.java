@@ -1,4 +1,4 @@
-package pe.greenminds.ecomind.quests.domain.model.events;
+package pe.greenminds.ecomind.quests.application.internal.eventhandlers;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;

@@ -2,7 +2,6 @@ package pe.greenminds.ecomind.quests.domain.model.aggregates;
 
 import lombok.Getter;
 import lombok.Setter;
-import pe.greenminds.ecomind.quests.domain.model.events.ActivityUserCreatedEvent;
 
 import java.time.LocalDate;
 import java.util.Collections;
@@ -10,7 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
-public class ActivityUser extends AbstractDomainAggregateRoot<ActivityUser> {
+public class ActivityUser {
 
     @Getter
     @Setter
@@ -100,9 +99,6 @@ public class ActivityUser extends AbstractDomainAggregateRoot<ActivityUser> {
         );
     }
 
-    public void onCreated(){
-        registerDomainEvent(ActivityUserCreatedEvent.from(this));
-    }
 
     public void updateProgress(Double progress) {
         if (progress == null || progress < 0 || progress > 100) {

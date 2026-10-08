@@ -1,6 +1,7 @@
 package pe.greenminds.ecomind.quests.application.internal.commandservices;
 
 import jakarta.transaction.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.CollabQuestMember;
 import pe.greenminds.ecomind.quests.application.commandservices.CollabQuestSessionCommandService;
@@ -8,6 +9,7 @@ import pe.greenminds.ecomind.quests.domain.model.aggregates.CollabQuestSession;
 import pe.greenminds.ecomind.quests.domain.model.commands.CreateCollabQuestSessionCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.DeletePendingCollabQuestSessionCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.StartCollabQuestSessionCommand;
+import pe.greenminds.ecomind.quests.domain.model.events.CollaborativeQuestStartedEvent;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabMemberStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabQuestStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestType;
@@ -42,6 +44,7 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
     private final ActivityRepository activityRepository;
     private final ActivityUserRepository activityUserRepository;
     private final FamilyPlanItemRepository familyPlanItemRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public CollabQuestSessionCommandServiceImpl(
             CollabQuestSessionRepository collabQuestSessionRepository,
@@ -50,7 +53,8 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
             QuestUserRepository questUserRepository,
             ActivityRepository activityRepository,
             ActivityUserRepository activityUserRepository,
-            FamilyPlanItemRepository familyPlanItemRepository
+            FamilyPlanItemRepository familyPlanItemRepository,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.collabQuestSessionRepository = collabQuestSessionRepository;
         this.collabQuestMemberRepository = collabQuestMemberRepository;
@@ -59,6 +63,7 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
         this.activityRepository = activityRepository;
         this.activityUserRepository = activityUserRepository;
         this.familyPlanItemRepository = familyPlanItemRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -242,7 +247,11 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
             }
 
             session.get().start();
-            return Result.success(collabQuestSessionRepository.save(session.get()));
+            var savedSession = collabQuestSessionRepository.save(session.get());
+            eventPublisher.publishEvent(new CollaborativeQuestStartedEvent(
+                    savedSession.getId(), savedSession.getQuestId(), savedSession.getOwnerId(),
+                    java.time.OffsetDateTime.now()));
+            return Result.success(savedSession);
         } catch (IllegalArgumentException | NullPointerException exception) {
             return Result.failure(
                     ApplicationError.validationError(

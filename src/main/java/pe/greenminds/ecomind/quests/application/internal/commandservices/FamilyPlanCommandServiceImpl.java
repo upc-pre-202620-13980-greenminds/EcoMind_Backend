@@ -1,6 +1,7 @@
 package pe.greenminds.ecomind.quests.application.internal.commandservices;
 
 import jakarta.transaction.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import pe.greenminds.ecomind.quests.application.commandservices.FamilyPlanCommandService;
 import pe.greenminds.ecomind.quests.application.internal.queryservices.FamilyPlanStateAssembler;
@@ -18,6 +19,8 @@ import pe.greenminds.ecomind.quests.domain.model.commands.CreateFamilyPlanComman
 import pe.greenminds.ecomind.quests.domain.model.commands.DeleteFamilyPlanCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.FamilyPlanItemCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.UpdateFamilyPlanCommand;
+import pe.greenminds.ecomind.quests.domain.model.events.FamilyPlanActivatedEvent;
+import pe.greenminds.ecomind.quests.domain.model.events.FamilyPlanCompletedEvent;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabMemberStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabQuestStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.FamilyPlanStatus;
@@ -52,6 +55,7 @@ public class FamilyPlanCommandServiceImpl implements FamilyPlanCommandService {
     private final ActivityUserRepository activityUserRepository;
     private final FamilyPlanStateAssembler familyPlanStateAssembler;
     private final UsersServiceClient usersServiceClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     public FamilyPlanCommandServiceImpl(
             FamilyPlanRepository familyPlanRepository,
@@ -63,7 +67,8 @@ public class FamilyPlanCommandServiceImpl implements FamilyPlanCommandService {
             QuestUserRepository questUserRepository,
             ActivityUserRepository activityUserRepository,
             FamilyPlanStateAssembler familyPlanStateAssembler,
-            UsersServiceClient usersServiceClient
+            UsersServiceClient usersServiceClient,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.familyPlanRepository = familyPlanRepository;
         this.familyPlanItemRepository = familyPlanItemRepository;
@@ -75,6 +80,7 @@ public class FamilyPlanCommandServiceImpl implements FamilyPlanCommandService {
         this.activityUserRepository = activityUserRepository;
         this.familyPlanStateAssembler = familyPlanStateAssembler;
         this.usersServiceClient = usersServiceClient;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -246,6 +252,9 @@ public class FamilyPlanCommandServiceImpl implements FamilyPlanCommandService {
 
         plan.get().activate();
         var savedPlan = familyPlanRepository.save(plan.get());
+        eventPublisher.publishEvent(new FamilyPlanActivatedEvent(
+                savedPlan.getId(), savedPlan.getFamilyId(), savedPlan.getOwnerUserId(),
+                java.time.OffsetDateTime.now()));
         return Result.success(familyPlanStateAssembler.toState(savedPlan));
     }
 
@@ -292,6 +301,9 @@ public class FamilyPlanCommandServiceImpl implements FamilyPlanCommandService {
 
         plan.get().complete();
         var savedPlan = familyPlanRepository.save(plan.get());
+        eventPublisher.publishEvent(new FamilyPlanCompletedEvent(
+                savedPlan.getId(), savedPlan.getFamilyId(), savedPlan.getOwnerUserId(),
+                savedPlan.getCompletedAt()));
         return Result.success(familyPlanStateAssembler.toState(savedPlan));
     }
 

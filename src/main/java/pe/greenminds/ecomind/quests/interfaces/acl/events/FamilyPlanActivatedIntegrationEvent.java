@@ -1,4 +1,4 @@
-package pe.greenminds.ecomind.quests.interfaces.events;
+package pe.greenminds.ecomind.quests.interfaces.acl.events;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;

@@ -2,16 +2,13 @@ package pe.greenminds.ecomind.quests.domain.model.aggregates;
 
 import lombok.Getter;
 import lombok.Setter;
-import pe.greenminds.ecomind.quests.domain.model.events.CollabQuestSessionCreatedEvent;
-import pe.greenminds.ecomind.quests.domain.model.events.CollaborativeQuestCompletedEvent;
-import pe.greenminds.ecomind.quests.domain.model.events.CollaborativeQuestStartedEvent;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabQuestStatus;
 
 import java.time.LocalDate;
 import java.util.Date;
 import java.util.Objects;
 
-public class CollabQuestSession extends AbstractDomainAggregateRoot<CollabQuestSession> {
+public class CollabQuestSession {
     @Getter
     @Setter
     private Long id;
@@ -54,10 +51,6 @@ public class CollabQuestSession extends AbstractDomainAggregateRoot<CollabQuestS
         this.endDate = null;
     }
 
-    public void onCreated(){
-        registerDomainEvent(CollabQuestSessionCreatedEvent.from(this));
-    }
-
     public void start() {
         if (this.status != CollabQuestStatus.PENDING) {
             throw new IllegalStateException("Collaborative quest session must be PENDING");
@@ -65,8 +58,6 @@ public class CollabQuestSession extends AbstractDomainAggregateRoot<CollabQuestS
 
         this.status = CollabQuestStatus.STARTED;
         this.startDate = LocalDate.now();
-        registerDomainEvent(new CollaborativeQuestStartedEvent(
-                id, questId, ownerId, java.time.OffsetDateTime.now()));
     }
 
     public void complete() {
@@ -84,11 +75,6 @@ public class CollabQuestSession extends AbstractDomainAggregateRoot<CollabQuestS
 
         this.status = CollabQuestStatus.COMPLETED;
         this.endDate = LocalDate.now();
-        if (publishCompletion) {
-            registerDomainEvent(new CollaborativeQuestCompletedEvent(
-                    id, questId, java.time.OffsetDateTime.now()
-            ));
-        }
     }
 
     public void cancel() {

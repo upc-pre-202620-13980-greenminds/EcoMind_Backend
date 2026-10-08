@@ -36,7 +36,7 @@ import pe.greenminds.ecomind.iam.application.outboundservices.TokenService;
 import pe.greenminds.ecomind.iam.domain.model.valueobjects.AccountId;
 import pe.greenminds.ecomind.iam.domain.model.valueobjects.AuthenticatedUser;
 import pe.greenminds.ecomind.iam.domain.model.valueobjects.EmailAddress;
-import pe.greenminds.ecomind.quests.interfaces.events.FamilyPlanCompletedIntegrationEvent;
+import pe.greenminds.ecomind.quests.interfaces.acl.events.FamilyPlanCompletedIntegrationEvent;
 import pe.greenminds.ecomind.users.domain.model.aggregates.Family;
 import pe.greenminds.ecomind.users.domain.repositories.FamilyRepository;
 import pe.greenminds.ecomind.users.infrastructure.persistence.jpa.repositories.FamilyPersistenceRepository;

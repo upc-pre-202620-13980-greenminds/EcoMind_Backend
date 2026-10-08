@@ -2,18 +2,40 @@ package pe.greenminds.ecomind.quests.infrastructure.events;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 import pe.greenminds.ecomind.quests.application.outboundservices.QuestEventPublisher;
-import pe.greenminds.ecomind.quests.interfaces.acl.events.QuestCompletedIntegrationEvent;
-import pe.greenminds.ecomind.quests.interfaces.acl.events.FamilyPlanCompletedIntegrationEvent;
+import pe.greenminds.ecomind.quests.interfaces.acl.events.*;
 
-/** Publisher for the proposed reward-complete ACL contract; distinct from Quests' current events. */
-@Component("proposedQuestEventPublisher")
-@Transactional(propagation = Propagation.MANDATORY)
+@Component
 public class SpringQuestEventPublisher implements QuestEventPublisher {
-  private final ApplicationEventPublisher publisher;
-  public SpringQuestEventPublisher(ApplicationEventPublisher publisher) { this.publisher = publisher; }
-  public void publish(QuestCompletedIntegrationEvent event) { publisher.publishEvent(event); }
-  public void publish(FamilyPlanCompletedIntegrationEvent event) { publisher.publishEvent(event); }
+    private final ApplicationEventPublisher applicationEventPublisher;
+
+    public SpringQuestEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
+        this.applicationEventPublisher = applicationEventPublisher;
+    }
+
+    @Override
+    public void publish(QuestCompletedIntegrationEvent event) {
+        applicationEventPublisher.publishEvent(event);
+    }
+
+    @Override
+    public void publish(MinigameCompletedIntegrationEvent event) {
+        applicationEventPublisher.publishEvent(event);
+    }
+
+    @Override
+    public void publish(CollaborativeQuestCompletedIntegrationEvent event) {
+        applicationEventPublisher.publishEvent(event);
+    }
+
+    @Override
+    public void publish(FamilyPlanCompletedIntegrationEvent event) {
+        applicationEventPublisher.publishEvent(event);
+    }
+
+    @Override public void publish(CollaborativeQuestInvitationSentIntegrationEvent event) { applicationEventPublisher.publishEvent(event); }
+    @Override public void publish(CollaborativeQuestInvitationAcceptedIntegrationEvent event) { applicationEventPublisher.publishEvent(event); }
+    @Override public void publish(CollaborativeQuestInvitationRejectedIntegrationEvent event) { applicationEventPublisher.publishEvent(event); }
+    @Override public void publish(CollaborativeQuestStartedIntegrationEvent event) { applicationEventPublisher.publishEvent(event); }
+    @Override public void publish(FamilyPlanActivatedIntegrationEvent event) { applicationEventPublisher.publishEvent(event); }
 }

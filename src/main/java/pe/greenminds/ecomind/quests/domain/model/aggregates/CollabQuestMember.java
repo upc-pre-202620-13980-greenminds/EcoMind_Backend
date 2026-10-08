@@ -2,17 +2,13 @@ package pe.greenminds.ecomind.quests.domain.model.aggregates;
 
 import lombok.Getter;
 import lombok.Setter;
-import pe.greenminds.ecomind.quests.domain.model.events.CollabQuestMemberCreatedEvent;
-import pe.greenminds.ecomind.quests.domain.model.events.CollaborativeQuestInvitationAcceptedEvent;
-import pe.greenminds.ecomind.quests.domain.model.events.CollaborativeQuestInvitationRejectedEvent;
-import pe.greenminds.ecomind.quests.domain.model.events.CollaborativeQuestInvitationSentEvent;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabMemberStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.MemberRole;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
 
-public class CollabQuestMember extends AbstractDomainAggregateRoot<CollabQuestMember> {
+public class CollabQuestMember {
 
     @Getter
     @Setter
@@ -56,29 +52,15 @@ public class CollabQuestMember extends AbstractDomainAggregateRoot<CollabQuestMe
         this(null, sessionId, userId, ownerId, role, status, null, null);
     }
 
-    public void onCreated(){
-        registerDomainEvent(CollabQuestMemberCreatedEvent.from(this));
-        if (role == MemberRole.PARTICIPANT && status == CollabMemberStatus.PENDING) {
-            registerDomainEvent(new CollaborativeQuestInvitationSentEvent(
-                    id, sessionId, userId, ownerId, java.time.OffsetDateTime.now()));
-        }
-    }
-
     public void answerInvite(CollabMemberStatus status){
         this.status = status;
         this.answerDate = LocalDateTime.now();
-        if (status == CollabMemberStatus.ACCEPTED) {
-            registerDomainEvent(new CollaborativeQuestInvitationAcceptedEvent(
-                    id, sessionId, userId, ownerId, java.time.OffsetDateTime.now()));
-        }
     }
 
     public void declineInvite(){
         this.status = CollabMemberStatus.REJECTED;
         this.answerDate = LocalDateTime.now();
         this.revokeDate = LocalDateTime.now();
-        registerDomainEvent(new CollaborativeQuestInvitationRejectedEvent(
-                id, sessionId, userId, ownerId, java.time.OffsetDateTime.now()));
     }
 
     public void revokeInvite() {

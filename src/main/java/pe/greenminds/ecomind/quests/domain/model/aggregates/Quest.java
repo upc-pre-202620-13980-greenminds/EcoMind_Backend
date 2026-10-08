@@ -1,7 +1,6 @@
 package pe.greenminds.ecomind.quests.domain.model.aggregates;
 import lombok.Getter;
 import lombok.Setter;
-import pe.greenminds.ecomind.quests.domain.model.events.QuestCreatedEvent;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.Reward;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.Category;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestType;
@@ -11,7 +10,7 @@ import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestPublicationSt
 import java.time.LocalDate;
 import java.util.Objects;
 
-public class Quest extends AbstractDomainAggregateRoot<Quest> {
+public class Quest {
 
     @Getter
     @Setter
@@ -131,9 +130,6 @@ public class Quest extends AbstractDomainAggregateRoot<Quest> {
         return reward;
     }
 
-    public void onCreated() {
-        registerDomainEvent(QuestCreatedEvent.from(this));
-    }
 
     public void update(
             Long minigameId,

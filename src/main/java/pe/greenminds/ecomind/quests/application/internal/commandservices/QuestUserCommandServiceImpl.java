@@ -1,6 +1,7 @@
 package pe.greenminds.ecomind.quests.application.internal.commandservices;
 
 import jakarta.transaction.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import pe.greenminds.ecomind.quests.application.commandservices.QuestUserCommandService;
 import pe.greenminds.ecomind.quests.application.internal.services.DailyQuestLifecycleService;
@@ -10,6 +11,8 @@ import pe.greenminds.ecomind.quests.domain.model.aggregates.QuestUser;
 import pe.greenminds.ecomind.quests.domain.model.commands.CompleteQuestUserCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.CreateQuestUserCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.CancelQuestUserCommand;
+import pe.greenminds.ecomind.quests.domain.model.events.CollaborativeQuestCompletedEvent;
+import pe.greenminds.ecomind.quests.domain.model.events.QuestCompletedEvent;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabMemberStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabQuestStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestStatus;
@@ -35,6 +38,7 @@ public class QuestUserCommandServiceImpl implements QuestUserCommandService {
     private final CollabQuestSessionRepository collabQuestSessionRepository;
     private final CollabQuestMemberRepository collabQuestMemberRepository;
     private final DailyQuestLifecycleService dailyQuestLifecycleService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public QuestUserCommandServiceImpl(
             QuestUserRepository questUserRepository,
@@ -43,7 +47,8 @@ public class QuestUserCommandServiceImpl implements QuestUserCommandService {
             ActivityRepository activityRepository,
             CollabQuestSessionRepository collabQuestSessionRepository,
             CollabQuestMemberRepository collabQuestMemberRepository,
-            DailyQuestLifecycleService dailyQuestLifecycleService
+            DailyQuestLifecycleService dailyQuestLifecycleService,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.questUserRepository = questUserRepository;
         this.questRepository = questRepository;
@@ -52,6 +57,7 @@ public class QuestUserCommandServiceImpl implements QuestUserCommandService {
         this.collabQuestSessionRepository = collabQuestSessionRepository;
         this.collabQuestMemberRepository = collabQuestMemberRepository;
         this.dailyQuestLifecycleService = dailyQuestLifecycleService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -214,6 +220,10 @@ public class QuestUserCommandServiceImpl implements QuestUserCommandService {
         try {
             questUser.get().complete();
             var savedQuestUser = questUserRepository.save(questUser.get());
+            eventPublisher.publishEvent(new QuestCompletedEvent(
+                    savedQuestUser.getId(), savedQuestUser.getQuestId(),
+                    savedQuestUser.getUserId(), savedQuestUser.getCollaborativeSessionId(),
+                    java.time.OffsetDateTime.now(java.time.ZoneId.of("America/Lima"))));
             return Result.success(savedQuestUser);
         } catch (IllegalStateException exception) {
             return Result.failure(
@@ -331,7 +341,10 @@ public class QuestUserCommandServiceImpl implements QuestUserCommandService {
             }
 
             session.get().complete();
-            collabQuestSessionRepository.save(session.get());
+            var savedSession = collabQuestSessionRepository.save(session.get());
+            eventPublisher.publishEvent(new CollaborativeQuestCompletedEvent(
+                    savedSession.getId(), savedSession.getQuestId(),
+                    java.time.OffsetDateTime.now()));
 
             return Result.success(savedRequestedQuestUser);
         } catch (IllegalStateException exception) {
