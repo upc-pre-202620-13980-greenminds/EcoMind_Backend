@@ -39,7 +39,7 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
     public Result<Community, ApplicationError> handle(CreateLocalCommunityCommand command) {
         try {
             return create(CommunityType.LOCAL, command.name(), command.description(), null, command.locality(), null,
-                    command.iconUrl(), null);
+                    command.iconUrl(), command.userId());
         } catch (IllegalArgumentException | NullPointerException exception) {
             return Result.failure(ApplicationError.validationError("Community", exception.getMessage()));
         } catch (Exception exception) {

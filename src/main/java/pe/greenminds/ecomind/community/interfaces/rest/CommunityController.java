@@ -58,8 +58,11 @@ public class CommunityController {
     }
 
     @PostMapping(value = "/Local", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> createLocal(@Valid @RequestBody CreateLocalCommunityResource resource) {
-        var command = CreateLocalCommunityCommandFromResourceAssembler.toCommandFromResource(resource);
+    public ResponseEntity<?> createLocal(
+            @Valid @RequestBody CreateLocalCommunityResource resource,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        var command = CreateLocalCommunityCommandFromResourceAssembler.toCommandFromResource(
+                resource, principal.accountId());
         return responseEntityAssembler.toResponseEntityFromResult(
                 commandService.handle(command),
                 CommunityResourceFromEntityAssembler::toResourceFromEntity,
