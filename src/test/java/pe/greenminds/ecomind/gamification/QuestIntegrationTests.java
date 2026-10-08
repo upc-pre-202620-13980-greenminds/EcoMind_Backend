@@ -97,8 +97,8 @@ class QuestIntegrationTests {
   }
 
   @Test
-  void unimplementedSuppliersNeverPretendToReturnRealBusinessResults() {
-    assertThrows(IllegalStateException.class, () -> monetization.getActiveMultiplier(USER, NOW));
+  void suppliersReportRealAbsenceAndUnimplementedContextsStillFailExplicitly() {
+    assertTrue(monetization.getActiveMultiplier(USER, NOW).isEmpty());
     assertThrows(IllegalStateException.class, () -> community.isMember(UUID.randomUUID(), USER));
     assertThrows(IllegalStateException.class, () -> quests.findValidatedMinigameAttempt(UUID.randomUUID()));
   }
