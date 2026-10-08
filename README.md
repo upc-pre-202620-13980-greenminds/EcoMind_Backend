@@ -30,6 +30,9 @@ Credentials are never stored in the repository. Set these variables before runni
 | `DATABASE_PASSWORD` | dev, prod | Database password |
 | `JWT_SECRET` | dev, prod | Secret used to sign access tokens. At least 32 characters |
 | `JWT_EXPIRATION_MINUTES` | dev, prod | Minutes an access token is valid |
+| `CULQI_SECRET_KEY` | optional | Enables CARD and YAPE gem-package payments |
+| `PAYPAL_CLIENT_ID` | optional | Enables PayPal gem-package payments |
+| `PAYPAL_SECRET` | optional | Enables PayPal gem-package payments |
 | `RESEND_API_KEY` | prod | API key of the Resend email service |
 | `RESEND_FROM_EMAIL` | prod | Sender address of the emails, verified in Resend |
 | `PASSWORD_RECOVERY_URL` | prod | URL of the screen that sets a new password. The recovery token is appended as the `token` query parameter |
@@ -87,6 +90,9 @@ $env:DATABASE_USERNAME = "<your-user>"
 $env:DATABASE_PASSWORD = "<your-password>"
 $env:JWT_SECRET = "<a-random-secret-of-at-least-32-characters>"
 $env:JWT_EXPIRATION_MINUTES = "60"
+$env:CULQI_SECRET_KEY = "<your-culqi-secret-key>" # optional
+$env:PAYPAL_CLIENT_ID = "<your-paypal-client-id>" # optional
+$env:PAYPAL_SECRET = "<your-paypal-secret>" # optional
 .\mvnw.cmd spring-boot:run
 ```
 

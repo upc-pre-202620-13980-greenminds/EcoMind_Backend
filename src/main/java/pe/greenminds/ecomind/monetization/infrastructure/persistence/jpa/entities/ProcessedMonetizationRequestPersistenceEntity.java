@@ -17,5 +17,8 @@ import lombok.Setter;
 public class ProcessedMonetizationRequestPersistenceEntity {
   @Id @Column(length = 36) private String requestId;
   @Column(nullable = false, length = 40) private String operation;
+  @Column(name = "user_id") private Long userId;
+  @Column(name = "target_id", length = 36) private String targetId;
+  @Column(name = "result_id", length = 36) private String resultId;
   @Column(nullable = false) private Instant processedAt;
 }
