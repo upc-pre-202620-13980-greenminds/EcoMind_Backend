@@ -38,7 +38,7 @@ public class CommunityContextFacadeImpl implements CommunityContextFacade {
                 memberships.findByUserId(userId).stream()
                         .map(m -> communities.findById(m.communityId()))
                         .flatMap(Optional::stream)
-                        .filter(c -> "local".equals(c.getType()))
+                        .filter(c -> c.getType() == pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityType.LOCAL)
                         .map(c -> c.getId())
                         .distinct()
                         .limit(2)

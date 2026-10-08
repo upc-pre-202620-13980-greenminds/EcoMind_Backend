@@ -1,8 +1,11 @@
 package pe.greenminds.ecomind.community.domain.model.aggregates;
 
-public record CommunityMembership(Long id, Long communityId, Long userId, String role) {
+import java.util.Objects;
+import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityRole;
+
+public record CommunityMembership(Long id, Long communityId, Long userId, CommunityRole role) {
   public CommunityMembership {
     if (communityId == null || userId == null) throw new IllegalArgumentException("Community and user are required");
-    if (!"ADMIN".equals(role) && !"MEMBER".equals(role)) throw new IllegalArgumentException("Invalid membership role");
+    Objects.requireNonNull(role, "Membership role is required");
   }
 }

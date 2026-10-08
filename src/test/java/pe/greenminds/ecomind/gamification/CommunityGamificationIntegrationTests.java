@@ -140,11 +140,11 @@ class CommunityGamificationIntegrationTests {
                                         "Jardines del Sol",
                                         "Cuidamos nuestro barrio",
                                         "Surco",
-                                        null,
-                                        USER.value()))
+                                        null))
                         .toOptional()
                         .orElseThrow()
                         .getId();
+        assertTrue(communities.handle(new JoinCommunityCommand(communityId, USER.value())).isSuccess());
         assertTrue(
                 communities
                         .handle(new JoinCommunityCommand(communityId, OTHER.value()))
@@ -174,12 +174,14 @@ class CommunityGamificationIntegrationTests {
 
     @Test
     void conflictingLocalMembershipsCannotSilentlyChooseAnotherRankingScope() throws Exception {
-        communities
+        var second = communities
                 .handle(
                         new CreateLocalCommunityCommand(
-                                "Los Cedros", "Un barrio unido", "San Borja", null, USER.value()))
+                                "Los Cedros", "Un barrio unido", "San Borja", null))
                 .toOptional()
                 .orElseThrow();
+        assertTrue(communities.handle(new JoinCommunityCommand(second.getId(), USER.value())).isFailure());
+        jdbc.update("INSERT INTO community_memberships (community_id,user_id,role,created_at,updated_at) VALUES (?,?,'MEMBER',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)", second.getId(), USER.value());
         http.perform(
                         get("/api/v1/gamification/rankings/LOCAL/participants")
                                 .header("Authorization", bearer(USER)))
@@ -373,7 +375,9 @@ class CommunityGamificationIntegrationTests {
                         post("/api/v1/Community/Communities/" + communityId + "/Memberships")
                                 .header("Authorization", bearer(OUTSIDER))
                                 .param("user_id", "7101"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.user_id").value(OUTSIDER.value()));
+        assertTrue(community.isMember(communityId, OUTSIDER.value()));
         assertTrue(
                 communities
                         .handle(
@@ -393,8 +397,7 @@ class CommunityGamificationIntegrationTests {
                                         "Cultivamos juntos",
                                         "Gardening",
                                         10,
-                                        null,
-                                        USER.value()))
+                                        null, USER.value()))
                         .isSuccess());
     }
 
