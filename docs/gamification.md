@@ -94,8 +94,10 @@ its split between participant data, dated transactions and client-side weekly po
 
 ## Integration work still needed
 
-1. Implement the actual Quests validation/completion workflow. Its quest and family event bridge
-   is now connected; minigame/collaborative messages are contracts only. See [integration-contracts.md](integration-contracts.md).
+1. Align Gamification with Quests' real completion events in `quests.interfaces.events`.
+   The current tested reward bridge uses the proposed `quests.interfaces.acl.events` contract.
+   Real quest events do not provide base XP, and family events do not provide an additional bonus;
+   they must not be silently treated as zero-valued rewards. See [integration-contracts.md](integration-contracts.md).
 2. Users currently stores `ecopoints` and `streak` in its profile and lets clients replace them.
    Change the profile to read Gamification's values and remove that client-writable source.
 3. Monetization outbox and acknowledgements for gems, active XP multipliers and streak protectors.
@@ -103,7 +105,27 @@ its split between participant data, dated transactions and client-side weekly po
    ranking membership from Community. These require the corresponding Quests, Users, Community and Monetization
    contracts; do not invent reward thresholds or family membership.
 
-Run the JUnit suite with `./mvnw test` (or `mvn test` where Maven is installed). The new tests
-cover daily streak rules, idempotent and concurrent grants, persistence, JWT scope and unauthenticated
-requests using H2 in MySQL mode. Family tests also verify removed-member access, zero initial score,
-score overflow rollback and separation from individual rewards. Native MySQL execution remains unverified.
+## Database validation
+
+The backend uses PostgreSQL. Progress, family score and achievement inserts use `ON CONFLICT DO NOTHING`
+before the per-beneficiary lock or uniqueness check. `./mvnw test` runs JUnit and acceptance scenarios
+with H2 in PostgreSQL compatibility mode.
+
+The same five Gamification persistence/API suites can run against an actual PostgreSQL database.
+Create a dedicated empty database first; these tests use `create-drop` and close each class's context.
+Never use the application's database for this command.
+
+```bash
+createdb ecomind_gamification_test
+TEST_DATABASE_URL=jdbc:postgresql://localhost:5432/ecomind_gamification_test \
+TEST_DATABASE_DRIVER=org.postgresql.Driver \
+TEST_DATABASE_USERNAME=your_local_user \
+TEST_DATABASE_PASSWORD='' \
+./mvnw test -Dtest=AchievementTests,FamilyGamificationTests,QuestIntegrationTests,RankingTests,RewardCommandServiceIntegrationTests
+```
+
+Coverage includes first grants, duplicate and concurrent delivery, daily streaks, overflow/transaction
+rollback, achievement uniqueness, family access after removal, ranking periods/pagination and JWT scope.
+The `TEST_DATABASE_*` settings apply only to tests. No credentials or QA fixtures are committed.
+The Quests suite validates the proposed reward-complete contract; it does not prove that the real Quests
+workflow currently supplies all fields Gamification requires.

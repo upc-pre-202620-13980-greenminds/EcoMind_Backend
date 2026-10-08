@@ -22,11 +22,12 @@ public class AchievementAwardRepositoryImpl implements AchievementAwardRepositor
 
   public void addIfAbsent(AchievementAward award) {
     // Unique constraint preserves the first award, including source event and date, on retries.
-    // Avoid a missing-row gap lock followed by insert for different beneficiaries in MySQL.
+    // Award uniqueness is enforced by the database; different beneficiaries do not share a lock.
     jdbc.update("""
-        INSERT IGNORE INTO achievement_awards
+        INSERT INTO achievement_awards
           (id, achievement_id, scope, beneficiary_id, source_event_id, awarded_at)
         VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT DO NOTHING
         """, award.id().toString(), award.achievementId().toString(), award.scope().name(),
         award.beneficiaryId(), award.sourceEventId().toString(), Timestamp.from(award.awardedAt()));
   }

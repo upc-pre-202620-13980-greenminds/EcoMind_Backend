@@ -49,6 +49,7 @@ Credentials are never stored in the repository. Set these variables before runni
 Create an empty PostgreSQL database named `ecomind`, set the environment variables and start the server:
 
 ```bash
+export DATABASE_URL=jdbc:postgresql://localhost:5432/ecomind
 export DATABASE_USERNAME=<your-user>
 export DATABASE_PASSWORD=<your-password>
 export JWT_SECRET=<a-random-secret-of-at-least-32-characters>
@@ -59,6 +60,7 @@ export JWT_EXPIRATION_MINUTES=60
 On Windows (PowerShell):
 
 ```powershell
+$env:DATABASE_URL = "jdbc:postgresql://localhost:5432/ecomind"
 $env:DATABASE_USERNAME = "<your-user>"
 $env:DATABASE_PASSWORD = "<your-password>"
 $env:JWT_SECRET = "<a-random-secret-of-at-least-32-characters>"

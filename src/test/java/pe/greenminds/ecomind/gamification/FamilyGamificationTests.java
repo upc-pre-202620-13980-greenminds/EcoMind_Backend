@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -34,9 +35,10 @@ import pe.greenminds.ecomind.users.domain.model.aggregates.Family;
 import pe.greenminds.ecomind.users.domain.repositories.FamilyRepository;
 import pe.greenminds.ecomind.users.infrastructure.persistence.jpa.repositories.FamilyPersistenceRepository;
 
-@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:familygamification;MODE=MySQL;DB_CLOSE_DELAY=-1")
+@SpringBootTest(properties = "spring.datasource.url=${TEST_DATABASE_URL:jdbc:h2:mem:familygamification;MODE=PostgreSQL;DB_CLOSE_DELAY=-1}")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class FamilyGamificationTests {
   @Autowired FamilyRewardCommandService rewards;
   @Autowired RewardCommandService individualRewards;

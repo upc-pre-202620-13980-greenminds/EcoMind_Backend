@@ -4,13 +4,15 @@ This change creates the public boundaries needed by report sections 2.6.6 and 2.
 implement the Quests completion workflow, Community memberships/feed or Monetization wallet/inventory.
 External user and family identities follow the active backend's numeric IDs; execution, request,
 award, quest, plan, community and publication references in these proposed contracts use UUIDs.
+The merged real Quests contract instead uses numeric execution/quest/plan IDs plus a stable UUID event ID.
 
 ## Structure and state
 
 | Owner | Public contract | Current state |
 |---|---|---|
-| Quests | `QuestCompletedIntegrationEvent`, `FamilyPlanCompletedIntegrationEvent` | Connected to existing Gamification command services via `QuestCompletionConsumer` |
-| Quests | `QuestEventPublisher` / `SpringQuestEventPublisher` | Working in-process publisher for the two connected event types; requires an existing transaction |
+| Quests | Proposed `interfaces.acl.events` quest/family events | Tested reward-complete boundary consumed by `QuestCompletionConsumer`; not emitted by the real workflow |
+| Quests | Actual `interfaces.events` completion events | Emitted by the merged Quests workflow; adapter pending because XP/family-bonus data is absent |
+| Quests | Proposed ACL publisher (bean `proposedQuestEventPublisher`) | Isolated from Quests' real Spring publisher; requires an existing transaction |
 | Quests | `MinigameCompletedIntegrationEvent`, `CollaborativeQuestCompletedIntegrationEvent` | Validated message shapes only; no publisher/consumer path yet |
 | Quests | `QuestsContextFacade` | Interface for validated attempt data and repetition history; requires a real implementation |
 | Monetization | `MonetizationContextFacade` | Interface for XP multiplier lookup, idempotent gem/cosmetic grants and protector requests |
@@ -25,7 +27,15 @@ award, quest, plan, community and publication references in these proposed contr
 Only public ACL types cross context boundaries. There are no imports of another context's domain or
 persistence classes and no new HTTP endpoints that let mobile clients forge completion or grant events.
 
-## Quests delivery semantics
+## Quests contract alignment
+
+The real producer emits `QuestCompletedIntegrationEvent` with numeric `questUserId`, quest/version IDs,
+base gems/ecopoints and `OffsetDateTime`. The proposed consumer expects a UUID execution ID, base XP,
+activity date and streak eligibility. Family events likewise lack the proposed additional-ecopoint
+amount. Until these values are supplied by an agreed contract, real producer events are not converted
+into fabricated XP, gem credits or family grants. Minigame/collaborative rewards also remain pending.
+
+## Proposed Quests delivery semantics
 
 Quests must first validate/persist completion and publish from its transaction. The event carries both
 a delivery `eventId` and a stable canonical execution ID. Gamification deduplicates by execution and
@@ -60,4 +70,4 @@ pretend that gems were credited.
 
 JUnit verifies transactional event delivery, re-delivery with a new message ID, atomic rollback on a
 consumer failure, family bonus isolation, required transaction boundaries, immutable/unique participant
-lists, multiplier boundaries and required publication correlation. Test database: H2 in MySQL mode.
+lists, multiplier boundaries and required publication correlation. The same suites support H2 in PostgreSQL mode and dedicated native PostgreSQL runs; see [gamification.md](gamification.md#database-validation).

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.annotation.DirtiesContext;
 import pe.greenminds.ecomind.gamification.application.commandservices.RewardCommandService;
 import pe.greenminds.ecomind.gamification.application.queryservices.GamificationQueryService;
 import pe.greenminds.ecomind.gamification.domain.model.commands.GrantQuestRewardCommand;
@@ -24,6 +25,7 @@ import pe.greenminds.ecomind.gamification.infrastructure.persistence.jpa.reposit
 
 @SpringBootTest
 @ActiveProfiles("test")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class RewardCommandServiceIntegrationTests {
   @Autowired private RewardCommandService rewards;
   @Autowired private GamificationQueryService queries;

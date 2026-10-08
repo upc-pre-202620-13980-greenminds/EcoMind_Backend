@@ -1,6 +1,8 @@
 package pe.greenminds.ecomind.gamification.interfaces.rest;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
@@ -37,7 +39,8 @@ public class RankingController {
   @GetMapping("/{type}/participants")
   @Operation(summary = "Get ranking participants and accumulated ecopoints",
       description = "Ordered by identity, not position. FRIENDS includes the JWT holder and accepted friends. Pages start at zero; maximum size is 100.")
-  public RankingPage<RankingEntry> participants(@PathVariable RankingType type,
+  public RankingPage<RankingEntry> participants(@Parameter(schema = @Schema(implementation = String.class, allowableValues = {"GLOBAL", "FRIENDS", "FAMILIES"}))
+      @PathVariable RankingType type,
       @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
       @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
     return queries.participants(type, new UserId(principal.accountId()), page, size);
@@ -46,7 +49,8 @@ public class RankingController {
   @GetMapping("/{type}/transactions")
   @Operation(summary = "Get ecopoint transactions for client-side period ranking",
       description = "UTC from is inclusive and to is exclusive. Follow hasNext to aggregate all pages. Pages start at zero; maximum size is 100. Queries never grant rewards.")
-  public RankingPage<RankingTransaction> transactions(@PathVariable RankingType type,
+  public RankingPage<RankingTransaction> transactions(@Parameter(schema = @Schema(implementation = String.class, allowableValues = {"GLOBAL", "FRIENDS", "FAMILIES"}))
+      @PathVariable RankingType type,
       @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
       @RequestParam Instant from, @RequestParam Instant to,
       @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {

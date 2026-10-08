@@ -30,9 +30,10 @@ public class UserProgressRepositoryImpl implements UserProgressRepository {
   public UserProgress lockForReward(UserId userId) {
     // The unique progress row is the per-user serialization point, including the first grant.
     jdbcTemplate.update("""
-        INSERT IGNORE INTO user_progresses
+        INSERT INTO user_progresses
           (user_id, total_ecopoints, total_experience, current_streak, longest_streak, version)
         VALUES (?, 0, 0, 0, 0, 0)
+        ON CONFLICT DO NOTHING
         """, userId.value());
     var entity = entityManager.find(
         UserProgressPersistenceEntity.class, userId.value(), LockModeType.PESSIMISTIC_WRITE);

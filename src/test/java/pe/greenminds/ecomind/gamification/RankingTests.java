@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -37,9 +38,10 @@ import pe.greenminds.ecomind.users.domain.repositories.UserProfileRepository;
 import pe.greenminds.ecomind.users.domain.repositories.FamilyRepository;
 import pe.greenminds.ecomind.users.domain.repositories.FriendshipRepository;
 
-@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:rankingtests;MODE=MySQL;DB_CLOSE_DELAY=-1")
+@SpringBootTest(properties = "spring.datasource.url=${TEST_DATABASE_URL:jdbc:h2:mem:rankingtests;MODE=PostgreSQL;DB_CLOSE_DELAY=-1}")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class RankingTests {
   @Autowired RankingQueryService queries;
   @Autowired RewardCommandService rewards;

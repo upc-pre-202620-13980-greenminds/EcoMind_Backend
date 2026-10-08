@@ -8,8 +8,8 @@ import pe.greenminds.ecomind.quests.application.outboundservices.QuestEventPubli
 import pe.greenminds.ecomind.quests.interfaces.acl.events.QuestCompletedIntegrationEvent;
 import pe.greenminds.ecomind.quests.interfaces.acl.events.FamilyPlanCompletedIntegrationEvent;
 
-/** In-process transactional delivery as specified in report section 2.6.6; not a durable message broker. */
-@Component
+/** Publisher for the proposed reward-complete ACL contract; distinct from Quests' current events. */
+@Component("proposedQuestEventPublisher")
 @Transactional(propagation = Propagation.MANDATORY)
 public class SpringQuestEventPublisher implements QuestEventPublisher {
   private final ApplicationEventPublisher publisher;

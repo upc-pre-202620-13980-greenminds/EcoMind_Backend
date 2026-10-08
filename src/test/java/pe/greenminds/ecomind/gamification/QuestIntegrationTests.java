@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.IllegalTransactionStateException;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -24,8 +25,10 @@ import pe.greenminds.ecomind.users.domain.model.aggregates.Family;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.UserId;
 import pe.greenminds.ecomind.users.domain.repositories.FamilyRepository;
 
-@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:questintegration;MODE=MySQL;DB_CLOSE_DELAY=-1")
+/** Validates the proposed reward-complete ACL contract, not the real Quests completion workflow. */
+@SpringBootTest(properties = "spring.datasource.url=${TEST_DATABASE_URL:jdbc:h2:mem:questintegration;MODE=PostgreSQL;DB_CLOSE_DELAY=-1}")
 @ActiveProfiles("test")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class QuestIntegrationTests {
   @Autowired pe.greenminds.ecomind.gamification.application.outboundservices.MonetizationServiceClient monetization;
   @Autowired pe.greenminds.ecomind.gamification.application.outboundservices.CommunityServiceClient community;

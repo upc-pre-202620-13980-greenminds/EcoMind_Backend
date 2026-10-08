@@ -9,7 +9,7 @@ import pe.greenminds.ecomind.gamification.infrastructure.persistence.jpa.entitie
 
 public interface RewardTransactionPersistenceRepository
     extends JpaRepository<RewardTransactionPersistenceEntity, String> {
-  // A locking read sees grants committed while waiting for the beneficiary lock in MySQL.
+  // Read the recorded grant after acquiring the beneficiary lock, including concurrent retries.
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   Optional<RewardTransactionPersistenceEntity>
       findBySourceTypeAndSourceExecutionIdAndBeneficiaryTypeAndBeneficiaryId(

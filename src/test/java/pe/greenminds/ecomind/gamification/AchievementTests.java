@@ -18,6 +18,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -41,9 +42,10 @@ import pe.greenminds.ecomind.iam.domain.model.valueobjects.EmailAddress;
 import pe.greenminds.ecomind.users.domain.model.aggregates.Family;
 import pe.greenminds.ecomind.users.domain.repositories.FamilyRepository;
 
-@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:achievementtests;MODE=MySQL;DB_CLOSE_DELAY=-1")
+@SpringBootTest(properties = "spring.datasource.url=${TEST_DATABASE_URL:jdbc:h2:mem:achievementtests;MODE=PostgreSQL;DB_CLOSE_DELAY=-1}")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class AchievementTests {
   @Autowired AchievementCommandService achievements;
   @Autowired AchievementQueryService queries;

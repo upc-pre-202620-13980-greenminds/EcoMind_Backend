@@ -24,7 +24,7 @@ public class FamilyScoreRepositoryImpl implements FamilyScoreRepository {
   }
 
   public FamilyScore lockForReward(FamilyId familyId) {
-    jdbc.update("INSERT IGNORE INTO family_scores (family_id, total_ecopoints, version) VALUES (?, 0, 0)", familyId.value());
+    jdbc.update("INSERT INTO family_scores (family_id, total_ecopoints, version) VALUES (?, 0, 0) ON CONFLICT DO NOTHING", familyId.value());
     return toDomain(entities.find(FamilyScorePersistenceEntity.class, familyId.value(), LockModeType.PESSIMISTIC_WRITE));
   }
 
