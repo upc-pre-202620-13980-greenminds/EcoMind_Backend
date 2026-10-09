@@ -6,8 +6,8 @@ import pe.greenminds.ecomind.community.interfaces.rest.resources.CreateLocalComm
 public final class CreateLocalCommunityCommandFromResourceAssembler {
     private CreateLocalCommunityCommandFromResourceAssembler() {}
 
-    public static CreateLocalCommunityCommand toCommandFromResource(CreateLocalCommunityResource resource) {
+    public static CreateLocalCommunityCommand toCommandFromResource(CreateLocalCommunityResource resource, Long userId) {
         return new CreateLocalCommunityCommand(resource.name(), resource.description(), resource.locality(),
-                resource.icon_url(), resource.user_id());
+                resource.icon_url(), userId);
     }
 }

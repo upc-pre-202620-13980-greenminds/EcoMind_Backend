@@ -8,8 +8,9 @@ public final class CreateMinigameAttemptCommandFromResourceAssembler {
     }
 
     public static CreateMinigameAttemptCommand toCommandFromResource(
-            CreateMinigameAttemptResource resource
+            CreateMinigameAttemptResource resource,
+            Long authenticatedUserId
     ) {
-        return new CreateMinigameAttemptCommand(resource.userId(), resource.questId());
+        return new CreateMinigameAttemptCommand(authenticatedUserId, resource.questId());
     }
 }

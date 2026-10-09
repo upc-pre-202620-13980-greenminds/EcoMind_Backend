@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -35,6 +36,7 @@ import pe.greenminds.ecomind.quests.interfaces.rest.transform.InviteCollabQuestM
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.ResponseEntityAssembler;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.ErrorResponseAssembler;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
+import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
 
 import java.util.List;
 
@@ -80,13 +82,13 @@ public class CollabQuestMemberController {
         return ResponseEntity.ok(resources);
     }
 
-    @GetMapping("/users/{userId}")
-    @Operation(summary = "Get collaborative quest memberships or invitations for a user")
+    @GetMapping("/me")
+    @Operation(summary = "Get the authenticated user's collaborative memberships or invitations")
     public ResponseEntity<List<CollabQuestMemberResource>> getByUser(
-            @PathVariable Long userId,
-            @RequestParam(required = false) CollabMemberStatus status) {
+            @RequestParam(required = false) CollabMemberStatus status,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         var resources = collabQuestMemberQueryService.handle(
-                        new GetCollabQuestMembersByUserQuery(userId, status))
+                        new GetCollabQuestMembersByUserQuery(principal.accountId(), status))
                 .stream().map(CollabQuestMemberResourceFromEntityAssembler::toResourceFromEntity)
                 .toList();
         return ResponseEntity.ok(resources);
@@ -111,11 +113,13 @@ public class CollabQuestMemberController {
             @ApiResponse(responseCode = "422", description = "Invitation is not allowed")
     })
     public ResponseEntity<?> inviteMember(
-            @Valid @RequestBody InviteCollabQuestMemberResource resource
+            @Valid @RequestBody InviteCollabQuestMemberResource resource,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
         var command =
                 InviteCollabQuestMemberCommandFromResourceAssembler.toCommandFromResource(
-                        resource
+                        resource,
+                        principal.accountId()
                 );
         var result = collabQuestMemberCommandService.handle(command);
 
@@ -209,10 +213,10 @@ public class CollabQuestMemberController {
     })
     public ResponseEntity<?> remove(
             @PathVariable Long memberId,
-            @RequestParam Long ownerUserId
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
         var result = collabQuestMemberCommandService.handle(
-                new RemoveCollabQuestMemberCommand(memberId, ownerUserId)
+                new RemoveCollabQuestMemberCommand(memberId, principal.accountId())
         );
 
         return ResponseEntityAssembler.toResponseEntityFromResult(

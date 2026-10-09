@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,6 +33,7 @@ import pe.greenminds.ecomind.quests.interfaces.rest.transform.CollabQuestSession
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.CreateCollabQuestSessionCommandFromResourceAssembler;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 import pe.greenminds.ecomind.shared.application.result.Result;
+import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.ErrorResponseAssembler;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.ResponseEntityAssembler;
 
@@ -69,11 +71,13 @@ public class CollaborativeQuestController {
             @ApiResponse(responseCode = "422", description = "Quest is not collaborative")
     })
     public ResponseEntity<?> createSession(
-            @Valid @RequestBody CreateCollabQuestSessionResource resource
+            @Valid @RequestBody CreateCollabQuestSessionResource resource,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
         var command =
                 CreateCollabQuestSessionCommandFromResourceAssembler.toCommandFromResource(
-                        resource
+                        resource,
+                        principal.accountId()
                 );
         var result = collabQuestSessionCommandService.handle(command);
 
@@ -98,10 +102,10 @@ public class CollaborativeQuestController {
     })
     public ResponseEntity<?> startSession(
             @PathVariable Long sessionId,
-            @RequestParam Long ownerUserId
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
         var result = collabQuestSessionCommandService.handle(
-                new StartCollabQuestSessionCommand(sessionId, ownerUserId)
+                new StartCollabQuestSessionCommand(sessionId, principal.accountId())
         );
 
         return ResponseEntityAssembler.toResponseEntityFromResult(
@@ -120,10 +124,10 @@ public class CollaborativeQuestController {
     })
     public ResponseEntity<?> deletePendingSession(
             @PathVariable Long sessionId,
-            @RequestParam Long ownerUserId
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
         var result = collabQuestSessionCommandService.handle(
-                new DeletePendingCollabQuestSessionCommand(sessionId, ownerUserId)
+                new DeletePendingCollabQuestSessionCommand(sessionId, principal.accountId())
         );
 
         return switch (result) {
@@ -145,10 +149,10 @@ public class CollaborativeQuestController {
     )
     public ResponseEntity<?> getState(
             @RequestParam Long questId,
-            @RequestParam Long userId
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
         var state = collabQuestSessionQueryService.handle(
-                new GetCollabQuestSessionStateQuery(questId, userId)
+                new GetCollabQuestSessionStateQuery(questId, principal.accountId())
         );
 
         return ResponseEntity.ok(

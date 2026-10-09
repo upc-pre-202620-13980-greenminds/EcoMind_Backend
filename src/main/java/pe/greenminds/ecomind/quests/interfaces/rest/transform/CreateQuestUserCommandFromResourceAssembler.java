@@ -7,9 +7,12 @@ public final class CreateQuestUserCommandFromResourceAssembler {
     private CreateQuestUserCommandFromResourceAssembler() {
     }
 
-    public static CreateQuestUserCommand toCommandFromResource(CreateQuestUserResource resource) {
+    public static CreateQuestUserCommand toCommandFromResource(
+            CreateQuestUserResource resource,
+            Long authenticatedUserId
+    ) {
         return new CreateQuestUserCommand(
-                resource.userId(),
+                authenticatedUserId,
                 resource.questId(),
                 resource.collaborativeSessionId()
         );

@@ -8,11 +8,12 @@ public final class CreateCollabQuestSessionCommandFromResourceAssembler {
     }
 
     public static CreateCollabQuestSessionCommand toCommandFromResource(
-            CreateCollabQuestSessionResource resource
+            CreateCollabQuestSessionResource resource,
+            Long authenticatedUserId
     ) {
         return new CreateCollabQuestSessionCommand(
                 resource.questId(),
-                resource.ownerUserId()
+                authenticatedUserId
         );
     }
 }

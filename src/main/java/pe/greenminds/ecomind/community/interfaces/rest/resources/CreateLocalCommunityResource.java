@@ -1,11 +1,14 @@
 package pe.greenminds.ecomind.community.interfaces.rest.resources;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 public record CreateLocalCommunityResource(
+        @Schema(description = "Name of the local community", example = "Lima Green Community")
         @NotBlank String name,
+        @Schema(description = "Community description", example = "Neighbors working together for a greener city.")
         String description,
+        @Schema(description = "City or locality of the community", example = "Lima")
         @NotBlank String locality,
-        String icon_url,
-        @NotNull Long user_id) {}
+        @Schema(description = "Community icon URL", example = "https://example.com/community-icon.png")
+        String icon_url) {}

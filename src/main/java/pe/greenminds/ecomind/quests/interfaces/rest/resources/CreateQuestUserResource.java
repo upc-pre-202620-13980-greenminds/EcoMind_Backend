@@ -12,18 +12,12 @@ import jakarta.validation.constraints.Positive;
                 """,
         example = """
         {
-          "userId": 1,
           "questId": 1,
           "collaborativeSessionId": null
         }
         """
 )
 public record CreateQuestUserResource(
-        @NotNull
-        @Positive
-        @Schema(description = "User identifier", example = "1")
-        Long userId,
-
         @NotNull
         @Positive
         @Schema(description = "Quest identifier", example = "1")

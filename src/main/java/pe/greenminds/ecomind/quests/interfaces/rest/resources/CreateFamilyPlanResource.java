@@ -11,10 +11,6 @@ public record CreateFamilyPlanResource(
         @Positive
         Long familyId,
 
-        @NotNull
-        @Positive
-        Long ownerUserId,
-
         @Valid
         List<FamilyPlanItemRequestResource> items
 ) {

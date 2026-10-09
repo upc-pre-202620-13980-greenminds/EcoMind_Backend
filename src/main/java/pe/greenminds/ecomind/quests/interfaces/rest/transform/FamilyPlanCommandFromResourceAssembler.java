@@ -14,11 +14,12 @@ public final class FamilyPlanCommandFromResourceAssembler {
     }
 
     public static CreateFamilyPlanCommand toCommandFromResource(
-            CreateFamilyPlanResource resource
+            CreateFamilyPlanResource resource,
+            Long authenticatedUserId
     ) {
         return new CreateFamilyPlanCommand(
                 resource.familyId(),
-                resource.ownerUserId(),
+                authenticatedUserId,
                 safeItems(resource.items()).stream()
                         .map(FamilyPlanCommandFromResourceAssembler::toItemCommand)
                         .toList()

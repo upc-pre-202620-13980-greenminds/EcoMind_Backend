@@ -10,7 +10,6 @@ import jakarta.validation.constraints.Positive;
         example = """
         {
           "sessionId": 1,
-          "invitedByUserId": 1,
           "invitedUserId": 3
         }
         """
@@ -20,11 +19,6 @@ public record InviteCollabQuestMemberResource(
         @Positive
         @Schema(description = "Collaborative session identifier", example = "1")
         Long sessionId,
-
-        @NotNull
-        @Positive
-        @Schema(description = "User identifier that sends the invitation", example = "1")
-        Long invitedByUserId,
 
         @NotNull
         @Positive

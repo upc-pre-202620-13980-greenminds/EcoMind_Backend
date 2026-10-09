@@ -10,6 +10,8 @@ import pe.greenminds.ecomind.community.domain.model.aggregates.CommunityMembersh
 import pe.greenminds.ecomind.community.domain.model.commands.CreateLocalCommunityCommand;
 import pe.greenminds.ecomind.community.domain.model.commands.CreateTopicCommunityCommand;
 import pe.greenminds.ecomind.community.domain.model.commands.JoinCommunityCommand;
+import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityRole;
+import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityType;
 import pe.greenminds.ecomind.community.domain.repositories.CommunityAchievementRepository;
 import pe.greenminds.ecomind.community.domain.repositories.CommunityMembershipRepository;
 import pe.greenminds.ecomind.community.domain.repositories.CommunityRepository;
@@ -36,7 +38,7 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
     @Transactional
     public Result<Community, ApplicationError> handle(CreateLocalCommunityCommand command) {
         try {
-            return create("local", command.name(), command.description(), null, command.locality(), null,
+            return create(CommunityType.LOCAL, command.name(), command.description(), null, command.locality(), null,
                     command.iconUrl(), command.userId());
         } catch (IllegalArgumentException | NullPointerException exception) {
             return Result.failure(ApplicationError.validationError("Community", exception.getMessage()));
@@ -50,7 +52,7 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
     public Result<Community, ApplicationError> handle(CreateTopicCommunityCommand command) {
         try {
             actors.requireParent(command.userId());
-            return create("topic", command.name(), command.description(), command.topic(), null,
+            return create(CommunityType.TOPIC, command.name(), command.description(), command.topic(), null,
                     command.memberLimit(), command.iconUrl(), command.userId());
         } catch (SecurityException exception) {
             return Result.failure(ApplicationError.forbidden("COMMUNITY_CREATOR_NOT_PARENT", exception.getMessage()));
@@ -61,12 +63,14 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
         }
     }
 
-    private Result<Community, ApplicationError> create(String type, String name, String description,
+    private Result<Community, ApplicationError> create(CommunityType type, String name, String description,
             String topic, String locality, Integer memberLimit, String iconUrl, Long creatorId) {
         Community community = new Community(null, name, description, type, topic, locality, memberLimit,
                 iconUrl, creatorId);
         Community saved = communities.save(community);
-        memberships.save(new CommunityMembership(null, saved.getId(), creatorId, "ADMIN"));
+        if (creatorId != null) {
+            memberships.save(new CommunityMembership(null, saved.getId(), creatorId, CommunityRole.ADMIN));
+        }
         return Result.success(saved);
     }
 
@@ -80,10 +84,10 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
         if (memberships.findByCommunityIdAndUserId(command.communityId(), command.userId()).isPresent()) {
             return Result.failure(ApplicationError.conflict("Community membership", "The user is already registered"));
         }
-        if ("local".equals(community.get().getType())) {
+        if (community.get().getType() == CommunityType.LOCAL) {
             for (var membership : memberships.findByUserId(command.userId())) {
                 var existingCommunity = communities.findById(membership.communityId());
-                if (existingCommunity.isPresent() && "local".equals(existingCommunity.get().getType())) {
+                if (existingCommunity.isPresent() && existingCommunity.get().getType() == CommunityType.LOCAL) {
                     return Result.failure(ApplicationError.conflict("Community membership", "The user already has a local community"));
                 }
             }
@@ -93,7 +97,7 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
             return Result.failure(ApplicationError.conflict("Community capacity", "Community is full"));
         }
         CommunityMembership saved = memberships.save(
-                new CommunityMembership(null, command.communityId(), command.userId(), "MEMBER"));
+                new CommunityMembership(null, command.communityId(), command.userId(), CommunityRole.MEMBER));
         if (memberships.countByCommunityId(command.communityId()) == 1000) {
             achievements.save(new CommunityAchievement(null, command.communityId(), "1,000 members",
                     "The community reached 1,000 members.", null));

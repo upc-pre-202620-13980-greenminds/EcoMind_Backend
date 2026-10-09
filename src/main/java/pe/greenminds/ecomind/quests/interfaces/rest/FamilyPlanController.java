@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,6 +30,7 @@ import pe.greenminds.ecomind.quests.interfaces.rest.resources.UpdateFamilyPlanRe
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.FamilyPlanCommandFromResourceAssembler;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.FamilyPlanResourceFromStateAssembler;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
+import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.ErrorResponseAssembler;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.ResponseEntityAssembler;
 
@@ -94,10 +96,12 @@ public class FamilyPlanController {
     @PostMapping
     @Operation(summary = "Create a family plan")
     public ResponseEntity<?> createFamilyPlan(
-            @Valid @RequestBody CreateFamilyPlanResource resource
+            @Valid @RequestBody CreateFamilyPlanResource resource,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
         var result = familyPlanCommandService.handle(
-                FamilyPlanCommandFromResourceAssembler.toCommandFromResource(resource)
+                FamilyPlanCommandFromResourceAssembler.toCommandFromResource(
+                        resource, principal.accountId())
         );
         return ResponseEntityAssembler.toResponseEntityFromResult(
                 result,
@@ -142,10 +146,10 @@ public class FamilyPlanController {
     @Operation(summary = "Complete an active family plan")
     public ResponseEntity<?> completeFamilyPlan(
             @PathVariable Long familyPlanId,
-            @RequestParam Long ownerUserId
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
         var result = familyPlanCommandService.handle(
-                new CompleteFamilyPlanCommand(familyPlanId, ownerUserId)
+                new CompleteFamilyPlanCommand(familyPlanId, principal.accountId())
         );
         return ResponseEntityAssembler.toResponseEntityFromResult(
                 result,

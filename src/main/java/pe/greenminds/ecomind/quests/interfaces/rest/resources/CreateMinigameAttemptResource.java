@@ -8,16 +8,11 @@ import jakarta.validation.constraints.Positive;
         name = "CreateMinigameAttemptRequest",
         example = """
         {
-          "userId": 3,
           "questId": 10
         }
         """
 )
 public record CreateMinigameAttemptResource(
-        @NotNull
-        @Positive
-        Long userId,
-
         @NotNull
         @Positive
         Long questId

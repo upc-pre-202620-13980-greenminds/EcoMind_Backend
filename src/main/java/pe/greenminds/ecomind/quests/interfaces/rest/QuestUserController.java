@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import pe.greenminds.ecomind.quests.application.commandservices.QuestUserCommandService;
 import pe.greenminds.ecomind.quests.application.queryservices.QuestUserQueryService;
@@ -27,6 +28,7 @@ import pe.greenminds.ecomind.quests.interfaces.rest.transform.CreateQuestUserCom
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.QuestUserResourceFromEntityAssembler;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.QuestUserVersionStatusResourceAssembler;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
+import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.ErrorResponseAssembler;
 import pe.greenminds.ecomind.quests.interfaces.rest.transform.ResponseEntityAssembler;
 
@@ -67,9 +69,11 @@ public class QuestUserController {
             @ApiResponse(responseCode = "409", description = "Quest already assigned to user")
     })
     public ResponseEntity<?> createQuestUser(
-            @Valid @RequestBody CreateQuestUserResource resource
+            @Valid @RequestBody CreateQuestUserResource resource,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
-        var command = CreateQuestUserCommandFromResourceAssembler.toCommandFromResource(resource);
+        var command = CreateQuestUserCommandFromResourceAssembler.toCommandFromResource(
+                resource, principal.accountId());
         var result = questUserCommandService.handle(command);
 
         return ResponseEntityAssembler.toResponseEntityFromResult(
@@ -154,12 +158,13 @@ public class QuestUserController {
         );
     }
 
-    @GetMapping("/user/{userId}/quest/{questId}")
-    @Operation(summary = "Get a user's assignment for a quest")
+    @GetMapping("/me/quest/{questId}")
+    @Operation(summary = "Get the authenticated user's assignment for a quest")
     public ResponseEntity<?> getQuestUserByUserIdAndQuestId(
-            @PathVariable Long userId,
-            @PathVariable Long questId
+            @PathVariable Long questId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
+        var userId = principal.accountId();
         var questUser = questUserQueryService.handle(
                 new GetQuestUserByUserIdAndQuestIdQuery(userId, questId)
         );
@@ -178,14 +183,14 @@ public class QuestUserController {
         );
     }
 
-    @GetMapping("/user/{userId}/status/{status}")
-    @Operation(summary = "Get a user's quest assignments by status")
+    @GetMapping("/me/status/{status}")
+    @Operation(summary = "Get the authenticated user's quest assignments by status")
     public ResponseEntity<List<QuestUserResource>> getQuestUsersByUserIdAndStatus(
-            @PathVariable Long userId,
-            @PathVariable QuestStatus status
+            @PathVariable QuestStatus status,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
         var questUsers = questUserQueryService.handle(
-                new GetQuestUsersByUserIdAndStatusQuery(userId, status)
+                new GetQuestUsersByUserIdAndStatusQuery(principal.accountId(), status)
         );
         var resources = questUsers.stream()
                 .map(QuestUserResourceFromEntityAssembler::toResourceFromEntity)
