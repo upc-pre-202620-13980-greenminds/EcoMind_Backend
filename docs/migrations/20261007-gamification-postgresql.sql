@@ -79,7 +79,7 @@ IF to_regclass('gem_movements') IS NOT NULL THEN
 END IF;
 IF to_regclass('user_progresses') IS NOT NULL THEN
 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='ck_userprogress' AND conrelid='user_progresses'::regclass) THEN
-  ALTER TABLE user_progresses ADD CONSTRAINT ck_userprogress CHECK (total_ecopoints >= 0 AND total_experience >= 0 AND current_streak >= 0 AND longest_streak >= current_streak);
+  ALTER TABLE user_progresses ADD CONSTRAINT ck_userprogress CHECK (total_ecopoints >= 0 AND current_streak >= 0 AND longest_streak >= current_streak);
 END IF;
 END IF;
 IF to_regclass('family_scores') IS NOT NULL THEN
@@ -94,7 +94,7 @@ END IF;
 END IF;
 IF to_regclass('reward_transactions') IS NOT NULL THEN
 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='ck_rewardtransaction' AND conrelid='reward_transactions'::regclass) THEN
-  ALTER TABLE reward_transactions ADD CONSTRAINT ck_rewardtransaction CHECK (base_ecopoints >= 0 AND base_experience >= 0 AND base_gems >= 0 AND ecopoints >= 0 AND experience >= 0 AND gems >= 0 AND applied_factor >= 0 AND repetition_factor BETWEEN 0 AND 1 AND source_type IN ('QUEST','MINIGAME','COLLABORATIVE_QUEST','FAMILY_PLAN','COMMUNITY_GOAL','COMMUNITY_EVENT') AND ((beneficiary_type='USER' AND user_progress_id IS NOT NULL AND user_progress_id=beneficiary_id AND family_score_id IS NULL) OR (beneficiary_type='FAMILY' AND family_score_id IS NOT NULL AND family_score_id=beneficiary_id AND user_progress_id IS NULL AND base_experience=0 AND base_gems=0 AND experience=0 AND gems=0)));
+  ALTER TABLE reward_transactions ADD CONSTRAINT ck_rewardtransaction CHECK (base_ecopoints >= 0 AND base_gems >= 0 AND ecopoints >= 0 AND gems >= 0 AND applied_factor >= 0 AND repetition_factor BETWEEN 0 AND 1 AND source_type IN ('QUEST','MINIGAME','COLLABORATIVE_QUEST','FAMILY_PLAN','COMMUNITY_GOAL','COMMUNITY_EVENT') AND ((beneficiary_type='USER' AND user_progress_id IS NOT NULL AND user_progress_id=beneficiary_id AND family_score_id IS NULL) OR (beneficiary_type='FAMILY' AND family_score_id IS NOT NULL AND family_score_id=beneficiary_id AND user_progress_id IS NULL AND base_gems=0 AND gems=0)));
 END IF;
 END IF;
 IF to_regclass('achievement_awards') IS NOT NULL THEN

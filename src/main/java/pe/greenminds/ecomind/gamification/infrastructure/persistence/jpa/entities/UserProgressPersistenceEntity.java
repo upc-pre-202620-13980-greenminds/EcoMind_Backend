@@ -21,7 +21,7 @@ import java.time.LocalDate;
 @Check(
         name = "ck_userprogress",
         constraints =
-                "total_ecopoints >= 0 AND total_experience >= 0 AND current_streak >= 0 AND"
+                "total_ecopoints >= 0 AND current_streak >= 0 AND"
                     + " longest_streak >= current_streak")
 @Table(name = "user_progresses")
 public class UserProgressPersistenceEntity {
@@ -30,10 +30,6 @@ public class UserProgressPersistenceEntity {
 
     @Column(nullable = false)
     private long totalEcopoints;
-
-    /** Deprecated schema column mirrored on writes; never a separate score. */
-    @Column(name = "total_experience", nullable = false)
-    private long legacyTotalExperience;
 
     @Column(nullable = false)
     private int currentStreak;

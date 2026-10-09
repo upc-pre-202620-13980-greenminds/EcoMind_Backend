@@ -45,10 +45,8 @@ public class RewardTransactionRepositoryImpl implements RewardTransactionReposit
         entity.setBeneficiaryId(rewardTransaction.beneficiary().value());
         entity.setUserProgressId(rewardTransaction.beneficiary().value());
         entity.setBaseEcopoints(rewardTransaction.baseReward().ecopoints());
-        entity.setLegacyBaseExperience(rewardTransaction.baseReward().ecopoints());
         entity.setBaseGems(rewardTransaction.baseReward().gems());
         entity.setEcopoints(rewardTransaction.grantedReward().ecopoints());
-        entity.setLegacyExperience(rewardTransaction.grantedReward().ecopoints());
         entity.setGems(rewardTransaction.grantedReward().gems());
         entity.setOccurredAt(rewardTransaction.occurredAt());
         entity.setMultiplierId(

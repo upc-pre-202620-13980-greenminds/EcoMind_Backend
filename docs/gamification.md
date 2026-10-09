@@ -99,8 +99,8 @@ Real Quests emits four completion events and has a public validated minigame-his
 XP and ecopoints identify the same score. Quests provides the base ecopoints and gems; completion
 requires no additional XP configuration. An active XP multiplier affects ecopoints only, leaving gems
 unchanged by that multiplier. Existing repetition reduction still applies to the configured reward.
-Historical XP columns remain for schema compatibility and are ignored when loading balances; their
-values are not added to ecopoints. Existing EXPERIENCE achievement definitions use ecopoints.
+Persistence stores ecopoints and gems only. There is no separate XP balance, configuration table or
+achievement metric.
 Actual family events have no additional bonus field, so their adapter records completion/recognition
 with no extra points. The proposed reward-complete event supports a configured additional bonus.
 
@@ -116,7 +116,11 @@ schema when the team finalizes it. Do not describe that proposed SQL as the actu
 
 For an existing database, apply [the additive migration](migrations/20261007-gamification-postgresql.sql)
 after Hibernate creates the new tables. It backfills local references/factors and enforces constraints;
-it does not erase data. Fresh test databases are created from JPA mappings.
+it does not erase data. Then apply [the XP cleanup migration](migrations/20261008-remove-duplicate-xp.sql)
+before starting this backend version. It converts previous achievement metrics to ECOPOINTS and drops
+`total_experience`, `base_experience`, `experience` and `gamification_quest_experiences`. Ecopoint balances,
+gems and reward history remain unchanged; the former XP values are not added to them.
+Fresh databases are created from the JPA mappings with ecopoints as the only score.
 
 ## JUnit validation
 
@@ -151,4 +155,4 @@ never creates a post. Authorized members can read/filter achievement publication
 `GET /api/v1/Community/Communities/{communityId}/AchievementPosts`.
 
 Community goal/event completion remains a contract dependency until those producers are implemented.
-Production Quests XP remains an explicit configuration decision; no default XP values were added.
+Quests supplies the ecopoints score and gems; completion requires no additional XP configuration.

@@ -360,7 +360,7 @@ class CommunityGamificationIntegrationTests {
     }
 
     @Test
-    void communityMutationsRequireTheJwtOwnerAndParentRole() throws Exception {
+    void communityMutationsUseJwtIdentityAndEnforceParentRole() throws Exception {
         http.perform(
                         post("/api/v1/Community/Communities/Topics")
                                 .header("Authorization", bearer(OTHER))
@@ -372,7 +372,10 @@ class CommunityGamificationIntegrationTests {
                         post("/api/v1/Community/Communities/" + communityId + "/Memberships")
                                 .header("Authorization", bearer(OUTSIDER))
                                 .param("user_id", "7101"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.user_id").value(OUTSIDER.value()));
+        assertTrue(community.isMember(communityId, USER.value()));
+        assertTrue(community.isMember(communityId, OUTSIDER.value()));
         assertTrue(
                 communities
                         .handle(

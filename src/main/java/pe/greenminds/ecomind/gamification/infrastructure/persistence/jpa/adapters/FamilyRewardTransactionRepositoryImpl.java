@@ -37,7 +37,7 @@ public class FamilyRewardTransactionRepositoryImpl implements FamilyRewardTransa
         row.setBaseEcopoints(transaction.ecopoints());
         row.setEcopoints(transaction.ecopoints());
         row.setOccurredAt(transaction.occurredAt());
-        // Families receive the ecopoints score only; deprecated columns and gems remain zero.
+        // Families receive the ecopoints score only; gems remain zero.
         rows.save(row);
     }
 
