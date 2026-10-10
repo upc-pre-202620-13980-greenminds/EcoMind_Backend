@@ -64,7 +64,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_AND_AFTER_CLASS)
 @Import(CommunityGamificationIntegrationTests.FaultConfiguration.class)
 class CommunityGamificationIntegrationTests {
     static final UserId USER = new UserId(7101L),

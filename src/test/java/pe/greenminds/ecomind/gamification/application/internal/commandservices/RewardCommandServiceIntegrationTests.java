@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 
 @SpringBootTest
 @ActiveProfiles("test")
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_AND_AFTER_CLASS)
 class RewardCommandServiceIntegrationTests {
     @Autowired private RewardCommandService rewards;
     @Autowired private GamificationQueryService queries;

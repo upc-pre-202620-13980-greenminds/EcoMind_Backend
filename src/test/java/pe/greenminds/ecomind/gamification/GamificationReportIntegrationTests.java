@@ -1,6 +1,7 @@
 package pe.greenminds.ecomind.gamification;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -86,7 +87,7 @@ import java.util.UUID;
                 "spring.datasource.url=${TEST_DATABASE_URL:jdbc:h2:mem:gamificationreport;MODE=PostgreSQL;DB_CLOSE_DELAY=-1}")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_AND_AFTER_CLASS)
 class GamificationReportIntegrationTests {
     @Autowired RewardCommandService rewards;
     @Autowired AchievementCommandService achievements;
@@ -353,6 +354,18 @@ class GamificationReportIntegrationTests {
         assertEquals(0, progress.getUserProgress(USER).getCurrentStreak());
     }
 
+    private static void assertSamePersistedValue(Object expected, Object actual) {
+        // SQL timestamps retain microseconds; JVM clocks can supply nanoseconds.
+        assertThat(actual)
+                .usingRecursiveComparison()
+                .withComparatorForType(
+                        (java.time.Instant left, java.time.Instant right) ->
+                                java.time.Duration.between(left, right).abs().toNanos() <= 1000
+                                        ? 0 : left.compareTo(right),
+                        java.time.Instant.class)
+                .isEqualTo(expected);
+    }
+
     @Test
     void shareIsPendingUntilCorrelatedPublicationAndRepeatedRequestKeepsItsIdentity() {
         var award = unlock();
@@ -362,7 +375,7 @@ class GamificationReportIntegrationTests {
         var first = achievements.handle(c).toOptional().orElseThrow();
         assertEquals(AchievementShareStatus.PENDING, first.status());
         assertNull(first.publicationId());
-        assertEquals(first, achievements.handle(c).toOptional().orElseThrow());
+        assertSamePersistedValue(first, achievements.handle(c).toOptional().orElseThrow());
         Long publication = 73L;
         var confirmation =
                 new ConfirmAchievementPublicationCommand(
@@ -533,7 +546,7 @@ class GamificationReportIntegrationTests {
                 protection.handle(
                         new RequestStreakProtectionCommand(
                                 USER, DAY.plusDays(1), AT.plusSeconds(86400)));
-        assertEquals(
+        assertSamePersistedValue(
                 request,
                 protection.handle(
                         new RequestStreakProtectionCommand(
@@ -1072,7 +1085,7 @@ class GamificationReportIntegrationTests {
                 concurrently(
                         () -> achievements.handle(command).toOptional().orElseThrow(),
                         () -> achievements.handle(command).toOptional().orElseThrow());
-        assertEquals(results.getFirst(), results.getLast());
+        assertSamePersistedValue(results.getFirst(), results.getLast());
         assertEquals(
                 1,
                 jdbc.queryForObject(

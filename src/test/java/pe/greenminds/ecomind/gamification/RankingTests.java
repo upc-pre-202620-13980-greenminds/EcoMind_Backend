@@ -51,7 +51,7 @@ import java.util.UUID;
                 "spring.datasource.url=${TEST_DATABASE_URL:jdbc:h2:mem:rankingtests;MODE=PostgreSQL;DB_CLOSE_DELAY=-1}")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_AND_AFTER_CLASS)
 class RankingTests {
     @Autowired RankingQueryService queries;
     @Autowired RewardCommandService rewards;
