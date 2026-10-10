@@ -136,7 +136,7 @@ public class QuestSteps {
       case "complete" ->
           api.postWithoutBody("/api/v1/quest-users/" + assignmentId + "/complete", token);
       case "list activities" -> api.get("/api/v1/activity-users/quest-user/" + assignmentId, token);
-      case "submit activity", "read activity", "assign activity" -> {
+      case "submit activity", "read activity", "find activity", "assign activity" -> {
         api.get("/api/v1/activity-users/quest-user/" + assignmentId, users.tokenOf("Bruno"));
         String activityUserId = api.jsonValue("$[0].id");
         Long activityId = Long.valueOf(api.jsonValue("$[0].activityId"));
@@ -147,6 +147,10 @@ public class QuestSteps {
                   Map.of("data", Map.of("checked", true)),
                   token);
           case "read activity" -> api.get("/api/v1/activity-users/" + activityUserId, token);
+          case "find activity" ->
+              api.get(
+                  "/api/v1/activity-users/quest-user/" + assignmentId + "/activity/" + activityId,
+                  token);
           default ->
               api.post(
                   "/api/v1/activity-users",

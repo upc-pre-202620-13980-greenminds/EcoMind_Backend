@@ -79,5 +79,6 @@ Feature: Guided environmental quests
       | complete        |
       | list activities |
       | read activity   |
+      | find activity   |
       | submit activity |
       | assign activity |
