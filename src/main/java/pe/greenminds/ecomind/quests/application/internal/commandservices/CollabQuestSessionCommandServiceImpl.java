@@ -180,6 +180,11 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
             );
         }
 
+        if (session.get().getStatus() != pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabQuestStatus.PENDING) {
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "Only pending sessions can be started", "The session has already started or closed"));
+        }
+
         if (activityRepository.countByQuestId(session.get().getQuestId()) < 1) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(

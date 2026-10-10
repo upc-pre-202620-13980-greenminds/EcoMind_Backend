@@ -130,4 +130,51 @@ class CollabQuestSessionCommandServiceImplTests {
     assertTrue(service.handle(new StartCollabQuestSessionCommand(9L, 20L)).isFailure());
     verifyNoInteractions(questUserRepository, eventPublisher);
   }
+
+  @Test
+  void startingAnAlreadyStartedSessionDoesNotCreateAssignments() {
+    var s = new CollabQuestSession(9L, 3L, 20L, CollabQuestStatus.STARTED, null, null);
+    when(collabQuestSessionRepository.findById(9L)).thenReturn(Optional.of(s));
+    assertTrue(service.handle(new StartCollabQuestSessionCommand(9L, 20L)).isFailure());
+    verifyNoInteractions(questUserRepository, activityUserRepository, eventPublisher);
+  }
+
+  @Test
+  void missingSessionCannotBeDeleted() {
+    assertTrue(service.handle(new DeletePendingCollabQuestSessionCommand(9L, 20L)).isFailure());
+  }
+
+  @Test
+  void onlyOwnerCanDeleteSession() {
+    when(collabQuestSessionRepository.findById(9L))
+        .thenReturn(Optional.of(new CollabQuestSession(9L, 3L, 20L)));
+    assertTrue(service.handle(new DeletePendingCollabQuestSessionCommand(9L, 30L)).isFailure());
+  }
+
+  @Test
+  void familyPlanSessionCannotBeDeletedSeparately() {
+    when(collabQuestSessionRepository.findById(9L))
+        .thenReturn(Optional.of(new CollabQuestSession(9L, 3L, 20L)));
+    when(familyPlanItemRepository.existsByCollaborativeSessionId(9L)).thenReturn(true);
+    assertTrue(service.handle(new DeletePendingCollabQuestSessionCommand(9L, 20L)).isFailure());
+  }
+
+  @Test
+  void ownerDeletesPendingSessionAndMemberships() {
+    when(collabQuestSessionRepository.findById(9L))
+        .thenReturn(Optional.of(new CollabQuestSession(9L, 3L, 20L)));
+    assertTrue(service.handle(new DeletePendingCollabQuestSessionCommand(9L, 20L)).isSuccess());
+    verify(collabQuestMemberRepository).deleteBySessionId(9L);
+    verify(collabQuestSessionRepository).deleteById(9L);
+  }
+
+  @Test
+  void startedSessionCannotBeDeleted() {
+    when(collabQuestSessionRepository.findById(9L))
+        .thenReturn(
+            Optional.of(
+                new CollabQuestSession(9L, 3L, 20L, CollabQuestStatus.STARTED, null, null)));
+    assertTrue(service.handle(new DeletePendingCollabQuestSessionCommand(9L, 20L)).isFailure());
+    verify(collabQuestSessionRepository, never()).deleteById(any());
+  }
 }

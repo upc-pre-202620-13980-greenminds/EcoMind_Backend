@@ -4,7 +4,7 @@
 
 `.github/workflows/backend.yml` runs for pull requests targeting `develop` or `main`, pushes to those branches, manual dispatches, and `v*` release tags. Release tags must have the form `vMAJOR.MINOR.PATCH` and match the project version in `pom.xml`. Java 21 and the Maven Wrapper compile the service and execute `clean verify` with two database configurations: H2 in PostgreSQL compatibility mode and PostgreSQL 17.
 
-Both configurations execute the unit, integration and Cucumber acceptance suites. A failed test fails the job. Each execution retains Surefire XML, Cucumber HTML/JSON/JUnit reports and JaCoCo coverage for 14 days. The PostgreSQL job also uploads the executable JAR. The container job builds the existing deployment Dockerfile only after both verification jobs pass. Pull requests do not deploy.
+Both configurations execute the unit, integration and Cucumber acceptance suites. A failed test or coverage below 85% of lines or 65% of branches fails the job. Each execution retains Surefire XML, Cucumber HTML/JSON/JUnit reports and JaCoCo coverage for 14 days. The PostgreSQL job also uploads the executable JAR. The container job builds the existing deployment Dockerfile only after both verification jobs pass. Pull requests do not deploy.
 
 The workflow validates Conventional Commit pull request titles. Feature work targets `develop`; release and hotfix branches target `main`. Release versions use `MAJOR.MINOR.PATCH` and are updated in `pom.xml` before creating the release tag. Dependency updates for Maven and GitHub Actions are proposed through Dependabot pull requests and follow the same checks.
 

@@ -114,8 +114,11 @@ public class FamilyPlanController {
     @Operation(summary = "Update a draft family plan")
     public ResponseEntity<?> updateFamilyPlan(
             @PathVariable Long familyPlanId,
-            @Valid @RequestBody UpdateFamilyPlanResource resource
+            @Valid @RequestBody UpdateFamilyPlanResource resource,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
+        var denied = checkPlanOwner(familyPlanId, principal.accountId());
+        if (denied != null) return denied;
         var result = familyPlanCommandService.handle(
                 FamilyPlanCommandFromResourceAssembler.toCommandFromResource(
                         familyPlanId,
@@ -131,7 +134,10 @@ public class FamilyPlanController {
 
     @PostMapping("/{familyPlanId}/activate")
     @Operation(summary = "Activate a family plan")
-    public ResponseEntity<?> activateFamilyPlan(@PathVariable Long familyPlanId) {
+    public ResponseEntity<?> activateFamilyPlan(@PathVariable Long familyPlanId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        var denied = checkPlanOwner(familyPlanId, principal.accountId());
+        if (denied != null) return denied;
         var result = familyPlanCommandService.handle(
                 new ActivateFamilyPlanCommand(familyPlanId)
         );
@@ -160,7 +166,10 @@ public class FamilyPlanController {
 
     @DeleteMapping("/{familyPlanId}")
     @Operation(summary = "Delete or cancel a family plan")
-    public ResponseEntity<?> deleteFamilyPlan(@PathVariable Long familyPlanId) {
+    public ResponseEntity<?> deleteFamilyPlan(@PathVariable Long familyPlanId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        var denied = checkPlanOwner(familyPlanId, principal.accountId());
+        if (denied != null) return denied;
         var result = familyPlanCommandService.handle(
                 new DeleteFamilyPlanCommand(familyPlanId)
         );
@@ -169,5 +178,17 @@ public class FamilyPlanController {
                 FamilyPlanResourceFromStateAssembler::toResourceFromState,
                 HttpStatus.OK
         );
+    }
+    private ResponseEntity<?> checkPlanOwner(Long planId, Long userId) {
+        var plan = familyPlanQueryService.handle(new GetFamilyPlanByIdQuery(planId));
+        if (plan.isEmpty()) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    ApplicationError.notFound("FamilyPlan", planId.toString()));
+        }
+        if (!plan.get().ownerUserId().equals(userId)) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    ApplicationError.forbidden("FAMILY_PLAN_FORBIDDEN", "Only the family plan owner can change the plan"));
+        }
+        return null;
     }
 }
