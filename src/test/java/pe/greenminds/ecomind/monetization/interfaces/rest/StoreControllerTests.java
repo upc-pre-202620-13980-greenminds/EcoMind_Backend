@@ -17,7 +17,7 @@ import pe.greenminds.ecomind.iam.domain.model.valueobjects.AccountId;
 import pe.greenminds.ecomind.iam.domain.model.valueobjects.AuthenticatedUser;
 import pe.greenminds.ecomind.iam.domain.model.valueobjects.EmailAddress;
 
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_AND_AFTER_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

@@ -26,7 +26,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_AND_AFTER_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

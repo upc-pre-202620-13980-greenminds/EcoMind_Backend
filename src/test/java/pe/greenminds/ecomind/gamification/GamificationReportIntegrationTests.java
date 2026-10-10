@@ -87,7 +87,7 @@ import java.util.UUID;
                 "spring.datasource.url=${TEST_DATABASE_URL:jdbc:h2:mem:gamificationreport;MODE=PostgreSQL;DB_CLOSE_DELAY=-1}")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_AND_AFTER_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class GamificationReportIntegrationTests {
     @Autowired RewardCommandService rewards;
     @Autowired AchievementCommandService achievements;

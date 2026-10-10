@@ -21,7 +21,7 @@ import pe.greenminds.ecomind.users.domain.model.valueobjects.SocialRole;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.UserId;
 import pe.greenminds.ecomind.users.domain.repositories.UserProfileRepository;
 
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_AND_AFTER_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

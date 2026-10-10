@@ -55,7 +55,7 @@ import java.util.concurrent.TimeUnit;
                 "spring.datasource.url=${TEST_DATABASE_URL:jdbc:h2:mem:familygamification;MODE=PostgreSQL;DB_CLOSE_DELAY=-1}")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_AND_AFTER_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class FamilyGamificationTests {
     @Autowired FamilyRewardCommandService rewards;
     @Autowired RewardCommandService individualRewards;
