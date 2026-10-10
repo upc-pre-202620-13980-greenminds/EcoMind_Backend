@@ -30,8 +30,8 @@ public class EventRegistrationCommandServiceImpl implements EventRegistrationCom
         var event = events.findById(command.eventId());
         if (event.isEmpty())
             return Result.failure(ApplicationError.notFound("Event", String.valueOf(command.eventId())));
-        if (registrations.findByEventIdAndUserId(command.eventId(), command.userId())
-                .filter(existingRegistration -> existingRegistration.status() == EventRegistrationStatus.REGISTERED)
+        var previousRegistration = registrations.findByEventIdAndUserId(command.eventId(), command.userId());
+        if (previousRegistration.filter(existingRegistration -> existingRegistration.status() == EventRegistrationStatus.REGISTERED)
                 .isPresent())
             return Result.failure(
                     ApplicationError.conflict("Event registration", "The user already has an active registration"));
@@ -59,7 +59,7 @@ public class EventRegistrationCommandServiceImpl implements EventRegistrationCom
         if (occupied + count > event.get().getCapacity())
             return Result.failure(ApplicationError.conflict("Event capacity", "Event capacity exceeded"));
         try {
-            return Result.success(registrations.save(new EventRegistration(null, command.eventId(), command.userId(),
+            return Result.success(registrations.save(new EventRegistration(previousRegistration.map(EventRegistration::id).orElse(null), command.eventId(), command.userId(),
                     command.registrationType(), command.familyId(), count, EventRegistrationStatus.REGISTERED)));
         } catch (Exception exception) {
             return Result.failure(ApplicationError.unexpected("Event registration", exception.getMessage()));

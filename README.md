@@ -136,3 +136,8 @@ receive them in Latin American Spanish.
 
 This runs the unit tests and the acceptance tests written with Cucumber. Feature files are located in
 `src/test/resources/features` and their step definitions in `src/test/java/pe/greenminds/ecomind/bdd`.
+
+
+## Continuous integration and delivery
+
+The [backend workflow](.github/workflows/backend.yml) verifies pull requests with H2 and PostgreSQL, exports test and coverage reports, and builds the deployment image. See [CI/CD configuration](docs/ci-cd.md) for local commands, merge checks and the production deployment configuration.

@@ -11,6 +11,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
+import pe.greenminds.ecomind.quests.application.queryservices.QuestUserQueryService;
+import pe.greenminds.ecomind.quests.domain.model.queries.GetQuestUserByIdQuery;
 import pe.greenminds.ecomind.quests.application.commandservices.ActivityUserCommandService;
 import pe.greenminds.ecomind.quests.application.queryservices.ActivityUserQueryService;
 import pe.greenminds.ecomind.quests.domain.model.queries.GetActivityUserByIdQuery;
@@ -34,13 +38,16 @@ import java.util.List;
 public class ActivityUserController {
     private final ActivityUserCommandService activityUserCommandService;
     private final ActivityUserQueryService activityUserQueryService;
+    private final QuestUserQueryService questUserQueryService;
 
     public ActivityUserController(
             ActivityUserCommandService activityUserCommandService,
-            ActivityUserQueryService activityUserQueryService
+            ActivityUserQueryService activityUserQueryService,
+            QuestUserQueryService questUserQueryService
     ) {
         this.activityUserCommandService = activityUserCommandService;
         this.activityUserQueryService = activityUserQueryService;
+        this.questUserQueryService = questUserQueryService;
     }
 
     @PostMapping
@@ -59,8 +66,11 @@ public class ActivityUserController {
             @ApiResponse(responseCode = "409", description = "Activity already assigned")
     })
     public ResponseEntity<?> createActivityUser(
-            @Valid @RequestBody CreateActivityUserResource resource
+            @Valid @RequestBody CreateActivityUserResource resource,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
+        var denied = checkOwner(resource.questUserId(), principal.accountId());
+        if (denied != null) return denied;
         var command =
                 CreateActivityUserCommandFromResourceAssembler.toCommandFromResource(resource);
         var result = activityUserCommandService.handle(command);
@@ -89,8 +99,11 @@ public class ActivityUserController {
     })
     public ResponseEntity<?> submitActivity(
             @PathVariable Long activityUserId,
-            @Valid @RequestBody SubmitActivityUserResource resource
+            @Valid @RequestBody SubmitActivityUserResource resource,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
+        var denied = checkActivityOwner(activityUserId, principal.accountId());
+        if (denied != null) return denied;
         var command = SubmitActivityUserCommandFromResourceAssembler.toCommandFromResource(
                 activityUserId,
                 resource
@@ -114,7 +127,10 @@ public class ActivityUserController {
             ),
             @ApiResponse(responseCode = "404", description = "Activity assignment not found")
     })
-    public ResponseEntity<?> getActivityUserById(@PathVariable Long activityUserId) {
+    public ResponseEntity<?> getActivityUserById(@PathVariable Long activityUserId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        var denied = checkActivityOwner(activityUserId, principal.accountId());
+        if (denied != null) return denied;
         var activityUser =
                 activityUserQueryService.handle(new GetActivityUserByIdQuery(activityUserId));
 
@@ -141,8 +157,11 @@ public class ActivityUserController {
     })
     public ResponseEntity<?> getActivityUserByQuestUserIdAndActivityId(
             @PathVariable Long questUserId,
-            @PathVariable Long activityId
+            @PathVariable Long activityId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
+        var denied = checkOwner(questUserId, principal.accountId());
+        if (denied != null) return denied;
         var activityUser = activityUserQueryService.handle(
                 new GetActivityUserByQuestUserIdAndActivityIdQuery(questUserId, activityId)
         );
@@ -167,9 +186,12 @@ public class ActivityUserController {
     @GetMapping("/quest-user/{questUserId}")
     @Operation(summary = "Get all activity assignments for a quest user")
     @ApiResponse(responseCode = "200", description = "Activity assignments retrieved successfully")
-    public ResponseEntity<List<ActivityUserResource>> getActivityUsersByQuestUserId(
-            @PathVariable Long questUserId
+    public ResponseEntity<?> getActivityUsersByQuestUserId(
+            @PathVariable Long questUserId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
+        var denied = checkOwner(questUserId, principal.accountId());
+        if (denied != null) return denied;
         var activityUsers = activityUserQueryService.handle(
                 new GetActivityUsersByQuestUserIdQuery(questUserId)
         );
@@ -179,4 +201,27 @@ public class ActivityUserController {
 
         return ResponseEntity.ok(resources);
     }
+    private ResponseEntity<?> checkActivityOwner(Long activityUserId, Long userId) {
+        var activity = activityUserQueryService.handle(new GetActivityUserByIdQuery(activityUserId));
+        if (activity.isEmpty()) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    ApplicationError.notFound("ActivityUser", activityUserId.toString()));
+        }
+        return checkOwner(activity.get().getQuestUserId(), userId);
+    }
+
+    private ResponseEntity<?> checkOwner(Long questUserId, Long userId) {
+        var assignment = questUserQueryService.handle(new GetQuestUserByIdQuery(questUserId));
+        if (assignment.isEmpty()) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    ApplicationError.notFound("QuestUser", questUserId.toString()));
+        }
+        if (!assignment.get().getUserId().equals(userId)) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    ApplicationError.forbidden("QUEST_ASSIGNMENT_FORBIDDEN",
+                            "Only the assigned user can access these activities"));
+        }
+        return null;
+    }
+
 }

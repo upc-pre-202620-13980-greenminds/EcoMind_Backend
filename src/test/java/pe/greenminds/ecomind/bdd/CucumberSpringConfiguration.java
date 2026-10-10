@@ -7,7 +7,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 /**
  * Shares the Spring application context with the Cucumber step definitions.
- * Scenarios call the API through MockMvc against the in-memory database of the test profile.
+ * Scenarios call the API through MockMvc against the database selected by the test profile.
  */
 @CucumberContextConfiguration
 @SpringBootTest

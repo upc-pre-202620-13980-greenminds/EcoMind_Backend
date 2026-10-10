@@ -32,6 +32,9 @@ import pe.greenminds.ecomind.quests.interfaces.rest.transform.ResponseEntityAsse
 import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
 
 import java.util.List;
+import pe.greenminds.ecomind.quests.domain.model.queries.GetMinigameAttemptByIdQuery;
+import pe.greenminds.ecomind.quests.interfaces.rest.transform.ErrorResponseAssembler;
+import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 
 @RestController
 @RequestMapping(value = "/api/v1/minigame-attempts", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -104,8 +107,11 @@ public class MinigameAttemptController {
     })
     public ResponseEntity<?> finishAttempt(
             @PathVariable Long attemptId,
-            @Valid @RequestBody FinishMinigameAttemptResource resource
+            @Valid @RequestBody FinishMinigameAttemptResource resource,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
     ) {
+        var denied = checkAttemptOwner(attemptId, principal.accountId());
+        if (denied != null) return denied;
         var command =
                 FinishMinigameAttemptCommandFromResourceAssembler.toCommandFromResource(
                         attemptId,
@@ -122,7 +128,10 @@ public class MinigameAttemptController {
 
     @PostMapping("/{attemptId}/cancel")
     @Operation(summary = "Cancel a minigame attempt")
-    public ResponseEntity<?> cancelAttempt(@PathVariable Long attemptId) {
+    public ResponseEntity<?> cancelAttempt(@PathVariable Long attemptId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        var denied = checkAttemptOwner(attemptId, principal.accountId());
+        if (denied != null) return denied;
         var result = minigameAttemptCommandService.handle(
                 new CancelMinigameAttemptCommand(attemptId)
         );
@@ -132,5 +141,17 @@ public class MinigameAttemptController {
                 MinigameAttemptResourceFromEntityAssembler::toResourceFromEntity,
                 HttpStatus.OK
         );
+    }
+    private ResponseEntity<?> checkAttemptOwner(Long attemptId, Long userId) {
+        var attempt = minigameAttemptQueryService.handle(new GetMinigameAttemptByIdQuery(attemptId));
+        if (attempt.isEmpty()) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    ApplicationError.notFound("MinigameAttempt", attemptId.toString()));
+        }
+        if (!attempt.get().getUserId().equals(userId)) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    ApplicationError.forbidden("MINIGAME_ATTEMPT_FORBIDDEN", "Only the participant can change the minigame attempt"));
+        }
+        return null;
     }
 }
