@@ -85,7 +85,10 @@ public class QuestUserController {
 
     @GetMapping("/{questUserId}")
     @Operation(summary = "Get quest assignment by ID")
-    public ResponseEntity<?> getQuestUserById(@PathVariable Long questUserId) {
+    public ResponseEntity<?> getQuestUserById(@PathVariable Long questUserId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        var denied = checkOwner(questUserId, principal.accountId());
+        if (denied != null) return denied;
         var questUser = questUserQueryService.handle(new GetQuestUserByIdQuery(questUserId));
 
         if (questUser.isEmpty()) {
@@ -115,9 +118,10 @@ public class QuestUserController {
             ),
             @ApiResponse(responseCode = "404", description = "Quest assignment not found")
     })
-    public ResponseEntity<?> getQuestUserVersionStatus(
-            @PathVariable Long questUserId
-    ) {
+    public ResponseEntity<?> getQuestUserVersionStatus(@PathVariable Long questUserId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        var denied = checkOwner(questUserId, principal.accountId());
+        if (denied != null) return denied;
         var versionStatus = questUserQueryService.handle(
                 new GetQuestUserVersionStatusQuery(questUserId)
         );
@@ -146,7 +150,10 @@ public class QuestUserController {
             @ApiResponse(responseCode = "404", description = "Quest assignment not found"),
             @ApiResponse(responseCode = "422", description = "Quest is not ready to complete")
     })
-    public ResponseEntity<?> completeQuestUser(@PathVariable Long questUserId) {
+    public ResponseEntity<?> completeQuestUser(@PathVariable Long questUserId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        var denied = checkOwner(questUserId, principal.accountId());
+        if (denied != null) return denied;
         var result = questUserCommandService.handle(
                 new CompleteQuestUserCommand(questUserId)
         );
@@ -211,9 +218,26 @@ public class QuestUserController {
             ),
             @ApiResponse(responseCode = "404", description = "Quest assignment not found")
     })
-    public ResponseEntity<?> cancelQuestUser(@PathVariable Long questUserId) {
+    public ResponseEntity<?> cancelQuestUser(@PathVariable Long questUserId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        var denied = checkOwner(questUserId, principal.accountId());
+        if (denied != null) return denied;
         var result = questUserCommandService.handle(new CancelQuestUserCommand(questUserId));
         return ResponseEntityAssembler.toResponseEntityFromResult(
                 result, QuestUserResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.OK);
     }
+    private ResponseEntity<?> checkOwner(Long questUserId, Long userId) {
+        var assignment = questUserQueryService.handle(new GetQuestUserByIdQuery(questUserId));
+        if (assignment.isEmpty()) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    ApplicationError.notFound("QuestUser", questUserId.toString()));
+        }
+        if (!assignment.get().getUserId().equals(userId)) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    ApplicationError.forbidden("QUEST_ASSIGNMENT_FORBIDDEN",
+                            "Only the assigned user can access this quest assignment"));
+        }
+        return null;
+    }
+
 }

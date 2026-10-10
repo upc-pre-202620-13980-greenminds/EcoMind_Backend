@@ -293,12 +293,13 @@ public class FamilyPlanCommandServiceImpl implements FamilyPlanCommandService {
         }
 
         for (var item : items) {
-            var result = completeFamilyPlanItem(item);
+            var result = validateFamilyPlanItemCompletion(item);
             if (result != null) {
                 return Result.failure(result);
             }
         }
 
+        items.forEach(this::completeFamilyPlanItem);
         plan.get().complete();
         var savedPlan = familyPlanRepository.save(plan.get());
         eventPublisher.publishEvent(new FamilyPlanCompletedEvent(
@@ -400,7 +401,7 @@ public class FamilyPlanCommandServiceImpl implements FamilyPlanCommandService {
         return null;
     }
 
-    private ApplicationError completeFamilyPlanItem(FamilyPlanItem item) {
+    private ApplicationError validateFamilyPlanItemCompletion(FamilyPlanItem item) {
         if (item.getCollaborativeSessionId() == null) {
             return ApplicationError.businessRuleViolation(
                     "Family plan item has no collaborative session",
@@ -457,6 +458,15 @@ public class FamilyPlanCommandServiceImpl implements FamilyPlanCommandService {
             );
         }
 
+        return null;
+    }
+
+    private void completeFamilyPlanItem(FamilyPlanItem item) {
+        var session = collabQuestSessionRepository.findById(item.getCollaborativeSessionId()).orElseThrow();
+        if (session.getStatus() == CollabQuestStatus.COMPLETED) return;
+        var questUsers = questUserRepository.findByQuestId(item.getQuestId()).stream()
+                .filter(questUser -> session.getId().equals(questUser.getCollaborativeSessionId()))
+                .toList();
         for (var questUser : questUsers) {
             if (questUser.getStatus() == QuestStatus.COMPLETED) {
                 continue;
@@ -465,9 +475,8 @@ public class FamilyPlanCommandServiceImpl implements FamilyPlanCommandService {
             questUserRepository.save(questUser);
         }
 
-        session.get().completeAsFamilyPlanItem();
-        collabQuestSessionRepository.save(session.get());
-        return null;
+        session.completeAsFamilyPlanItem();
+        collabQuestSessionRepository.save(session);
     }
 
     private boolean hasBlockingActiveQuest(Long userId, Long questId) {

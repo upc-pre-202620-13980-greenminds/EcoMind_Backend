@@ -44,6 +44,14 @@ public class ApiClient {
     perform(withJson(MockMvcRequestBuilders.put(path), body), accessToken);
   }
 
+  public void patch(String path, Map<String, Object> body, String accessToken) {
+    perform(withJson(MockMvcRequestBuilders.patch(path), body), accessToken);
+  }
+
+  public void patchWithoutBody(String path, String accessToken) {
+    perform(MockMvcRequestBuilders.patch(path), accessToken);
+  }
+
   public void postWithoutBody(String path, String accessToken) {
     perform(MockMvcRequestBuilders.post(path), accessToken);
   }
@@ -109,6 +117,11 @@ public class ApiClient {
   }
 
   private static String toJsonValue(Object value) {
+    if (value instanceof Map<?, ?> map) {
+      return map.entrySet().stream()
+          .map(entry -> toJsonValue(entry.getKey().toString()) + ":" + toJsonValue(entry.getValue()))
+          .collect(Collectors.joining(",", "{", "}"));
+    }
     if (value instanceof String text) {
       return "\"" + text.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }

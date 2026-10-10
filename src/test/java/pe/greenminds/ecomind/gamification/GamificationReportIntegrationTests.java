@@ -1,6 +1,7 @@
 package pe.greenminds.ecomind.gamification;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -229,12 +230,21 @@ class GamificationReportIntegrationTests {
     }
 
     @Test
-    void historicalXpColumnsDoNotCreateAnotherScoreOrChangeRewardAmounts() throws Exception {
-        var grant = rewards.handle(quest(USER, AT, false, new Reward(19, 4)));
-        jdbc.update("UPDATE user_progresses SET total_experience=900 WHERE user_id=?", USER.value());
-        jdbc.update(
-                "UPDATE reward_transactions SET base_experience=500,experience=750 WHERE id=?",
-                grant.id().toString());
+    void progressAndRewardsPersistWithoutDuplicatedXpColumnsOrConfigurationTable() throws Exception {
+        rewards.handle(quest(USER, AT, false, new Reward(19, 4)));
+        assertEquals(
+                0,
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.columns"
+                                + " WHERE LOWER(table_name) IN ('user_progresses','reward_transactions')"
+                                + " AND LOWER(column_name) IN ('total_experience','base_experience','experience')",
+                        Integer.class));
+        assertEquals(
+                0,
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM information_schema.tables"
+                                + " WHERE LOWER(table_name)='gamification_quest_experiences'",
+                        Integer.class));
         assertEquals(19, progress.getUserProgress(USER).getTotalEcopoints());
         assertEquals(new Reward(19, 4), progress.getRecentRewards(USER).getFirst().grantedReward());
         http.perform(get("/api/v1/gamification/me/progress").header("Authorization", bearer(USER)))
@@ -344,6 +354,18 @@ class GamificationReportIntegrationTests {
         assertEquals(0, progress.getUserProgress(USER).getCurrentStreak());
     }
 
+    private static void assertSamePersistedValue(Object expected, Object actual) {
+        // SQL timestamps retain microseconds; JVM clocks can supply nanoseconds.
+        assertThat(actual)
+                .usingRecursiveComparison()
+                .withComparatorForType(
+                        (java.time.Instant left, java.time.Instant right) ->
+                                java.time.Duration.between(left, right).abs().toNanos() <= 1000
+                                        ? 0 : left.compareTo(right),
+                        java.time.Instant.class)
+                .isEqualTo(expected);
+    }
+
     @Test
     void shareIsPendingUntilCorrelatedPublicationAndRepeatedRequestKeepsItsIdentity() {
         var award = unlock();
@@ -353,7 +375,7 @@ class GamificationReportIntegrationTests {
         var first = achievements.handle(c).toOptional().orElseThrow();
         assertEquals(AchievementShareStatus.PENDING, first.status());
         assertNull(first.publicationId());
-        assertEquals(first, achievements.handle(c).toOptional().orElseThrow());
+        assertSamePersistedValue(first, achievements.handle(c).toOptional().orElseThrow());
         Long publication = 73L;
         var confirmation =
                 new ConfirmAchievementPublicationCommand(
@@ -524,7 +546,7 @@ class GamificationReportIntegrationTests {
                 protection.handle(
                         new RequestStreakProtectionCommand(
                                 USER, DAY.plusDays(1), AT.plusSeconds(86400)));
-        assertEquals(
+        assertSamePersistedValue(
                 request,
                 protection.handle(
                         new RequestStreakProtectionCommand(
@@ -1063,7 +1085,7 @@ class GamificationReportIntegrationTests {
                 concurrently(
                         () -> achievements.handle(command).toOptional().orElseThrow(),
                         () -> achievements.handle(command).toOptional().orElseThrow());
-        assertEquals(results.getFirst(), results.getLast());
+        assertSamePersistedValue(results.getFirst(), results.getLast());
         assertEquals(
                 1,
                 jdbc.queryForObject(

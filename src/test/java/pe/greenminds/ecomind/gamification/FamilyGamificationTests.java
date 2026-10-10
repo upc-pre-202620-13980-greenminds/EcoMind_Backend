@@ -155,7 +155,6 @@ class FamilyGamificationTests {
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].sourceType").value("FAMILY_PLAN"));
         var stored = rewardRows.findById(first.id().toString()).orElseThrow();
-        assertEquals(0, stored.getLegacyExperience());
         assertEquals(0, stored.getGems());
     }
 

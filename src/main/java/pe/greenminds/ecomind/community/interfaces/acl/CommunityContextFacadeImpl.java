@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.greenminds.ecomind.community.application.internal.commandservices.AchievementPublicationService;
 import pe.greenminds.ecomind.community.domain.repositories.CommunityMembershipRepository;
 import pe.greenminds.ecomind.community.domain.repositories.CommunityRepository;
+import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityType;
 import pe.greenminds.ecomind.users.interfaces.acl.UsersContextFacade;
 
 import java.util.List;
@@ -38,7 +39,7 @@ public class CommunityContextFacadeImpl implements CommunityContextFacade {
                 memberships.findByUserId(userId).stream()
                         .map(m -> communities.findById(m.communityId()))
                         .flatMap(Optional::stream)
-                        .filter(c -> "local".equals(c.getType()))
+                        .filter(c -> c.getType() == CommunityType.LOCAL)
                         .map(c -> c.getId())
                         .distinct()
                         .limit(2)

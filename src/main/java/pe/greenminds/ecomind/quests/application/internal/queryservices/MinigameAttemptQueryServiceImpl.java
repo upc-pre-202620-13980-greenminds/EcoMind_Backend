@@ -7,6 +7,8 @@ import pe.greenminds.ecomind.quests.domain.model.queries.GetMinigameAttemptsByUs
 import pe.greenminds.ecomind.quests.domain.repositories.MinigameAttemptRepository;
 
 import java.util.List;
+import java.util.Optional;
+import pe.greenminds.ecomind.quests.domain.model.queries.GetMinigameAttemptByIdQuery;
 
 @Service
 public class MinigameAttemptQueryServiceImpl implements MinigameAttemptQueryService {
@@ -22,5 +24,9 @@ public class MinigameAttemptQueryServiceImpl implements MinigameAttemptQueryServ
                 query.userId(),
                 query.minigameId()
         );
+    }
+    @Override
+    public Optional<MinigameAttempt> handle(GetMinigameAttemptByIdQuery query) {
+        return minigameAttemptRepository.findById(query.attemptId());
     }
 }

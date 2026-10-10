@@ -142,7 +142,10 @@ public class CollabQuestMemberController {
             @ApiResponse(responseCode = "409", description = "User already accepted this quest elsewhere"),
             @ApiResponse(responseCode = "422", description = "Invitation cannot be accepted")
     })
-    public ResponseEntity<?> accept(@PathVariable Long memberId) {
+    public ResponseEntity<?> accept(@PathVariable Long memberId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        var denied = checkMemberOwner(memberId, principal.accountId());
+        if (denied != null) return denied;
         var result = collabQuestMemberCommandService.handle(
                 new AcceptCollabQuestMemberCommand(memberId)
         );
@@ -165,7 +168,10 @@ public class CollabQuestMemberController {
             @ApiResponse(responseCode = "404", description = "Member not found"),
             @ApiResponse(responseCode = "422", description = "Invitation cannot be declined")
     })
-    public ResponseEntity<?> decline(@PathVariable Long memberId) {
+    public ResponseEntity<?> decline(@PathVariable Long memberId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        var denied = checkMemberOwner(memberId, principal.accountId());
+        if (denied != null) return denied;
         var result = collabQuestMemberCommandService.handle(
                 new DeclineCollabQuestMemberCommand(memberId)
         );
@@ -188,7 +194,10 @@ public class CollabQuestMemberController {
             @ApiResponse(responseCode = "404", description = "Member or session not found"),
             @ApiResponse(responseCode = "422", description = "Member cannot leave")
     })
-    public ResponseEntity<?> leave(@PathVariable Long memberId) {
+    public ResponseEntity<?> leave(@PathVariable Long memberId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        var denied = checkMemberOwner(memberId, principal.accountId());
+        if (denied != null) return denied;
         var result = collabQuestMemberCommandService.handle(
                 new LeaveCollabQuestMemberCommand(memberId)
         );
@@ -224,5 +233,17 @@ public class CollabQuestMemberController {
                 CollabQuestMemberResourceFromEntityAssembler::toResourceFromEntity,
                 HttpStatus.OK
         );
+    }
+    private ResponseEntity<?> checkMemberOwner(Long memberId, Long userId) {
+        var member = collabQuestMemberQueryService.handle(new GetCollabQuestMemberByIdQuery(memberId));
+        if (member.isEmpty()) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    ApplicationError.notFound("CollabQuestMember", memberId.toString()));
+        }
+        if (!member.get().getUserId().equals(userId)) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    ApplicationError.forbidden("COLLAB_MEMBER_FORBIDDEN", "Only the invited participant can answer or leave"));
+        }
+        return null;
     }
 }

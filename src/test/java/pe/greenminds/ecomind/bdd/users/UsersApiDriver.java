@@ -75,7 +75,7 @@ public class UsersApiDriver {
     api.get("/api/v1/friend?user_id=" + idOf(name), tokenOf(name));
   }
 
-  private String tokenOf(String name) {
+  public String tokenOf(String name) {
     return user(name).accessToken();
   }
 

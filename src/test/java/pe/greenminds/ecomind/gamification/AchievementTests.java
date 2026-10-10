@@ -102,10 +102,10 @@ class AchievementTests {
     }
 
     @Test
-    void legacyXpMetricUsesTheSameScoreWhileStreakAndInactiveDefinitionsRemainIndependent() {
+    void ecopointsAndStreakUseTheirCriteriaAndInactiveDefinitionsDoNotGrant() {
         achievements.register(
                 definition(
-                        "XP", AchievementScope.INDIVIDUAL, AchievementMetric.EXPERIENCE, 10, true));
+                        "POINTS", AchievementScope.INDIVIDUAL, AchievementMetric.ECOPOINTS, 10, true));
         achievements.register(
                 definition(
                         "STREAK",
@@ -303,10 +303,15 @@ class AchievementTests {
                                 AchievementMetric.ECOPOINTS,
                                 0,
                                 true));
-        assertEquals(
-                AchievementMetric.ECOPOINTS,
-                definition("XP", AchievementScope.FAMILY, AchievementMetric.EXPERIENCE, 1, true)
-                        .metric());
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        definition(
+                                "STREAK",
+                                AchievementScope.FAMILY,
+                                AchievementMetric.LONGEST_STREAK,
+                                1,
+                                true));
         var definition =
                 definition(
                         "UNIQUE",

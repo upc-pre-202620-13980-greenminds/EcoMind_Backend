@@ -113,6 +113,12 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
             );
         }
 
+        if (collabQuestMemberRepository.findBySessionIdAndStatusIn(command.sessionId(),
+                java.util.List.of(CollabMemberStatus.PENDING, CollabMemberStatus.ACCEPTED)).size() >= 5) {
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "Collaborative session is full", "At most five active members are allowed"));
+        }
+
         if (!usersServiceClient.existsUser(command.invitedUserId())) {
             return Result.failure(ApplicationError.notFound("User", command.invitedUserId().toString()));
         }
