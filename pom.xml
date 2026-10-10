@@ -20,7 +20,7 @@
 		<pluralize.version>1.0.0</pluralize.version>
 		<springdoc.version>3.0.3</springdoc.version>
 		<cucumber.version>8.0.4</cucumber.version>
-		<jjwt.version>0.12.6</jjwt.version>
+		<jjwt.version>0.13.0</jjwt.version>
 		<mockito.version>5.20.0</mockito.version>
 	</properties>
 
