@@ -123,6 +123,32 @@ Every endpoint requires an access token, except registration, email verification
 password recovery and the API documentation. Obtain a token with
 `POST /api/v1/authentication/sign-in` and send it in the `Authorization: Bearer <token>` header.
 
+### Password recovery
+
+`POST /api/v1/authentication/password-recovery/request` accepts `{ "email": "user@example.com" }`
+and returns `200` with the same message whether or not the account exists.
+
+For the Android app, set the production email destination explicitly:
+
+```bash
+export PASSWORD_RECOVERY_URL=ecomind://authentication/reset-password
+```
+
+The email service appends the recovery token as the `token` query parameter. Android opens the
+reset-password screen from this link both when the app is closed and when it is already running.
+The variable remains required in production; it has no default value.
+
+`POST /api/v1/authentication/password-recovery/confirm` accepts `{ "token": "<recovery-token>",
+"newPassword": "<new-password>" }` and returns `204` with no response body after changing the
+password. Tokens expire after 30 minutes and can only be used once. An invalid, expired or used
+token returns `422` with code `PASSWORD_RESET_TOKEN_INVALID`.
+
+### Logout
+
+`POST /api/v1/authentication/logout` requires the current Bearer token and returns `204` with no
+response body. Access tokens are stateless and are not revoked by this endpoint. The client must
+discard its stored session and return to sign-in.
+
 ## Internationalization
 
 Messages are returned in English (`en_US`) by default. Send the `Accept-Language: es-419` header to
