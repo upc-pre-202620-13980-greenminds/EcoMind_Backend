@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import pe.greenminds.ecomind.learning.domain.model.MaterialCategory;
 import pe.greenminds.ecomind.learning.domain.model.MaterialType;
+import pe.greenminds.ecomind.learning.domain.model.RecommendedAge;
 import pe.greenminds.ecomind.shared.infrastructure.persistence.jpa.entities.AuditableAbstractPersistenceEntity;
 
 @Entity
@@ -24,4 +25,9 @@ public class EducationalMaterialEntity extends AuditableAbstractPersistenceEntit
   @Column(nullable = false, length = 8) private String language;
   @Column(nullable = false) private boolean downloadable;
   @Column(nullable = false) private boolean active = true;
+  @Column(length = 160) private String sourceName;
+  @Column(length = 1000) private String sourceUrl;
+  @Column(length = 160) private String author;
+  @Column(length = 160) private String license;
+  @Enumerated(EnumType.STRING) @Column(length = 24) private RecommendedAge recommendedAge;
 }

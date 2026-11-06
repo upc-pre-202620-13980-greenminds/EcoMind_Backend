@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import pe.greenminds.ecomind.learning.application.LearningService;
 import pe.greenminds.ecomind.learning.domain.model.MaterialCategory;
 import pe.greenminds.ecomind.learning.domain.model.MaterialType;
+import pe.greenminds.ecomind.learning.domain.model.RecommendedAge;
 import pe.greenminds.ecomind.learning.interfaces.rest.resources.*;
 import pe.greenminds.ecomind.shared.infrastructure.documentation.openapi.configuration.OpenApiConfiguration;
 import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
@@ -32,8 +33,12 @@ public class EducationalMaterialController {
       @RequestParam(required = false) MaterialType materialType,
       @RequestParam(required = false) String language,
       @RequestParam(required = false) Boolean downloadable,
+      @RequestParam(required = false) RecommendedAge recommendedAge,
+      @RequestParam(required = false) Integer minDurationMinutes,
+      @RequestParam(required = false) Integer maxDurationMinutes,
       @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-    return service.search(principal.accountId(), query, category, materialType, language, downloadable);
+    return service.search(principal.accountId(), query, category, materialType, language, downloadable,
+        recommendedAge, minDurationMinutes, maxDurationMinutes);
   }
 
   @GetMapping("/search")
@@ -43,13 +48,19 @@ public class EducationalMaterialController {
       @RequestParam(required = false) MaterialCategory category,
       @RequestParam(required = false) MaterialType materialType,
       @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-    return service.search(principal.accountId(), title, category, materialType, null, null);
+    return service.search(principal.accountId(), title, category, materialType, null, null, null, null, null);
   }
 
   @GetMapping("/favorites")
   @Operation(summary = "List the current user's favorite materials")
   public List<EducationalMaterialResource> favorites(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
     return service.favorites(principal.accountId());
+  }
+
+  @GetMapping("/recent")
+  @Operation(summary = "List materials recently opened by the current user")
+  public List<EducationalMaterialResource> recent(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+    return service.recentlyViewed(principal.accountId());
   }
 
   @GetMapping("/{materialId}")

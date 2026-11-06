@@ -3,6 +3,7 @@ package pe.greenminds.ecomind.learning.interfaces.rest.resources;
 import jakarta.validation.constraints.*;
 import pe.greenminds.ecomind.learning.domain.model.MaterialCategory;
 import pe.greenminds.ecomind.learning.domain.model.MaterialType;
+import pe.greenminds.ecomind.learning.domain.model.RecommendedAge;
 
 public record SaveEducationalMaterialResource(
     @NotBlank @Size(max = 160) String title,
@@ -14,4 +15,9 @@ public record SaveEducationalMaterialResource(
     @Size(max = 1000) String videoUrl,
     @NotNull @Min(1) @Max(180) Integer durationMinutes,
     @NotBlank @Pattern(regexp = "[a-z]{2}(-[A-Z]{2})?") String language,
-    boolean downloadable) {}
+    boolean downloadable,
+    @Size(max = 160) String sourceName,
+    @Size(max = 1000) String sourceUrl,
+    @Size(max = 160) String author,
+    @Size(max = 160) String license,
+    RecommendedAge recommendedAge) {}
