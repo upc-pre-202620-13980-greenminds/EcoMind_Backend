@@ -12,7 +12,7 @@ import pe.greenminds.ecomind.monetization.application.outboundservices.payment.*
 import pe.greenminds.ecomind.monetization.domain.model.valueobjects.PaymentMethodType;
 
 @Component
-@ConditionalOnExpression("!'${PAYPAL_CLIENT_ID:}'.isBlank() && !'${PAYPAL_SECRET:}'.isBlank()")
+@ConditionalOnExpression("!'${payments.paypal.client-id:}'.isBlank() && !'${payments.paypal.secret:}'.isBlank()")
 public class PayPalPaymentGateway implements PaymentGateway {
   private final RestClient client;
   private final String clientId;
@@ -20,8 +20,8 @@ public class PayPalPaymentGateway implements PaymentGateway {
 
   public PayPalPaymentGateway(
       @Value("${paypal.api.base-url:https://api-m.sandbox.paypal.com}") String baseUrl,
-      @Value("${PAYPAL_CLIENT_ID:}") String clientId,
-      @Value("${PAYPAL_SECRET:}") String secret) {
+      @Value("${payments.paypal.client-id:}") String clientId,
+      @Value("${payments.paypal.secret:}") String secret) {
     this.client = RestClient.builder().baseUrl(baseUrl).build();
     this.clientId = clientId;
     this.secret = secret;

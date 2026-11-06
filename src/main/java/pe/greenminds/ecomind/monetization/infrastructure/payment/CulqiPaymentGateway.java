@@ -12,14 +12,14 @@ import pe.greenminds.ecomind.monetization.application.outboundservices.payment.*
 import pe.greenminds.ecomind.monetization.domain.model.valueobjects.PaymentMethodType;
 
 @Component
-@ConditionalOnExpression("!'${CULQI_SECRET_KEY:}'.isBlank()")
+@ConditionalOnExpression("!'${payments.culqi.secret-key:}'.isBlank()")
 public class CulqiPaymentGateway implements PaymentGateway {
   private final RestClient client;
   private final String secretKey;
 
   public CulqiPaymentGateway(
       @Value("${culqi.api.base-url:https://api.culqi.com/v2}") String baseUrl,
-      @Value("${CULQI_SECRET_KEY:}") String secretKey) {
+      @Value("${payments.culqi.secret-key:}") String secretKey) {
     this.client = RestClient.builder().baseUrl(baseUrl).build();
     this.secretKey = secretKey;
   }
