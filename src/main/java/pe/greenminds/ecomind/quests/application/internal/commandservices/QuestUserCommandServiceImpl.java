@@ -3,6 +3,7 @@ package pe.greenminds.ecomind.quests.application.internal.commandservices;
 import jakarta.transaction.Transactional;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import pe.greenminds.ecomind.quests.application.commandservices.QuestUserCommandService;
 import pe.greenminds.ecomind.quests.application.internal.services.DailyQuestLifecycleService;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.ActivityUser;
@@ -63,6 +64,7 @@ public class QuestUserCommandServiceImpl implements QuestUserCommandService {
     @Transactional
     @Override
     public Result<QuestUser, ApplicationError> handle(CreateQuestUserCommand command) {
+        collabQuestSessionRepository.lockQuest(command.questId());
         var quest = questRepository.findById(command.questId());
         if (quest.isEmpty()) {
             return Result.failure(
@@ -94,6 +96,15 @@ public class QuestUserCommandServiceImpl implements QuestUserCommandService {
                                     .formatted(command.questId())
                     )
             );
+        }
+
+        if (command.collaborativeSessionId() != null) {
+            return Result.failure(ApplicationError.businessRuleViolation("COLLAB_COLLECTIVE_START_REQUIRED", "Only collective start can create session assignments"));
+        }
+        if (collabQuestMemberRepository.findByUserIdAndQuestIdAndSessionStatusIn(command.userId(), command.questId(),
+                java.util.List.of(CollabQuestStatus.PENDING, CollabQuestStatus.STARTED)).stream()
+                .anyMatch(m -> m.getStatus() == CollabMemberStatus.ACCEPTED)) {
+            return Result.failure(ApplicationError.conflict("QuestUser", "User already enrolled in a collaborative session"));
         }
 
         dailyQuestLifecycleService.expireOpenDailyQuestsForUser(command.userId());
@@ -149,10 +160,12 @@ public class QuestUserCommandServiceImpl implements QuestUserCommandService {
             return Result.success(savedQuestUser);
 
         } catch (IllegalArgumentException | NullPointerException exception) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.failure(
                     ApplicationError.validationError("QuestUser", exception.getMessage())
             );
         } catch (Exception exception) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.failure(
                     ApplicationError.unexpected("QuestUser creation", exception.getMessage())
             );
@@ -177,6 +190,7 @@ public class QuestUserCommandServiceImpl implements QuestUserCommandService {
             questUser.get().cancel();
             return Result.success(questUserRepository.save(questUser.get()));
         } catch (IllegalStateException exception) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.failure(ApplicationError.conflict("QuestUser", exception.getMessage()));
         }
     }
@@ -226,6 +240,7 @@ public class QuestUserCommandServiceImpl implements QuestUserCommandService {
                     java.time.OffsetDateTime.now(java.time.ZoneId.of("America/Lima"))));
             return Result.success(savedQuestUser);
         } catch (IllegalStateException exception) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.failure(
                     ApplicationError.businessRuleViolation(
                             "Quest is not ready to complete",
@@ -348,6 +363,7 @@ public class QuestUserCommandServiceImpl implements QuestUserCommandService {
 
             return Result.success(savedRequestedQuestUser);
         } catch (IllegalStateException exception) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.failure(
                     ApplicationError.businessRuleViolation(
                             "Quest is not ready to complete",

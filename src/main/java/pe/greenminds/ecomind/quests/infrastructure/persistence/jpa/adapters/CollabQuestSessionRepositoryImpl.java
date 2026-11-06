@@ -12,6 +12,30 @@ import java.util.Optional;
 
 @Repository
 public class CollabQuestSessionRepositoryImpl implements CollabQuestSessionRepository {
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
+
+    @Override
+    public void lockQuest(Long questId) {
+        entityManager.createQuery("select q from QuestPersistenceEntity q where q.id = :id")
+                .setParameter("id", questId)
+                .setLockMode(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+                .getResultList();
+        // Commands call this before any writes. Discard snapshots read while waiting for the lock.
+        entityManager.clear();
+    }
+
+    @Override
+    public void lockQuestForSession(Long sessionId) {
+        entityManager.createQuery("select s.questId from CollabQuestSessionPersistenceEntity s where s.id = :id", Long.class)
+                .setParameter("id", sessionId).getResultList().stream().findFirst().ifPresent(this::lockQuest);
+    }
+
+    @Override
+    public void lockQuestForMember(Long memberId) {
+        entityManager.createQuery("select s.questId from CollabQuestSessionPersistenceEntity s, CollabQuestMemberPersistenceEntity m where m.id = :id and s.id = m.sessionId", Long.class)
+                .setParameter("id", memberId).getResultList().stream().findFirst().ifPresent(this::lockQuest);
+    }
     private final CollabQuestSessionPersistenceRepository collabQuestSessionPersistenceRepository;
 
     public CollabQuestSessionRepositoryImpl(

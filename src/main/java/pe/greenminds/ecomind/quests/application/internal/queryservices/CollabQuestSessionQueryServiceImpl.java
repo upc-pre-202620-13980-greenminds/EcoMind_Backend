@@ -9,6 +9,9 @@ import pe.greenminds.ecomind.quests.application.queryservices.CollabQuestSession
 import pe.greenminds.ecomind.quests.domain.model.aggregates.CollabQuestMember;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.CollabQuestSession;
 import pe.greenminds.ecomind.quests.domain.model.queries.GetCollabQuestSessionStateQuery;
+import pe.greenminds.ecomind.quests.domain.model.queries.GetCollabQuestSessionStateBySessionIdQuery;
+import pe.greenminds.ecomind.shared.application.result.ApplicationError;
+import pe.greenminds.ecomind.shared.application.result.Result;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabMemberStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabQuestStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.MemberRole;
@@ -27,7 +30,7 @@ import java.util.Objects;
 
 @Service
 public class CollabQuestSessionQueryServiceImpl implements CollabQuestSessionQueryService {
-    private static final int MAX_INVITES = 5;
+    private static final int MAX_MEMBERS = CollabQuestSession.MAX_MEMBERS;
     private static final List<CollabQuestStatus> ACTIVE_SESSION_STATUSES =
             List.of(CollabQuestStatus.PENDING, CollabQuestStatus.STARTED);
     private static final List<QuestStatus> ACTIVE_QUEST_USER_STATUSES =
@@ -70,6 +73,26 @@ public class CollabQuestSessionQueryServiceImpl implements CollabQuestSessionQue
                         .findById(questUser.getCollaborativeSessionId())
                         .orElse(null)
                 : findSessionByOwnerOrMember(query);
+        return buildState(query, session);
+    }
+
+    @Override
+    public Result<CollabQuestSessionState, ApplicationError> handle(GetCollabQuestSessionStateBySessionIdQuery query) {
+        var session = collabQuestSessionRepository.findById(query.sessionId());
+        if (session.isEmpty()) {
+            return Result.failure(ApplicationError.notFound("CollabQuestSession", query.sessionId().toString()));
+        }
+        var isOwner = Objects.equals(session.get().getOwnerId(), query.userId());
+        var isParticipant = collabQuestMemberRepository.findBySessionIdAndStatusIn(
+                query.sessionId(), List.of(CollabMemberStatus.PENDING, CollabMemberStatus.ACCEPTED))
+                .stream().anyMatch(member -> Objects.equals(member.getUserId(), query.userId()));
+        if (!isOwner && !isParticipant) {
+            return Result.failure(ApplicationError.forbidden("COLLAB_SESSION_FORBIDDEN", "Only session participants can read the session"));
+        }
+        return Result.success(buildState(new GetCollabQuestSessionStateQuery(session.get().getQuestId(), query.userId()), session.get()));
+    }
+
+    private CollabQuestSessionState buildState(GetCollabQuestSessionStateQuery query, CollabQuestSession session) {
         var members = session == null
                 ? List.<CollabQuestMember>of()
                 : collabQuestMemberRepository.findBySessionIdAndStatusIn(
@@ -80,6 +103,7 @@ public class CollabQuestSessionQueryServiceImpl implements CollabQuestSessionQue
         var currentMember = findCurrentMember(members, query.userId());
         var pendingInvitation = currentMember != null
                 && currentMember.getStatus() == CollabMemberStatus.PENDING
+                && session.getStatus() == CollabQuestStatus.PENDING
                 ? currentMember
                 : null;
         var counters = buildCounters(members);
@@ -159,7 +183,7 @@ public class CollabQuestSessionQueryServiceImpl implements CollabQuestSessionQue
                 acceptedInvites,
                 pendingInvites,
                 acceptedInvites + pendingInvites,
-                MAX_INVITES
+                MAX_MEMBERS
         );
     }
 
@@ -181,11 +205,12 @@ public class CollabQuestSessionQueryServiceImpl implements CollabQuestSessionQue
                     .isPresent();
             var quest = questRepository.findById(query.questId());
             var questIsCollaborative = quest.isPresent()
-                    && quest.get().getType() == QuestType.COLLABORATIVE;
+                    && quest.get().getType() == QuestType.COLLABORATIVE
+                    && quest.get().acceptsNewAssignments();
             var questHasActivities = activityRepository.countByQuestId(query.questId()) > 0;
             return new CollabQuestPermissions(
                     !userHasActiveQuestUser && questIsCollaborative && questHasActivities,
-                    !userHasActiveQuestUser && questHasActivities,
+                    false,
                     false,
                     false,
                     false,
@@ -206,25 +231,31 @@ public class CollabQuestSessionQueryServiceImpl implements CollabQuestSessionQue
                 )
                 .isPresent();
 
-        var canInvite = isOwner
+        var quest = questRepository.findById(query.questId());
+        var eligibleQuest = quest.isPresent() && quest.get().acceptsNewAssignments()
+                && quest.get().getType() == QuestType.COLLABORATIVE;
+        var canInvite = eligibleQuest && isOwner
                 && isPendingSession
                 && !isFamilyPlanSession
                 && !userHasQuestUser
                 && counters.activeInvites() < counters.maxInvites();
 
-        var canStart = isOwner
+        var canStart = eligibleQuest && !isFamilyPlanSession && isOwner
                 && isPendingSession
-                && counters.acceptedInvites() >= 2
+                && counters.acceptedInvites() >= CollabQuestSession.MIN_ACCEPTED_MEMBERS
                 && activityRepository.countByQuestId(query.questId()) > 0
                 && acceptedMembersAreAvailable(members, query.questId());
 
         var canAcceptInvitation = pendingInvitation != null
                 && isPendingSession
-                && !userHasQuestUser;
+                && !userHasQuestUser
+                && !isFamilyPlanSession
+                && collabQuestMemberRepository.findByUserIdAndQuestIdAndSessionStatusIn(query.userId(), query.questId(), ACTIVE_SESSION_STATUSES)
+                    .stream().noneMatch(m -> m.getStatus() == CollabMemberStatus.ACCEPTED && !Objects.equals(m.getSessionId(), session.getId()));
 
         var canLeave = currentMember != null
-                && currentMember.getRole() != MemberRole.OWNER
-                && currentMember.getStatus() == CollabMemberStatus.ACCEPTED
+                && (currentMember.getRole() != MemberRole.OWNER || session.getStatus() == CollabQuestStatus.STARTED)
+                && (currentMember.getStatus() == CollabMemberStatus.ACCEPTED || (isPendingSession && currentMember.getStatus() == CollabMemberStatus.PENDING))
                 && (isPendingSession || session.getStatus() == CollabQuestStatus.STARTED);
 
         var canRemoveMembers = isOwner && isPendingSession && !isFamilyPlanSession;

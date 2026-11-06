@@ -7,6 +7,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface CollabQuestSessionRepository {
+    /** Serialize enrollment decisions for the same quest until transaction completion. */
+    void lockQuest(Long questId);
+    void lockQuestForSession(Long sessionId);
+    void lockQuestForMember(Long memberId);
     CollabQuestSession save(CollabQuestSession collabQuestSession);
     Optional<CollabQuestSession> findById(Long id);
 

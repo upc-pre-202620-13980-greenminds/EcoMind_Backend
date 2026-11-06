@@ -1,4 +1,4 @@
 package pe.greenminds.ecomind.quests.domain.model.commands;
 
-public record DeclineCollabQuestMemberCommand(Long memberId) {
+public record DeclineCollabQuestMemberCommand(Long memberId, Long actorUserId) {
 }
