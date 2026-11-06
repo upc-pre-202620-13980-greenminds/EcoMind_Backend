@@ -3,6 +3,7 @@ package pe.greenminds.ecomind.quests.application.internal.commandservices;
 import jakarta.transaction.Transactional;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.CollabQuestMember;
 import pe.greenminds.ecomind.quests.application.commandservices.CollabQuestSessionCommandService;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.CollabQuestSession;
@@ -71,6 +72,7 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
     public Result<CollabQuestSession, ApplicationError> handle(
             CreateCollabQuestSessionCommand command
     ) {
+        collabQuestSessionRepository.lockQuest(command.questId());
         var quest = questRepository.findById(command.questId());
         if (quest.isEmpty()) {
             return Result.failure(
@@ -81,7 +83,7 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
         if (quest.get().getType() != QuestType.COLLABORATIVE) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Only collaborative quests can have collaborative sessions",
+                            "COLLAB_QUEST_TYPE_REQUIRED",
                             "Quest %d is not collaborative".formatted(command.questId())
                     )
             );
@@ -89,14 +91,14 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
 
         if (!quest.get().acceptsNewAssignments()) {
             return Result.failure(ApplicationError.businessRuleViolation(
-                    "Quest is not published",
+                    "COLLAB_QUEST_UNAVAILABLE",
                     "Only PUBLISHED quests accept new collaborative sessions"));
         }
 
         if (activityRepository.countByQuestId(command.questId()) < 1) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Collaborative quest must have at least one activity",
+                            "COLLAB_NO_ACTIVITIES",
                             "Quest %d has no activities".formatted(command.questId())
                     )
             );
@@ -115,6 +117,12 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
                             "The user already has a collaborative session for this quest"
                     )
             );
+        }
+
+        if (questUserRepository.existsByUserIdAndQuestIdAndStatusIn(command.ownerUserId(), command.questId(), ACTIVE_QUEST_USER_STATUSES)
+                || collabQuestMemberRepository.findByUserIdAndQuestIdAndSessionStatusIn(command.ownerUserId(), command.questId(), ACTIVE_SESSION_STATUSES)
+                    .stream().anyMatch(m -> m.getStatus() == CollabMemberStatus.ACCEPTED)) {
+            return Result.failure(ApplicationError.conflict("QuestUser", "User already enrolled in this quest"));
         }
 
         try {
@@ -137,6 +145,7 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
 
             return Result.success(savedCollabQuestSession);
         } catch (IllegalArgumentException | NullPointerException exception) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.failure(
                     ApplicationError.validationError(
                             "CollabQuestSession",
@@ -144,6 +153,7 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
                     )
             );
         } catch (Exception exception) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.failure(
                     ApplicationError.unexpected(
                             "CollabQuestSession creation",
@@ -158,6 +168,7 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
     public Result<CollabQuestSession, ApplicationError> handle(
             StartCollabQuestSessionCommand command
     ) {
+        collabQuestSessionRepository.lockQuestForSession(command.sessionId());
         var session = collabQuestSessionRepository.findById(command.sessionId());
         if (session.isEmpty()) {
             return Result.failure(
@@ -170,25 +181,30 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
 
         if (!Objects.equals(session.get().getOwnerId(), command.ownerUserId())) {
             return Result.failure(
-                    ApplicationError.businessRuleViolation(
-                            "Only the session owner can start the session",
-                            "User %d is not the owner of session %d".formatted(
-                                    command.ownerUserId(),
-                                    command.sessionId()
-                            )
+                    ApplicationError.forbidden("COLLAB_OWNER_REQUIRED", "Only the organizer can perform this action"
                     )
             );
         }
 
         if (session.get().getStatus() != pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabQuestStatus.PENDING) {
             return Result.failure(ApplicationError.businessRuleViolation(
-                    "Only pending sessions can be started", "The session has already started or closed"));
+                    "COLLAB_SESSION_NOT_PENDING", "The session has already started or closed"));
+        }
+
+        if (familyPlanItemRepository.existsByCollaborativeSessionId(command.sessionId())) {
+            return Result.failure(ApplicationError.businessRuleViolation("COLLAB_FAMILY_PLAN_MANAGED", "Start family sessions through the family plan"));
+        }
+
+        var quest = questRepository.findById(session.get().getQuestId());
+        if (quest.isEmpty() || !quest.get().acceptsNewAssignments()
+                || quest.get().getType() != QuestType.COLLABORATIVE) {
+            return Result.failure(ApplicationError.businessRuleViolation("COLLAB_QUEST_UNAVAILABLE", "Quest must be published and collaborative or family"));
         }
 
         if (activityRepository.countByQuestId(session.get().getQuestId()) < 1) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Collaborative quest must have at least one activity",
+                            "COLLAB_NO_ACTIVITIES",
                             "Quest %d has no activities".formatted(session.get().getQuestId())
                     )
             );
@@ -199,16 +215,22 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
                 List.of(CollabMemberStatus.ACCEPTED)
         );
 
-        if (acceptedMembers.size() < 2) {
+        if (acceptedMembers.size() < CollabQuestSession.MIN_ACCEPTED_MEMBERS) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Collaborative quest requires at least two accepted members",
+                            "COLLAB_MIN_MEMBERS_REQUIRED",
                             "Accepted members: %d".formatted(acceptedMembers.size())
                     )
             );
         }
 
         for (var member : acceptedMembers) {
+            if (collabQuestMemberRepository.findByUserIdAndQuestIdAndSessionStatusIn(
+                    member.getUserId(), session.get().getQuestId(), ACTIVE_SESSION_STATUSES).stream()
+                    .anyMatch(m -> m.getStatus() == CollabMemberStatus.ACCEPTED
+                            && !Objects.equals(m.getSessionId(), command.sessionId()))) {
+                return Result.failure(ApplicationError.conflict("CollabQuestMember", "User accepted another session for this quest"));
+            }
             if (questUserRepository.existsByUserIdAndQuestIdAndStatusIn(
                     member.getUserId(),
                     session.get().getQuestId(),
@@ -226,6 +248,14 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
         }
 
         try {
+            var activities = activityRepository.findByQuestsIdOrderByOrderAsc(session.get().getQuestId());
+            if (activities.isEmpty()) {
+                return Result.failure(ApplicationError.businessRuleViolation("COLLAB_NO_ACTIVITIES", "Quest has no activities"));
+            }
+            // Validate every activity snapshot before persisting any assignment.
+            for (var activity : activities) {
+                new ActivityUser(1L, activity.getId(), activity.getDescription(), activity.getActivityConfiguration(), session.get().getId());
+            }
             for (var member : acceptedMembers) {
                 var questUser = questUserRepository.save(
                         new QuestUser(
@@ -235,9 +265,6 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
                         )
                 );
 
-                var activities = activityRepository.findByQuestsIdOrderByOrderAsc(
-                        questUser.getQuestId()
-                );
                 for (var activity : activities) {
                     activityUserRepository.save(
                             new ActivityUser(
@@ -258,6 +285,7 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
                     java.time.OffsetDateTime.now()));
             return Result.success(savedSession);
         } catch (IllegalArgumentException | NullPointerException exception) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.failure(
                     ApplicationError.validationError(
                             "CollabQuestSession",
@@ -265,13 +293,15 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
                     )
             );
         } catch (IllegalStateException exception) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Collaborative quest session cannot be started",
+                            "COLLAB_START_FAILED",
                             exception.getMessage()
                     )
             );
         } catch (Exception exception) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.failure(
                     ApplicationError.unexpected(
                             "CollabQuestSession start",
@@ -286,6 +316,7 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
     public Result<CollabQuestSession, ApplicationError> handle(
             DeletePendingCollabQuestSessionCommand command
     ) {
+        collabQuestSessionRepository.lockQuestForSession(command.sessionId());
         var session = collabQuestSessionRepository.findById(command.sessionId());
         if (session.isEmpty()) {
             return Result.failure(
@@ -298,19 +329,14 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
 
         if (!Objects.equals(session.get().getOwnerId(), command.ownerUserId())) {
             return Result.failure(
-                    ApplicationError.businessRuleViolation(
-                            "Only the session owner can delete the session",
-                            "User %d is not the owner of session %d".formatted(
-                                    command.ownerUserId(),
-                                    command.sessionId()
-                            )
+                    ApplicationError.forbidden("COLLAB_OWNER_REQUIRED", "Only the organizer can perform this action"
                     )
             );
         }
         if (familyPlanItemRepository.existsByCollaborativeSessionId(command.sessionId())) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Family plan sessions cannot be deleted directly",
+                            "COLLAB_FAMILY_PLAN_MANAGED",
                             "Cancel the family plan instead"
                     )
             );
@@ -319,7 +345,7 @@ public class CollabQuestSessionCommandServiceImpl implements CollabQuestSessionC
         if (session.get().getStatus() != pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabQuestStatus.PENDING) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Only pending sessions can be deleted",
+                            "COLLAB_SESSION_NOT_PENDING",
                             "Session %d is %s".formatted(
                                     command.sessionId(),
                                     session.get().getStatus()

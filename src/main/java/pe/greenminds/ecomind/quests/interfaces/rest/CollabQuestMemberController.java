@@ -21,6 +21,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import pe.greenminds.ecomind.quests.application.commandservices.CollabQuestMemberCommandService;
 import pe.greenminds.ecomind.quests.application.queryservices.CollabQuestMemberQueryService;
+import pe.greenminds.ecomind.quests.application.queryservices.CollabQuestSessionQueryService;
+import pe.greenminds.ecomind.quests.application.queryservices.CollabQuestSessionState;
+import pe.greenminds.ecomind.quests.domain.model.queries.GetCollabQuestSessionStateBySessionIdQuery;
+import pe.greenminds.ecomind.quests.domain.model.queries.GetCollabQuestInvitationsByUserQuery;
+import pe.greenminds.ecomind.quests.interfaces.rest.transform.CollabQuestInvitationResourceAssembler;
+import pe.greenminds.ecomind.shared.application.result.Result;
 import pe.greenminds.ecomind.quests.domain.model.commands.AcceptCollabQuestMemberCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.DeclineCollabQuestMemberCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.LeaveCollabQuestMemberCommand;
@@ -47,34 +53,41 @@ import java.util.List;
 )
 @Tag(name = "Collaborative Quest Members", description = "Collaborative quest member endpoints")
 public class CollabQuestMemberController {
+    private final CollabQuestSessionQueryService collabQuestSessionQueryService;
     private final CollabQuestMemberCommandService collabQuestMemberCommandService;
     private final CollabQuestMemberQueryService collabQuestMemberQueryService;
 
     public CollabQuestMemberController(
             CollabQuestMemberCommandService collabQuestMemberCommandService,
-            CollabQuestMemberQueryService collabQuestMemberQueryService
+            CollabQuestMemberQueryService collabQuestMemberQueryService,
+            CollabQuestSessionQueryService collabQuestSessionQueryService
     ) {
+        this.collabQuestSessionQueryService = collabQuestSessionQueryService;
         this.collabQuestMemberCommandService = collabQuestMemberCommandService;
         this.collabQuestMemberQueryService = collabQuestMemberQueryService;
     }
 
     @GetMapping("/{memberId}")
     @Operation(summary = "Get a collaborative quest member by ID")
-    public ResponseEntity<?> getById(@PathVariable Long memberId) {
+    public ResponseEntity<?> getById(@PathVariable Long memberId, @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         var member = collabQuestMemberQueryService.handle(
                 new GetCollabQuestMemberByIdQuery(memberId));
         if (member.isEmpty()) {
             return ErrorResponseAssembler.toErrorResponseFromApplicationError(
                     ApplicationError.notFound("CollabQuestMember", memberId.toString()));
         }
+        var denied = checkSessionAccess(member.get().getSessionId(), principal.accountId());
+        if (denied != null) return denied;
         return ResponseEntity.ok(
                 CollabQuestMemberResourceFromEntityAssembler.toResourceFromEntity(member.get()));
     }
 
     @GetMapping("/sessions/{sessionId}")
     @Operation(summary = "Get all members of a collaborative quest session")
-    public ResponseEntity<List<CollabQuestMemberResource>> getBySession(
-            @PathVariable Long sessionId) {
+    public ResponseEntity<?> getBySession(
+            @PathVariable Long sessionId, @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        var denied = checkSessionAccess(sessionId, principal.accountId());
+        if (denied != null) return denied;
         var resources = collabQuestMemberQueryService.handle(
                         new GetCollabQuestMembersBySessionQuery(sessionId))
                 .stream().map(CollabQuestMemberResourceFromEntityAssembler::toResourceFromEntity)
@@ -91,6 +104,15 @@ public class CollabQuestMemberController {
                         new GetCollabQuestMembersByUserQuery(principal.accountId(), status))
                 .stream().map(CollabQuestMemberResourceFromEntityAssembler::toResourceFromEntity)
                 .toList();
+        return ResponseEntity.ok(resources);
+    }
+
+    @GetMapping("/me/invitations")
+    @Operation(summary = "Get actionable collaborative quest invitations for the authenticated user")
+    public ResponseEntity<?> invitations(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        var resources = collabQuestMemberQueryService.handle(
+                        new GetCollabQuestInvitationsByUserQuery(principal.accountId()))
+                .stream().map(CollabQuestInvitationResourceAssembler::toResource).toList();
         return ResponseEntity.ok(resources);
     }
 
@@ -147,7 +169,7 @@ public class CollabQuestMemberController {
         var denied = checkMemberOwner(memberId, principal.accountId());
         if (denied != null) return denied;
         var result = collabQuestMemberCommandService.handle(
-                new AcceptCollabQuestMemberCommand(memberId)
+                new AcceptCollabQuestMemberCommand(memberId, principal.accountId())
         );
 
         return ResponseEntityAssembler.toResponseEntityFromResult(
@@ -173,7 +195,7 @@ public class CollabQuestMemberController {
         var denied = checkMemberOwner(memberId, principal.accountId());
         if (denied != null) return denied;
         var result = collabQuestMemberCommandService.handle(
-                new DeclineCollabQuestMemberCommand(memberId)
+                new DeclineCollabQuestMemberCommand(memberId, principal.accountId())
         );
 
         return ResponseEntityAssembler.toResponseEntityFromResult(
@@ -199,7 +221,7 @@ public class CollabQuestMemberController {
         var denied = checkMemberOwner(memberId, principal.accountId());
         if (denied != null) return denied;
         var result = collabQuestMemberCommandService.handle(
-                new LeaveCollabQuestMemberCommand(memberId)
+                new LeaveCollabQuestMemberCommand(memberId, principal.accountId())
         );
 
         return ResponseEntityAssembler.toResponseEntityFromResult(
@@ -234,6 +256,16 @@ public class CollabQuestMemberController {
                 HttpStatus.OK
         );
     }
+    private ResponseEntity<?> checkSessionAccess(Long sessionId, Long userId) {
+        var result = collabQuestSessionQueryService.handle(
+                new GetCollabQuestSessionStateBySessionIdQuery(sessionId, userId));
+        return switch (result) {
+            case Result.Success<CollabQuestSessionState, ApplicationError> ignored -> null;
+            case Result.Failure<CollabQuestSessionState, ApplicationError> failure ->
+                    ErrorResponseAssembler.toErrorResponseFromApplicationError(failure.error());
+        };
+    }
+
     private ResponseEntity<?> checkMemberOwner(Long memberId, Long userId) {
         var member = collabQuestMemberQueryService.handle(new GetCollabQuestMemberByIdQuery(memberId));
         if (member.isEmpty()) {
