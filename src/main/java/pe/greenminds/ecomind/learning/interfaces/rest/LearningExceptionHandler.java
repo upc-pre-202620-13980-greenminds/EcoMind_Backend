@@ -5,7 +5,7 @@ import java.util.NoSuchElementException;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
-@RestControllerAdvice(assignableTypes = EducationalMaterialController.class)
+@RestControllerAdvice(assignableTypes = {EducationalMaterialController.class, TutorialController.class})
 public class LearningExceptionHandler {
   @ExceptionHandler(NoSuchElementException.class)
   public ResponseEntity<Map<String, String>> notFound(NoSuchElementException exception) {
