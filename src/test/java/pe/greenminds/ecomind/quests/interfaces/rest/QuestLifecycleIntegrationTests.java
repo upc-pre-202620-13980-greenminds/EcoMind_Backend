@@ -196,7 +196,7 @@ class QuestLifecycleIntegrationTests {
   @Test
   void ownerCanRevokeInvitationAndDeletePendingSession() throws Exception {
     long q = quest("COLLABORATIVE"), s = session(q), m = invite(s);
-    call(patch("/api/v1/collaborative-quest-members/" + m + "/remove"), outsider, null, 422);
+    call(patch("/api/v1/collaborative-quest-members/" + m + "/remove"), outsider, null, 403);
     call(patch("/api/v1/collaborative-quest-members/" + m + "/remove"), owner, null, 200);
     call(delete("/api/v1/collaborative-quests/" + s), owner, null, 204);
     assertNull(JsonPath.read(state(q, owner), "$.session"));

@@ -112,7 +112,13 @@ public class CollaborativeQuestSteps {
 
   @Then("the collaborative invitation is rejected for {string}")
   public void rejected(String actor) {
-    status(actor, "REJECTED");
+    api.get("/api/v1/collaborative-quest-members/me?status=REJECTED", users.tokenOf(actor));
+    assertThat(api.status()).as(api.body()).isEqualTo(200);
+    assertThat(Long.parseLong(api.jsonValue("$[0].id"))).isEqualTo(invitation);
+    assertThat(api.jsonValue("$[0].status")).isEqualTo("REJECTED");
+    // A revoked invitation no longer grants access to the shared session.
+    api.get("/api/v1/collaborative-quest-members/" + invitation, users.tokenOf(actor));
+    assertThat(api.status()).as(api.body()).isEqualTo(403);
   }
 
   private void status(String actor, String expected) {

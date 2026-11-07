@@ -18,12 +18,15 @@ import pe.greenminds.ecomind.quests.domain.model.commands.*;
 import pe.greenminds.ecomind.quests.domain.model.events.*;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.*;
 import pe.greenminds.ecomind.quests.domain.repositories.*;
+import pe.greenminds.ecomind.shared.application.result.ApplicationError;
+import pe.greenminds.ecomind.shared.application.result.Result;
 
 @ExtendWith(MockitoExtension.class)
 class CollabQuestMemberCommandServiceImplTests {
   @Mock CollabQuestMemberRepository members;
   @Mock CollabQuestSessionRepository sessions;
   @Mock QuestUserRepository progress;
+  @Mock QuestRepository quests;
   @Mock ActivityUserRepository activities;
   @Mock FamilyPlanItemRepository plans;
   @Mock UsersServiceClient users;
@@ -49,9 +52,17 @@ class CollabQuestMemberCommandServiceImplTests {
 
   void eligibleInvite(boolean friend) {
     session(CollabQuestStatus.PENDING);
+    publishedQuest();
     when(users.existsUser(30L)).thenReturn(true);
     when(users.areFriends(20L, 30L)).thenReturn(friend);
     if (!friend) when(users.belongToSameFamily(20L, 30L)).thenReturn(true);
+  }
+
+  void publishedQuest() {
+    var quest = new Quest(3L, null, "Cleanup", Category.ENERGY, "Check the rooms",
+        QuestType.COLLABORATIVE, 8, new Reward(2, 10), 2, null, Theme.CHECKBOX, null);
+    quest.publish();
+    when(quests.findById(3L)).thenReturn(Optional.of(quest));
   }
 
   @Test
@@ -81,6 +92,7 @@ class CollabQuestMemberCommandServiceImplTests {
   @Test
   void ownerCannotInviteThemself() {
     session(CollabQuestStatus.PENDING);
+    publishedQuest();
     assertTrue(service.handle(new InviteCollabQuestMemberCommand(9L, 20L, 20L)).isFailure());
   }
 
@@ -94,6 +106,7 @@ class CollabQuestMemberCommandServiceImplTests {
   @Test
   void missingInviteeIsRejected() {
     session(CollabQuestStatus.PENDING);
+    publishedQuest();
     assertTrue(service.handle(new InviteCollabQuestMemberCommand(9L, 20L, 30L)).isFailure());
     verify(members, never()).save(any());
   }
@@ -101,6 +114,7 @@ class CollabQuestMemberCommandServiceImplTests {
   @Test
   void strangerCannotBeInvited() {
     session(CollabQuestStatus.PENDING);
+    publishedQuest();
     when(users.existsUser(30L)).thenReturn(true);
     assertTrue(service.handle(new InviteCollabQuestMemberCommand(9L, 20L, 30L)).isFailure());
     verify(members, never()).save(any());
@@ -143,9 +157,9 @@ class CollabQuestMemberCommandServiceImplTests {
   void missingMembershipCannotBeChanged(String operation) {
     var result =
         switch (operation) {
-          case "accept" -> service.handle(new AcceptCollabQuestMemberCommand(7L));
-          case "decline" -> service.handle(new DeclineCollabQuestMemberCommand(7L));
-          case "leave" -> service.handle(new LeaveCollabQuestMemberCommand(7L));
+          case "accept" -> service.handle(new AcceptCollabQuestMemberCommand(7L, 30L));
+          case "decline" -> service.handle(new DeclineCollabQuestMemberCommand(7L, 30L));
+          case "leave" -> service.handle(new LeaveCollabQuestMemberCommand(7L, 30L));
           default -> service.handle(new RemoveCollabQuestMemberCommand(7L, 20L));
         };
     assertTrue(result.isFailure());
@@ -153,13 +167,31 @@ class CollabQuestMemberCommandServiceImplTests {
   }
 
   @ParameterizedTest
+  @ValueSource(strings = {"accept", "decline", "leave"})
+  void anotherUserCannotAnswerOrLeaveMembership(String operation) {
+    var m = member(CollabMemberStatus.PENDING, MemberRole.PARTICIPANT);
+    var result = switch (operation) {
+      case "accept" -> service.handle(new AcceptCollabQuestMemberCommand(7L, 40L));
+      case "decline" -> service.handle(new DeclineCollabQuestMemberCommand(7L, 40L));
+      default -> service.handle(new LeaveCollabQuestMemberCommand(7L, 40L));
+    };
+    var failure = assertInstanceOf(Result.Failure.class, result);
+    var error = assertInstanceOf(ApplicationError.class, failure.error());
+    assertEquals("COLLAB_MEMBER_FORBIDDEN", error.code());
+    assertEquals(CollabMemberStatus.PENDING, m.getStatus());
+    verify(members, never()).save(any());
+    verifyNoInteractions(events, activities, progress);
+  }
+
+  @ParameterizedTest
   @ValueSource(strings = {"accept", "decline"})
   void ownerCannotAnswerAnInvitation(String operation) {
     member(CollabMemberStatus.ACCEPTED, MemberRole.OWNER);
+    if (operation.equals("decline")) session(CollabQuestStatus.PENDING);
     assertTrue(
         (operation.equals("accept")
-                ? service.handle(new AcceptCollabQuestMemberCommand(7L))
-                : service.handle(new DeclineCollabQuestMemberCommand(7L)))
+                ? service.handle(new AcceptCollabQuestMemberCommand(7L, 20L))
+                : service.handle(new DeclineCollabQuestMemberCommand(7L, 20L)))
             .isFailure());
   }
 
@@ -169,14 +201,14 @@ class CollabQuestMemberCommandServiceImplTests {
       names = {"ACCEPTED", "REJECTED", "LEFT"})
   void answeredInvitationCannotBeAcceptedAgain(CollabMemberStatus status) {
     member(status, MemberRole.PARTICIPANT);
-    assertTrue(service.handle(new AcceptCollabQuestMemberCommand(7L)).isFailure());
+    assertTrue(service.handle(new AcceptCollabQuestMemberCommand(7L, 30L)).isFailure());
     verifyNoInteractions(events);
   }
 
   @Test
   void acceptanceRequiresSession() {
     member(CollabMemberStatus.PENDING, MemberRole.PARTICIPANT);
-    assertTrue(service.handle(new AcceptCollabQuestMemberCommand(7L)).isFailure());
+    assertTrue(service.handle(new AcceptCollabQuestMemberCommand(7L, 30L)).isFailure());
   }
 
   @ParameterizedTest
@@ -186,7 +218,7 @@ class CollabQuestMemberCommandServiceImplTests {
   void acceptanceRequiresPendingSession(CollabQuestStatus status) {
     member(CollabMemberStatus.PENDING, MemberRole.PARTICIPANT);
     session(status);
-    assertTrue(service.handle(new AcceptCollabQuestMemberCommand(7L)).isFailure());
+    assertTrue(service.handle(new AcceptCollabQuestMemberCommand(7L, 30L)).isFailure());
   }
 
   @Test
@@ -198,7 +230,7 @@ class CollabQuestMemberCommandServiceImplTests {
     other.setId(8L);
     when(members.findByUserIdAndQuestIdAndSessionStatusIn(eq(30L), eq(3L), anyList()))
         .thenReturn(List.of(other));
-    assertTrue(service.handle(new AcceptCollabQuestMemberCommand(7L)).isFailure());
+    assertTrue(service.handle(new AcceptCollabQuestMemberCommand(7L, 30L)).isFailure());
     verifyNoInteractions(events);
   }
 
@@ -208,7 +240,7 @@ class CollabQuestMemberCommandServiceImplTests {
     session(CollabQuestStatus.PENDING);
     when(progress.findFirstByUserIdAndQuestIdAndStatusIn(eq(30L), eq(3L), anyList()))
         .thenReturn(Optional.of(new QuestUser(30L, 3L, 10L)));
-    assertTrue(service.handle(new AcceptCollabQuestMemberCommand(7L)).isFailure());
+    assertTrue(service.handle(new AcceptCollabQuestMemberCommand(7L, 30L)).isFailure());
     verifyNoInteractions(events);
   }
 
@@ -217,7 +249,7 @@ class CollabQuestMemberCommandServiceImplTests {
     var m = member(CollabMemberStatus.PENDING, MemberRole.PARTICIPANT);
     session(CollabQuestStatus.PENDING);
     saveMember();
-    assertTrue(service.handle(new AcceptCollabQuestMemberCommand(7L)).isSuccess());
+    assertTrue(service.handle(new AcceptCollabQuestMemberCommand(7L, 30L)).isSuccess());
     assertEquals(CollabMemberStatus.ACCEPTED, m.getStatus());
     assertNotNull(m.getAnswerDate());
     verify(events).publishEvent(any(CollaborativeQuestInvitationAcceptedEvent.class));
@@ -226,8 +258,9 @@ class CollabQuestMemberCommandServiceImplTests {
   @Test
   void declinePersistsRejectionAndPublishesEvent() {
     var m = member(CollabMemberStatus.PENDING, MemberRole.PARTICIPANT);
+    session(CollabQuestStatus.PENDING);
     saveMember();
-    assertTrue(service.handle(new DeclineCollabQuestMemberCommand(7L)).isSuccess());
+    assertTrue(service.handle(new DeclineCollabQuestMemberCommand(7L, 30L)).isSuccess());
     assertEquals(CollabMemberStatus.REJECTED, m.getStatus());
     assertNotNull(m.getRevokeDate());
     verify(events).publishEvent(any(CollaborativeQuestInvitationRejectedEvent.class));
@@ -237,13 +270,13 @@ class CollabQuestMemberCommandServiceImplTests {
   @ValueSource(strings = {"accept", "decline", "leave", "remove"})
   void familyPlanMembershipCannotBeChangedIndividually(String operation) {
     member(CollabMemberStatus.PENDING, MemberRole.PARTICIPANT);
-    if (!operation.equals("decline")) session(CollabQuestStatus.PENDING);
+    session(CollabQuestStatus.PENDING);
     when(plans.existsByCollaborativeSessionId(9L)).thenReturn(true);
     var result =
         switch (operation) {
-          case "accept" -> service.handle(new AcceptCollabQuestMemberCommand(7L));
-          case "decline" -> service.handle(new DeclineCollabQuestMemberCommand(7L));
-          case "leave" -> service.handle(new LeaveCollabQuestMemberCommand(7L));
+          case "accept" -> service.handle(new AcceptCollabQuestMemberCommand(7L, 30L));
+          case "decline" -> service.handle(new DeclineCollabQuestMemberCommand(7L, 30L));
+          case "leave" -> service.handle(new LeaveCollabQuestMemberCommand(7L, 30L));
           default -> service.handle(new RemoveCollabQuestMemberCommand(7L, 20L));
         };
     assertTrue(result.isFailure());
@@ -255,7 +288,7 @@ class CollabQuestMemberCommandServiceImplTests {
     var m = member(CollabMemberStatus.PENDING, MemberRole.PARTICIPANT);
     session(CollabQuestStatus.PENDING);
     saveMember();
-    assertTrue(service.handle(new LeaveCollabQuestMemberCommand(7L)).isSuccess());
+    assertTrue(service.handle(new LeaveCollabQuestMemberCommand(7L, 30L)).isSuccess());
     assertEquals(CollabMemberStatus.REJECTED, m.getStatus());
     verifyNoInteractions(activities, progress);
   }
@@ -264,7 +297,7 @@ class CollabQuestMemberCommandServiceImplTests {
   void ownerCannotLeavePendingSession() {
     member(CollabMemberStatus.ACCEPTED, MemberRole.OWNER);
     session(CollabQuestStatus.PENDING);
-    assertTrue(service.handle(new LeaveCollabQuestMemberCommand(7L)).isFailure());
+    assertTrue(service.handle(new LeaveCollabQuestMemberCommand(7L, 20L)).isFailure());
   }
 
   @ParameterizedTest
@@ -274,7 +307,7 @@ class CollabQuestMemberCommandServiceImplTests {
   void completedOrCancelledSessionCannotBeLeft(CollabQuestStatus status) {
     member(CollabMemberStatus.ACCEPTED, MemberRole.PARTICIPANT);
     session(status);
-    assertTrue(service.handle(new LeaveCollabQuestMemberCommand(7L)).isFailure());
+    assertTrue(service.handle(new LeaveCollabQuestMemberCommand(7L, 30L)).isFailure());
   }
 
   @ParameterizedTest
@@ -284,7 +317,7 @@ class CollabQuestMemberCommandServiceImplTests {
   void onlyAcceptedParticipantMayLeaveStartedSession(CollabMemberStatus status) {
     member(status, MemberRole.PARTICIPANT);
     session(CollabQuestStatus.STARTED);
-    assertTrue(service.handle(new LeaveCollabQuestMemberCommand(7L)).isFailure());
+    assertTrue(service.handle(new LeaveCollabQuestMemberCommand(7L, 30L)).isFailure());
   }
 
   @ParameterizedTest
@@ -304,7 +337,7 @@ class CollabQuestMemberCommandServiceImplTests {
                     new CollabQuestMember(
                         9L, 20L, 20L, MemberRole.OWNER, CollabMemberStatus.ACCEPTED))
                 : List.of());
-    assertTrue(service.handle(new LeaveCollabQuestMemberCommand(7L)).isSuccess());
+    assertTrue(service.handle(new LeaveCollabQuestMemberCommand(7L, 30L)).isSuccess());
     assertEquals(CollabMemberStatus.LEFT, m.getStatus());
     verify(activities).deleteByQuestUserId(15L);
     verify(progress).deleteById(15L);
@@ -317,7 +350,7 @@ class CollabQuestMemberCommandServiceImplTests {
     member(CollabMemberStatus.ACCEPTED, MemberRole.PARTICIPANT);
     var s = session(CollabQuestStatus.STARTED);
     saveMember();
-    assertTrue(service.handle(new LeaveCollabQuestMemberCommand(7L)).isSuccess());
+    assertTrue(service.handle(new LeaveCollabQuestMemberCommand(7L, 30L)).isSuccess());
     assertEquals(CollabQuestStatus.CANCELLED, s.getStatus());
     verifyNoInteractions(activities);
   }
@@ -360,6 +393,7 @@ class CollabQuestMemberCommandServiceImplTests {
   @Test
   void invitationLimitIncludesOwnerAndPendingMembers() {
     session(CollabQuestStatus.PENDING);
+    publishedQuest();
     var active =
         java.util.stream.LongStream.rangeClosed(20, 24)
             .mapToObj(

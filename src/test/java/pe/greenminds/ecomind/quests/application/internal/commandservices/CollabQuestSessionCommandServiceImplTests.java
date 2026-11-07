@@ -54,21 +54,24 @@ class CollabQuestSessionCommandServiceImplTests {
   @Test
   void missingQuestCannotStartSession() {
     assertTrue(service.handle(command()).isFailure());
-    verifyNoInteractions(collabQuestSessionRepository);
+    verify(collabQuestSessionRepository).lockQuest(3L);
+    verifyNoMoreInteractions(collabQuestSessionRepository);
   }
 
   @Test
   void individualQuestCannotHaveCollaborativeSession() {
     quest(QuestType.ACTIVITIES, true);
     assertTrue(service.handle(command()).isFailure());
-    verifyNoInteractions(collabQuestSessionRepository);
+    verify(collabQuestSessionRepository).lockQuest(3L);
+    verifyNoMoreInteractions(collabQuestSessionRepository);
   }
 
   @Test
   void unpublishedQuestCannotHaveCollaborativeSession() {
     quest(QuestType.COLLABORATIVE, false);
     assertTrue(service.handle(command()).isFailure());
-    verifyNoInteractions(collabQuestSessionRepository);
+    verify(collabQuestSessionRepository).lockQuest(3L);
+    verifyNoMoreInteractions(collabQuestSessionRepository);
   }
 
   @Test
@@ -76,7 +79,8 @@ class CollabQuestSessionCommandServiceImplTests {
     quest(QuestType.COLLABORATIVE, true);
     when(activityRepository.countByQuestId(3L)).thenReturn(0);
     assertTrue(service.handle(command()).isFailure());
-    verifyNoInteractions(collabQuestSessionRepository);
+    verify(collabQuestSessionRepository).lockQuest(3L);
+    verifyNoMoreInteractions(collabQuestSessionRepository);
   }
 
   @Test
@@ -117,6 +121,7 @@ class CollabQuestSessionCommandServiceImplTests {
 
   @Test
   void startingRequiresTwoAcceptedMembers() {
+    quest(QuestType.COLLABORATIVE, true);
     var s = new CollabQuestSession(3L, 20L);
     s.setId(9L);
     when(collabQuestSessionRepository.findById(9L)).thenReturn(Optional.of(s));
