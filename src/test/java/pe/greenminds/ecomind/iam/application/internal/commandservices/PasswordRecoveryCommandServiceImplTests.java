@@ -1,9 +1,11 @@
 package pe.greenminds.ecomind.iam.application.internal.commandservices;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -16,6 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pe.greenminds.ecomind.iam.application.outboundservices.EmailService;
+import pe.greenminds.ecomind.iam.application.outboundservices.EmailDeliveryException;
 import pe.greenminds.ecomind.iam.domain.model.aggregates.Account;
 import pe.greenminds.ecomind.iam.domain.model.aggregates.PasswordResetToken;
 import pe.greenminds.ecomind.iam.domain.model.commands.ConfirmPasswordRecoveryCommand;
@@ -92,6 +95,33 @@ class PasswordRecoveryCommandServiceImplTests {
     assertThat(result.isSuccess()).isTrue();
     verify(passwordResetTokenRepository, never()).save(any());
     verify(emailService, never()).sendPasswordRecoveryLink(any(), any());
+  }
+
+  @Test
+  void providerFailureKeepsTheSameAcknowledgementForRegisteredAndUnknownAccounts() {
+    when(accountCredentialRepository.findAccountByEmail(EMAIL)).thenReturn(Optional.of(account()));
+    doThrow(new EmailDeliveryException(new IllegalStateException("Provider unavailable")))
+        .when(emailService).sendPasswordRecoveryLink(eq(EMAIL), any());
+    var registered = service.handle(new RequestPasswordRecoveryCommand(EMAIL.value()));
+    verify(passwordResetTokenRepository).save(any(PasswordResetToken.class));
+    verify(emailService).sendPasswordRecoveryLink(eq(EMAIL), any());
+
+    when(accountCredentialRepository.findAccountByEmail(EMAIL)).thenReturn(Optional.empty());
+    var unknown = service.handle(new RequestPasswordRecoveryCommand(EMAIL.value()));
+
+    assertThat(registered.isSuccess()).isTrue();
+    assertThat(unknown.isSuccess()).isTrue();
+    assertThat(registered).isEqualTo(unknown);
+  }
+
+  @Test
+  void unexpectedEmailErrorsAreNotSwallowed() {
+    when(accountCredentialRepository.findAccountByEmail(EMAIL)).thenReturn(Optional.of(account()));
+    doThrow(new IllegalStateException("Unexpected error"))
+        .when(emailService).sendPasswordRecoveryLink(eq(EMAIL), any());
+
+    assertThatThrownBy(() -> service.handle(new RequestPasswordRecoveryCommand(EMAIL.value())))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
