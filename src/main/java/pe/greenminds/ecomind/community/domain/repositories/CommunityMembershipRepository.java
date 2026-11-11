@@ -14,4 +14,6 @@ public interface CommunityMembershipRepository {
     List<CommunityMembership> findByCommunityId(Long communityId);
 
     long countByCommunityId(Long communityId);
+
+    void delete(CommunityMembership membership);
 }
