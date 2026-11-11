@@ -22,6 +22,9 @@ import pe.greenminds.ecomind.users.domain.model.commands.RespondFriendRequestCom
 import pe.greenminds.ecomind.users.domain.model.commands.SendFriendRequestCommand;
 import pe.greenminds.ecomind.users.domain.model.events.FriendRequestAcceptedEvent;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.FriendshipStatus;
+import pe.greenminds.ecomind.users.domain.model.aggregates.UserProfile;
+import pe.greenminds.ecomind.users.domain.model.valueobjects.InvitationCode;
+import pe.greenminds.ecomind.users.domain.model.valueobjects.SocialRole;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.UserId;
 import pe.greenminds.ecomind.users.domain.repositories.FriendshipRepository;
 import pe.greenminds.ecomind.users.domain.repositories.UserProfileRepository;
@@ -33,6 +36,7 @@ class FriendshipCommandServiceImplTests {
   private static final UserId LUIS = new UserId(1L);
   private static final UserId ANA = new UserId(2L);
   private static final Long FRIENDSHIP_ID = 50L;
+  private static final InvitationCode ANA_CODE = new InvitationCode("K7MP4QXZ");
 
   @Mock
   private FriendshipRepository friendshipRepository;
@@ -151,6 +155,41 @@ class FriendshipCommandServiceImplTests {
   }
 
   @Test
+  void sendFriendRequestWithAnInvitationCodeGoesToItsOwner() {
+    when(userProfileRepository.findByInvitationCode(ANA_CODE)).thenReturn(Optional.of(anaProfile()));
+    when(friendshipRepository.findBetween(LUIS, ANA)).thenReturn(Optional.empty());
+    when(userProfileRepository.existsById(ANA)).thenReturn(true);
+    when(friendshipRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+
+    var result = service.handle(new SendFriendRequestCommand(LUIS, ANA_CODE));
+
+    Friendship friendship = result.toOptional().orElseThrow();
+    assertThat(friendship.getReceiverId()).isEqualTo(ANA);
+    assertThat(friendship.getStatus()).isEqualTo(FriendshipStatus.PENDING);
+  }
+
+  @Test
+  void sendFriendRequestFailsWhenNobodyHasTheInvitationCode() {
+    when(userProfileRepository.findByInvitationCode(ANA_CODE)).thenReturn(Optional.empty());
+
+    var result = service.handle(new SendFriendRequestCommand(LUIS, ANA_CODE));
+
+    assertThat(errorCodeOf(result)).isEqualTo("INVITATION_CODE_NOT_FOUND");
+    verify(friendshipRepository, never()).save(any());
+  }
+
+  @Test
+  void sendFriendRequestWithOwnInvitationCodeFails() {
+    // Ana uses her own code: the rule against requests to oneself still applies
+    when(userProfileRepository.findByInvitationCode(ANA_CODE)).thenReturn(Optional.of(anaProfile()));
+
+    var result = service.handle(new SendFriendRequestCommand(ANA, ANA_CODE));
+
+    assertThat(errorCodeOf(result)).isEqualTo("FRIEND_REQUEST_TO_SELF");
+    verify(friendshipRepository, never()).save(any());
+  }
+
+  @Test
   void sendFriendRequestFailsWhenTheReceiverHasNoProfile() {
     when(friendshipRepository.findBetween(LUIS, ANA)).thenReturn(Optional.empty());
     when(userProfileRepository.existsById(ANA)).thenReturn(false);
@@ -242,6 +281,10 @@ class FriendshipCommandServiceImplTests {
   private static Friendship friendship(
       UserId requester, UserId receiver, FriendshipStatus status, Instant updatedAt) {
     return new Friendship(FRIENDSHIP_ID, requester, receiver, status, updatedAt, updatedAt);
+  }
+
+  private static UserProfile anaProfile() {
+    return new UserProfile(ANA, "Ana", SocialRole.STUDENT, 0, null, 0, 0, null, ANA_CODE);
   }
 
   // A request Luis sent to Ana that nobody answered

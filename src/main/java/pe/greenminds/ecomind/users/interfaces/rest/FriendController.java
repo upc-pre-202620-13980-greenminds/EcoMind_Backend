@@ -83,13 +83,28 @@ public class FriendController {
       description = "Sends a friend request from the authenticated user to another user. A "
           + "request cannot be sent to oneself or repeated while one is pending or accepted. "
           + "A pending request expires 48 hours after it was sent; a new one can be sent 7 "
-          + "days after a rejection, or 7 days after an unanswered request expired.")
+          + "days after a rejection, or 7 days after an unanswered request expired. The "
+          + "receiver is given either by receiverId or by invitationCode, never both.")
+  @io.swagger.v3.oas.annotations.parameters.RequestBody(
+      content = @Content(
+          schema = @Schema(implementation = SendFriendRequestResource.class),
+          examples = {
+              @ExampleObject(name = "By user id", value = """
+                  {"receiverId": 8}"""),
+              @ExampleObject(name = "By invitation code", value = """
+                  {"invitationCode": "K7MP4QXZ"}""")
+          }))
   @ApiResponse(responseCode = "201", description = "Friend request sent",
       content = @Content(schema = @Schema(implementation = FriendResource.class)))
-  @ApiResponse(responseCode = "400", description = "Missing or invalid fields",
+  @ApiResponse(responseCode = "400",
+      description = "Both or none of receiverId and invitationCode, or a code with a wrong format",
       content = @Content(schema = @Schema(implementation = ErrorResource.class)))
-  @ApiResponse(responseCode = "404", description = "The receiver does not exist",
-      content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+  @ApiResponse(responseCode = "404",
+      description = "The receiver does not exist or no user has the invitation code",
+      content = @Content(schema = @Schema(implementation = ErrorResource.class),
+          examples = @ExampleObject("""
+              {"code": "INVITATION_CODE_NOT_FOUND",
+               "message": "No user has this invitation code."}""")))
   @ApiResponse(responseCode = "409", description = "A request already exists between the users",
       content = @Content(schema = @Schema(implementation = ErrorResource.class),
           examples = @ExampleObject("""

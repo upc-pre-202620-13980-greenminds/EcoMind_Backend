@@ -3,6 +3,7 @@ package pe.greenminds.ecomind.users.application.internal.commandservices;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -23,6 +24,7 @@ import pe.greenminds.ecomind.users.domain.model.events.ProfileCreatedEvent;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.SocialRole;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.UserId;
 import pe.greenminds.ecomind.users.domain.repositories.UserProfileRepository;
+import pe.greenminds.ecomind.users.domain.services.InvitationCodeGenerator;
 
 @ExtendWith(MockitoExtension.class)
 class ProfileCommandServiceImplTests {
@@ -39,7 +41,11 @@ class ProfileCommandServiceImplTests {
 
   @BeforeEach
   void setUp() {
-    service = new ProfileCommandServiceImpl(userProfileRepository, eventPublisher);
+    service =
+        new ProfileCommandServiceImpl(
+            userProfileRepository,
+            new InvitationCodeGenerator(userProfileRepository),
+            eventPublisher);
   }
 
   @Test
@@ -57,7 +63,21 @@ class ProfileCommandServiceImplTests {
     assertThat(profile.getStreak()).isZero();
     assertThat(profile.getEcopoints()).isZero();
     assertThat(profile.getGemBalance()).isZero();
+    assertThat(profile.getInvitationCode()).isNotNull();
     verify(eventPublisher).publishEvent(any(ProfileCreatedEvent.class));
+  }
+
+  @Test
+  void createProfileDrawsAnotherInvitationCodeWhenTheFirstOneIsTaken() {
+    when(userProfileRepository.existsById(USER_ID)).thenReturn(false);
+    when(userProfileRepository.existsByInvitationCode(any())).thenReturn(true, false);
+    when(userProfileRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+
+    var result =
+        service.handle(new CreateProfileCommand(USER_ID, "Camila Torres", SocialRole.STUDENT));
+
+    assertThat(result.toOptional().orElseThrow().getInvitationCode()).isNotNull();
+    verify(userProfileRepository, times(2)).existsByInvitationCode(any());
   }
 
   @Test

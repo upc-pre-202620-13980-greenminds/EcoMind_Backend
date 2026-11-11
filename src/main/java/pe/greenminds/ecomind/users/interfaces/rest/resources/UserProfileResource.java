@@ -21,4 +21,11 @@ public record UserProfileResource(
                         description = "Cosmetic shown in the profile, if any",
                         example = "4",
                         nullable = true)
-                Long equippedCosmeticId) {}
+                Long equippedCosmeticId,
+        @Schema(
+                        description =
+                                "Code to share with friends; only returned to the owner of "
+                                        + "the profile",
+                        example = "K7MP4QXZ",
+                        nullable = true)
+                String invitationCode) {}

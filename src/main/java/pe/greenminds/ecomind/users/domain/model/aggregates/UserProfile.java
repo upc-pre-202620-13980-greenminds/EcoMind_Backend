@@ -1,6 +1,7 @@
 package pe.greenminds.ecomind.users.domain.model.aggregates;
 
 import java.time.LocalDate;
+import pe.greenminds.ecomind.users.domain.model.valueobjects.InvitationCode;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.SocialRole;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.UserId;
 
@@ -21,8 +22,9 @@ public class UserProfile {
   private int ecopoints;
   private int gemBalance;
   private final Long equippedCosmeticId;
+  private InvitationCode invitationCode;
 
-  /** Rebuilds a profile that already exists. */
+  /** Rebuilds a profile that already exists; profiles created before the code may have none. */
   public UserProfile(
       UserId userId,
       String name,
@@ -31,7 +33,8 @@ public class UserProfile {
       LocalDate lastStreakDate,
       int ecopoints,
       int gemBalance,
-      Long equippedCosmeticId) {
+      Long equippedCosmeticId,
+      InvitationCode invitationCode) {
     this.userId = userId;
     this.name = name;
     this.socialRole = socialRole;
@@ -40,14 +43,15 @@ public class UserProfile {
     this.ecopoints = ecopoints;
     this.gemBalance = gemBalance;
     this.equippedCosmeticId = equippedCosmeticId;
+    this.invitationCode = invitationCode;
   }
 
-  /** A new profile starts without progress. */
+  /** A new profile starts without progress; its invitation code is assigned before saving it. */
   public static UserProfile create(UserId userId, String name, SocialRole socialRole) {
     if (name == null || name.isBlank()) {
       throw new IllegalArgumentException("Profile name is required");
     }
-    return new UserProfile(userId, name.trim(), socialRole, 0, null, 0, 0, null);
+    return new UserProfile(userId, name.trim(), socialRole, 0, null, 0, 0, null, null);
   }
 
   /** Replaces the name shown in the profile; it follows the same length rule as the registration. */
@@ -70,6 +74,21 @@ public class UserProfile {
     this.lastStreakDate = lastStreakDate;
     this.ecopoints = ecopoints;
     this.gemBalance = gemBalance;
+  }
+
+  /** The code identifies the user, so once it is given it does not change. */
+  public void assignInvitationCode(InvitationCode code) {
+    if (code == null) {
+      throw new IllegalArgumentException("Invitation code is required");
+    }
+    if (invitationCode != null) {
+      throw new IllegalStateException("The profile already has an invitation code");
+    }
+    this.invitationCode = code;
+  }
+
+  public boolean isOwnedBy(UserId requester) {
+    return userId.equals(requester);
   }
 
   public boolean isParent() {
@@ -106,5 +125,9 @@ public class UserProfile {
 
   public Long getEquippedCosmeticId() {
     return equippedCosmeticId;
+  }
+
+  public InvitationCode getInvitationCode() {
+    return invitationCode;
   }
 }

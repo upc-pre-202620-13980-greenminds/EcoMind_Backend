@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
 import pe.greenminds.ecomind.users.domain.model.aggregates.UserProfile;
+import pe.greenminds.ecomind.users.domain.model.valueobjects.InvitationCode;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.SocialRole;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.UserId;
 import pe.greenminds.ecomind.users.domain.repositories.UserProfileRepository;
@@ -33,6 +34,8 @@ public class UserProfileRepositoryImpl implements UserProfileRepository {
     entity.setEcopoints(userProfile.getEcopoints());
     entity.setGemBalance(userProfile.getGemBalance());
     entity.setEquippedCosmeticId(userProfile.getEquippedCosmeticId());
+    entity.setInvitationCode(
+        userProfile.getInvitationCode() == null ? null : userProfile.getInvitationCode().value());
     return toDomain(persistenceRepository.save(entity));
   }
 
@@ -51,6 +54,25 @@ public class UserProfileRepositoryImpl implements UserProfileRepository {
     return persistenceRepository.existsById(userId.value());
   }
 
+  @Override
+  public Optional<UserProfile> findByInvitationCode(InvitationCode invitationCode) {
+    return persistenceRepository
+        .findByInvitationCode(invitationCode.value())
+        .map(UserProfileRepositoryImpl::toDomain);
+  }
+
+  @Override
+  public boolean existsByInvitationCode(InvitationCode invitationCode) {
+    return persistenceRepository.existsByInvitationCode(invitationCode.value());
+  }
+
+  @Override
+  public List<UserProfile> findAllWithoutInvitationCode() {
+    return persistenceRepository.findByInvitationCodeIsNull().stream()
+        .map(UserProfileRepositoryImpl::toDomain)
+        .toList();
+  }
+
   private static UserProfile toDomain(UserProfilePersistenceEntity entity) {
     return new UserProfile(
         new UserId(entity.getUserId()),
@@ -60,6 +82,7 @@ public class UserProfileRepositoryImpl implements UserProfileRepository {
         entity.getLastStreakDate(),
         entity.getEcopoints(),
         entity.getGemBalance(),
-        entity.getEquippedCosmeticId());
+        entity.getEquippedCosmeticId(),
+        entity.getInvitationCode() == null ? null : new InvitationCode(entity.getInvitationCode()));
   }
 }

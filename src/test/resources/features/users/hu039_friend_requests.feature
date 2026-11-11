@@ -60,6 +60,28 @@ Feature: Friend requests
     Then the response status is 201
     And the friend request is "PENDING"
 
+  Scenario: Only the owner sees their invitation code
+    When "Ana" looks at the profile of "Ana"
+    Then the invitation code is shown
+    When "Luis" looks at the profile of "Ana"
+    Then the invitation code is hidden
+
+  Scenario: Friend request sent with an invitation code
+    Given "Ana" shares the invitation code of "Ana"
+    When "Luis" sends a friend request with the shared invitation code
+    Then the response status is 201
+    And the friend request is "PENDING"
+    And "Ana" sees a "PENDING" friend request from "Luis"
+
+  Scenario: An invitation code that nobody has
+    When "Luis" sends a friend request with the invitation code "ZZZZ2222"
+    Then the response status is 404
+    And the error code is "INVITATION_CODE_NOT_FOUND"
+
+  Scenario: A friend request needs a receiver
+    When "Luis" sends a friend request without a receiver
+    Then the response status is 400
+
   Scenario: A friend request cannot be duplicated
     Given "Luis" has sent a friend request to "Ana"
     When "Ana" sends a friend request to "Luis"

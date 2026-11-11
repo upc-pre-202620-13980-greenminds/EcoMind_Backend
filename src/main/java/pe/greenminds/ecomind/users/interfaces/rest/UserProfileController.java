@@ -38,6 +38,7 @@ import pe.greenminds.ecomind.users.domain.model.valueobjects.UserId;
 import pe.greenminds.ecomind.users.interfaces.rest.resources.UpdateUserProfileResource;
 import pe.greenminds.ecomind.users.interfaces.rest.resources.UserProfileResource;
 import pe.greenminds.ecomind.users.interfaces.rest.transform.UpdateProfileCommandFromResourceAssembler;
+import pe.greenminds.ecomind.users.interfaces.rest.transform.UserProfileResourceFromEntityAssembler;
 
 import java.util.List;
 
@@ -67,7 +68,11 @@ public class UserProfileController {
     }
 
     @GetMapping
-    @Operation(summary = "List user profiles", description = "Returns every registered profile.")
+    @Operation(
+            summary = "List user profiles",
+            description =
+                    "Returns every registered profile. The invitation code is only filled in "
+                            + "for the profile of the authenticated user.")
     @ApiResponse(
             responseCode = "200",
             description = "Profiles found",
@@ -79,10 +84,12 @@ public class UserProfileController {
                                                     @Schema(
                                                             implementation =
                                                                     UserProfileResource.class))))
-    public ResponseEntity<List<UserProfileResource>> getAllUserProfiles() {
+    public ResponseEntity<List<UserProfileResource>> getAllUserProfiles(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        UserId viewer = viewerOf(principal);
         var resources =
                 profileQueryService.handle(new GetAllUserProfilesQuery()).stream()
-                        .map(this::toProfileResource)
+                        .map(profile -> toProfileResource(profile, viewer))
                         .toList();
         return ResponseEntity.ok(resources);
     }
@@ -92,7 +99,8 @@ public class UserProfileController {
             summary = "Get a user profile",
             description =
                     "Returns the name, role, streak, ecopoints, gem balance and equipped "
-                            + "cosmetic of a user.")
+                            + "cosmetic of a user. The invitation code is only returned when the "
+                            + "profile belongs to the authenticated user.")
     @ApiResponse(
             responseCode = "200",
             description = "Profile found",
@@ -108,10 +116,13 @@ public class UserProfileController {
                                             """
                                             {"code": "USER_PROFILE_NOT_FOUND", "message": "The user profile was not found."}\
                                             """)))
-    public ResponseEntity<?> getUserProfile(@PathVariable Long id) {
+    public ResponseEntity<?> getUserProfile(
+            @PathVariable Long id, @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        UserId viewer = viewerOf(principal);
         return profileQueryService
                 .handle(new GetUserProfileQuery(new UserId(id)))
-                .<ResponseEntity<?>>map(profile -> ResponseEntity.ok(toProfileResource(profile)))
+                .<ResponseEntity<?>>map(
+                        profile -> ResponseEntity.ok(toProfileResource(profile, viewer)))
                 .orElseGet(
                         () ->
                                 errorResponseAssembler.toErrorResponseFromApplicationError(
@@ -159,11 +170,15 @@ public class UserProfileController {
                         principal.accountId(), id, resource);
         return responseEntityAssembler.toResponseEntityFromResult(
                 profileCommandService.handle(command),
-                (UserProfile profile) -> toProfileResource(profile),
+                (UserProfile profile) -> toProfileResource(profile, viewerOf(principal)),
                 HttpStatus.OK);
     }
 
-    private UserProfileResource toProfileResource(UserProfile profile) {
+    private static UserId viewerOf(AuthenticatedUserPrincipal principal) {
+        return principal == null ? null : new UserId(principal.accountId());
+    }
+
+    private UserProfileResource toProfileResource(UserProfile profile, UserId viewer) {
         var progress = gamification.getUserProgress(profile.getUserId().value());
         return new UserProfileResource(
                 profile.getUserId().value(),
@@ -173,6 +188,7 @@ public class UserProfileController {
                 progress.lastActivityDate(),
                 progress.ecopoints(),
                 profile.getGemBalance(),
-                profile.getEquippedCosmeticId());
+                profile.getEquippedCosmeticId(),
+                UserProfileResourceFromEntityAssembler.invitationCodeFor(profile, viewer));
     }
 }

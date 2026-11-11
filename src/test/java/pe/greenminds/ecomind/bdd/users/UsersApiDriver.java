@@ -67,6 +67,14 @@ public class UsersApiDriver {
     api.post("/api/v1/friend", Map.of("receiverId", idOf(receiverName)), tokenOf(name));
   }
 
+  public void sendFriendRequestWithBody(String name, Map<String, Object> body) {
+    api.post("/api/v1/friend", body, tokenOf(name));
+  }
+
+  public void getProfile(String name, String ownerName) {
+    api.get("/api/v1/user/" + idOf(ownerName), tokenOf(name));
+  }
+
   public void respondFriendRequest(String name, Long friendshipId, boolean accepted) {
     api.put("/api/v1/friend/" + friendshipId, Map.of("accepted", accepted), tokenOf(name));
   }

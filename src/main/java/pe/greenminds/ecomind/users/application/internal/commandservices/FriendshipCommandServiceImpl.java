@@ -12,6 +12,7 @@ import pe.greenminds.ecomind.users.domain.model.aggregates.Friendship;
 import pe.greenminds.ecomind.users.domain.model.commands.RespondFriendRequestCommand;
 import pe.greenminds.ecomind.users.domain.model.commands.SendFriendRequestCommand;
 import pe.greenminds.ecomind.users.domain.model.events.FriendRequestAcceptedEvent;
+import pe.greenminds.ecomind.users.domain.model.valueobjects.UserId;
 import pe.greenminds.ecomind.users.domain.repositories.FriendshipRepository;
 import pe.greenminds.ecomind.users.domain.repositories.UserProfileRepository;
 import pe.greenminds.ecomind.users.domain.services.FriendshipPolicy;
@@ -38,22 +39,30 @@ public class FriendshipCommandServiceImpl implements FriendshipCommandService {
   @Override
   @Transactional
   public Result<Friendship, ApplicationError> handle(SendFriendRequestCommand command) {
-    var violation =
-        friendshipPolicy.validate(command.requesterId(), command.receiverId(), Instant.now());
+    // The owner of the code is found first, so the same rules apply to both ways of sending
+    UserId receiverId = command.receiverId();
+    if (command.invitationCode() != null) {
+      var owner = userProfileRepository.findByInvitationCode(command.invitationCode());
+      if (owner.isEmpty()) {
+        return Result.failure(UsersErrors.invitationCodeNotFound());
+      }
+      receiverId = owner.get().getUserId();
+    }
+
+    var violation = friendshipPolicy.validate(command.requesterId(), receiverId, Instant.now());
     if (violation.isPresent()) {
       return Result.failure(toError(violation.get()));
     }
-    if (!userProfileRepository.existsById(command.receiverId())) {
-      return Result.failure(UsersErrors.userProfileNotFound(command.receiverId().value()));
+    if (!userProfileRepository.existsById(receiverId)) {
+      return Result.failure(UsersErrors.userProfileNotFound(receiverId.value()));
     }
 
-    // An old rejected request between the two users is replaced by the new one.
+    // An old rejected or expired request between the two users is replaced by the new one.
     friendshipRepository
-        .findBetween(command.requesterId(), command.receiverId())
+        .findBetween(command.requesterId(), receiverId)
         .ifPresent(friendshipRepository::delete);
     return Result.success(
-        friendshipRepository.save(
-            Friendship.request(command.requesterId(), command.receiverId())));
+        friendshipRepository.save(Friendship.request(command.requesterId(), receiverId)));
   }
 
   @Override

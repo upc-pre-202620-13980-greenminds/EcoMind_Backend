@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDate;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -18,7 +19,12 @@ import pe.greenminds.ecomind.shared.infrastructure.persistence.jpa.entities.Audi
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "user_profiles")
+@Table(
+    name = "user_profiles",
+    uniqueConstraints =
+        @UniqueConstraint(
+            name = "uk_user_profiles_invitation_code",
+            columnNames = "invitation_code"))
 public class UserProfilePersistenceEntity extends AuditableAbstractPersistenceEntity {
 
   @Id
@@ -42,4 +48,8 @@ public class UserProfilePersistenceEntity extends AuditableAbstractPersistenceEn
   private int gemBalance;
 
   private Long equippedCosmeticId;
+
+  // Nullable on purpose: the profiles that existed before get their code when the app starts
+  @Column(length = 8)
+  private String invitationCode;
 }
