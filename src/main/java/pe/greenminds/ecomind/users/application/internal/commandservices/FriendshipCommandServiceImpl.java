@@ -109,7 +109,12 @@ public class FriendshipCommandServiceImpl implements FriendshipCommandService {
     }
     Friendship saved = friendshipRepository.save(friendship);
     if (command.accepted()) {
-      eventPublisher.publishEvent(new FriendRequestAcceptedEvent(saved.getId(), Instant.now()));
+      eventPublisher.publishEvent(
+          new FriendRequestAcceptedEvent(
+              saved.getId(),
+              saved.getRequesterId().value(),
+              saved.getReceiverId().value(),
+              Instant.now()));
     }
     return Result.success(saved);
   }
