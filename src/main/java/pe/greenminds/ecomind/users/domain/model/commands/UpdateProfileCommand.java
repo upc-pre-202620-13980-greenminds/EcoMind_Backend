@@ -4,11 +4,12 @@ import java.time.LocalDate;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.UserId;
 
 /**
- * Updates the progress shown in a profile. Only the owner of the profile can do it.
+ * Updates the name and the progress shown in a profile. Only the owner of the profile can do it.
  */
 public record UpdateProfileCommand(
     UserId requestedBy,
     UserId userId,
+    String name,
     int streak,
     LocalDate lastStreakDate,
     int ecopoints,

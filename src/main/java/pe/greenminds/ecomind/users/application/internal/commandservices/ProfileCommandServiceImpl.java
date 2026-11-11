@@ -49,6 +49,8 @@ public class ProfileCommandServiceImpl implements ProfileCommandService {
     if (profile.isEmpty()) {
       return Result.failure(UsersErrors.userProfileNotFound(command.userId().value()));
     }
+    // Both changes happen in memory; the profile is saved once at the end
+    profile.get().rename(command.name());
     profile
         .get()
         .updateProgress(

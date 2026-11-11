@@ -72,14 +72,17 @@ class ProfileCommandServiceImplTests {
   }
 
   @Test
-  void updateProfileReplacesTheProgressOfTheOwner() {
+  void updateProfileReplacesTheNameAndTheProgressOfTheOwner() {
     UserProfile profile = UserProfile.create(USER_ID, "Camila Torres", SocialRole.STUDENT);
     when(userProfileRepository.findById(USER_ID)).thenReturn(Optional.of(profile));
     when(userProfileRepository.save(any())).thenAnswer(call -> call.getArgument(0));
 
-    var result = service.handle(new UpdateProfileCommand(USER_ID, USER_ID, 3, TODAY, 120, 10));
+    var result =
+        service.handle(
+            new UpdateProfileCommand(USER_ID, USER_ID, "Camila Rojas", 3, TODAY, 120, 10));
 
     UserProfile updated = result.toOptional().orElseThrow();
+    assertThat(updated.getName()).isEqualTo("Camila Rojas");
     assertThat(updated.getStreak()).isEqualTo(3);
     assertThat(updated.getLastStreakDate()).isEqualTo(TODAY);
     assertThat(updated.getEcopoints()).isEqualTo(120);
@@ -87,9 +90,25 @@ class ProfileCommandServiceImplTests {
   }
 
   @Test
+  void updateProfileTrimsTheNewName() {
+    UserProfile profile = UserProfile.create(USER_ID, "Camila Torres", SocialRole.STUDENT);
+    when(userProfileRepository.findById(USER_ID)).thenReturn(Optional.of(profile));
+    when(userProfileRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+
+    var result =
+        service.handle(
+            new UpdateProfileCommand(USER_ID, USER_ID, "  Camila Rojas  ", 3, TODAY, 120, 10));
+
+    assertThat(result.toOptional().orElseThrow().getName()).isEqualTo("Camila Rojas");
+    verify(userProfileRepository).save(profile);
+  }
+
+  @Test
   void updateProfileIsForbiddenForAnotherUser() {
     var result =
-        service.handle(new UpdateProfileCommand(new UserId(99L), USER_ID, 3, TODAY, 120, 10));
+        service.handle(
+            new UpdateProfileCommand(
+                new UserId(99L), USER_ID, "Camila Rojas", 3, TODAY, 120, 10));
 
     assertThat(errorCodeOf(result)).isEqualTo("PROFILE_ACCESS_FORBIDDEN");
     verify(userProfileRepository, never()).save(any());
@@ -99,7 +118,9 @@ class ProfileCommandServiceImplTests {
   void updateProfileFailsWhenTheProfileDoesNotExist() {
     when(userProfileRepository.findById(USER_ID)).thenReturn(Optional.empty());
 
-    var result = service.handle(new UpdateProfileCommand(USER_ID, USER_ID, 3, TODAY, 120, 10));
+    var result =
+        service.handle(
+            new UpdateProfileCommand(USER_ID, USER_ID, "Camila Rojas", 3, TODAY, 120, 10));
 
     assertThat(errorCodeOf(result)).isEqualTo("USER_PROFILE_NOT_FOUND");
   }

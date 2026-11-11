@@ -121,9 +121,10 @@ public class UserProfileController {
 
     @PutMapping("/{id}")
     @Operation(
-            summary = "Update the progress of a profile",
+            summary = "Update the name and the progress of a profile",
             description =
-                    "Replaces the streak, last streak date, ecopoints and gem balance. A user "
+                    "Replaces the name, streak, last streak date, ecopoints and gem balance. "
+                            + "The name is required and has 2 to 120 characters. A user "
                             + "can only update their own profile.")
     @ApiResponse(
             responseCode = "200",
@@ -131,7 +132,7 @@ public class UserProfileController {
             content = @Content(schema = @Schema(implementation = UserProfileResource.class)))
     @ApiResponse(
             responseCode = "400",
-            description = "Missing or negative values",
+            description = "Missing or negative values, or a name outside 2 to 120 characters",
             content = @Content(schema = @Schema(implementation = ErrorResource.class)))
     @ApiResponse(
             responseCode = "403",
