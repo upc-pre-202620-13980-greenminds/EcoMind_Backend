@@ -82,6 +82,32 @@ Feature: Friend requests
     When "Luis" sends a friend request without a receiver
     Then the response status is 400
 
+  Scenario: A friend removes the friendship
+    Given "Luis" has sent a friend request to "Ana"
+    And "Ana" accepts the friend request
+    When "Luis" removes the friendship
+    Then the response status is 204
+    And "Ana" has no friend request with "Luis"
+
+  Scenario: Only the users of a friendship can remove it
+    Given the student "Marta" is registered
+    And "Luis" has sent a friend request to "Ana"
+    When "Marta" removes the friendship
+    Then the response status is 403
+    And the error code is "FRIENDSHIP_ACCESS_FORBIDDEN"
+
+  Scenario: A friendship that does not exist cannot be removed
+    When "Luis" removes a friendship that does not exist
+    Then the response status is 404
+    And the error code is "FRIENDSHIP_NOT_FOUND"
+
+  Scenario: A rejected request cannot be removed during its waiting period
+    Given "Luis" has sent a friend request to "Ana"
+    And "Ana" rejects the friend request
+    When "Luis" removes the friendship
+    Then the response status is 422
+    And the error code is "FRIENDSHIP_IN_WAITING_PERIOD"
+
   Scenario: A friend request cannot be duplicated
     Given "Luis" has sent a friend request to "Ana"
     When "Ana" sends a friend request to "Luis"

@@ -135,4 +135,24 @@ public class FriendRequestSteps {
                 .formatted(users.idOf(requesterName), status));
     assertThat(matches).hasSize(1);
   }
+
+  @When("{string} removes the friendship")
+  public void removesTheFriendship(String name) {
+    users.removeFriendship(name, friendshipId);
+  }
+
+  @When("{string} removes a friendship that does not exist")
+  public void removesAFriendshipThatDoesNotExist(String name) {
+    users.removeFriendship(name, 999_999L);
+  }
+
+  @Then("{string} has no friend request with {string}")
+  public void hasNoFriendRequestWith(String name, String otherName) {
+    users.getFriendRequests(name);
+    long otherId = users.idOf(otherName);
+    List<Object> matches =
+        api.jsonObject(
+            "$[?(@.requesterId == %d || @.receiverId == %d)]".formatted(otherId, otherId));
+    assertThat(matches).isEmpty();
+  }
 }

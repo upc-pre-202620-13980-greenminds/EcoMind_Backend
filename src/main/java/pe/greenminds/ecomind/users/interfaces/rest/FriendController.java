@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,6 +31,7 @@ import pe.greenminds.ecomind.shared.interfaces.rest.transform.ResponseEntityAsse
 import pe.greenminds.ecomind.users.application.commandservices.FriendshipCommandService;
 import pe.greenminds.ecomind.users.application.queryservices.FriendshipQueryService;
 import pe.greenminds.ecomind.users.domain.model.aggregates.Friendship;
+import pe.greenminds.ecomind.users.domain.model.commands.RemoveFriendshipCommand;
 import pe.greenminds.ecomind.users.domain.model.queries.GetAllFriendshipsQuery;
 import pe.greenminds.ecomind.users.domain.model.queries.GetFriendsByUserQuery;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.UserId;
@@ -159,5 +161,38 @@ public class FriendController {
         (Friendship friendship) ->
             FriendResourceFromEntityAssembler.toResourceFromEntity(friendship),
         HttpStatus.OK);
+  }
+
+  @DeleteMapping("/{id}")
+  @Operation(
+      summary = "Remove a friendship",
+      description = "Removes a friendship or a pending friend request. Only one of the two users "
+          + "can do it. A rejected or expired request can only be removed once its 7-day waiting "
+          + "period ends, so it cannot be used to skip that wait.")
+  @ApiResponse(responseCode = "204", description = "Friendship removed", content = @Content)
+  @ApiResponse(responseCode = "403", description = "The requester is not part of the friendship",
+      content = @Content(schema = @Schema(implementation = ErrorResource.class),
+          examples = @ExampleObject("""
+              {"code": "FRIENDSHIP_ACCESS_FORBIDDEN",
+               "message": "Only the two users of a friendship can remove it."}""")))
+  @ApiResponse(responseCode = "404", description = "The friendship does not exist",
+      content = @Content(schema = @Schema(implementation = ErrorResource.class),
+          examples = @ExampleObject("""
+              {"code": "FRIENDSHIP_NOT_FOUND",
+               "message": "The friend request was not found."}""")))
+  @ApiResponse(responseCode = "422",
+      description = "A rejected or expired request is still in its waiting period",
+      content = @Content(schema = @Schema(implementation = ErrorResource.class),
+          examples = @ExampleObject("""
+              {"code": "FRIENDSHIP_IN_WAITING_PERIOD",
+               "message": "This request cannot be removed until its 7-day waiting period ends."}
+              """)))
+  public ResponseEntity<?> removeFriendship(
+      @PathVariable Long id, @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+    var command = new RemoveFriendshipCommand(new UserId(principal.accountId()), id);
+    return responseEntityAssembler.toResponseEntityFromResult(
+        friendshipCommandService.handle(command),
+        (Friendship friendship) -> null,
+        HttpStatus.NO_CONTENT);
   }
 }

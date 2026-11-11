@@ -93,6 +93,17 @@ public final class UsersErrors {
         "FRIEND_REQUEST_ALREADY_ANSWERED", "The friend request was already answered");
   }
 
+  public static ApplicationError friendshipAccessForbidden() {
+    return ApplicationError.forbidden(
+        "FRIENDSHIP_ACCESS_FORBIDDEN", "Only the two users of a friendship can remove it");
+  }
+
+  public static ApplicationError friendshipInWaitingPeriod() {
+    return ApplicationError.businessRuleViolation(
+        "FRIENDSHIP_IN_WAITING_PERIOD",
+        "A rejected or expired request cannot be removed until its waiting time passes");
+  }
+
   public static ApplicationError friendRequestAccessForbidden() {
     return ApplicationError.forbidden(
         "FRIEND_REQUEST_ACCESS_FORBIDDEN", "Only the receiver can answer a friend request");
