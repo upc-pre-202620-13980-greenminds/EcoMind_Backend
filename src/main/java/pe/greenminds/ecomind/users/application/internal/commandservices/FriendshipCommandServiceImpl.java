@@ -70,6 +70,9 @@ public class FriendshipCommandServiceImpl implements FriendshipCommandService {
     if (!friendship.isPending()) {
       return Result.failure(UsersErrors.friendRequestAlreadyAnswered());
     }
+    if (friendship.isExpired(Instant.now())) {
+      return Result.failure(UsersErrors.friendRequestExpired());
+    }
 
     if (command.accepted()) {
       friendship.accept();
@@ -88,6 +91,7 @@ public class FriendshipCommandServiceImpl implements FriendshipCommandService {
       case SELF_REQUEST -> UsersErrors.friendRequestToSelf();
       case ALREADY_EXISTS -> UsersErrors.friendshipConflict();
       case REJECTED_RECENTLY -> UsersErrors.friendRequestRejectedRecently();
+      case UNANSWERED_RECENTLY -> UsersErrors.friendRequestUnansweredRecently();
     };
   }
 }

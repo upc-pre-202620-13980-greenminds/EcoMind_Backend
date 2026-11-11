@@ -114,6 +114,43 @@ class FriendshipCommandServiceImplTests {
   }
 
   @Test
+  void sendFriendRequestFailsWhileAnUnansweredRequestIsWithinTheDeadline() {
+    when(friendshipRepository.findBetween(LUIS, ANA))
+        .thenReturn(Optional.of(pendingSentHoursAgo(47)));
+
+    var result = service.handle(new SendFriendRequestCommand(LUIS, ANA));
+
+    assertThat(errorCodeOf(result)).isEqualTo("FRIENDSHIP_CONFLICT");
+    verify(friendshipRepository, never()).save(any());
+  }
+
+  @Test
+  void sendFriendRequestFailsLessThanSevenDaysAfterAnUnansweredRequestExpired() {
+    // Sent 8 days ago: it expired 6 days ago, so one more day is still needed
+    when(friendshipRepository.findBetween(LUIS, ANA))
+        .thenReturn(Optional.of(pendingSentHoursAgo(8 * 24)));
+
+    var result = service.handle(new SendFriendRequestCommand(LUIS, ANA));
+
+    assertThat(errorCodeOf(result)).isEqualTo("FRIEND_REQUEST_UNANSWERED_RECENTLY");
+    verify(friendshipRepository, never()).save(any());
+  }
+
+  @Test
+  void sendFriendRequestReplacesARequestThatExpiredMoreThanSevenDaysAgo() {
+    // Sent 10 days ago: it expired 8 days ago
+    Friendship expired = pendingSentHoursAgo(10 * 24);
+    when(friendshipRepository.findBetween(LUIS, ANA)).thenReturn(Optional.of(expired));
+    when(userProfileRepository.existsById(ANA)).thenReturn(true);
+    when(friendshipRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+
+    var result = service.handle(new SendFriendRequestCommand(LUIS, ANA));
+
+    assertThat(result.toOptional().orElseThrow().getStatus()).isEqualTo(FriendshipStatus.PENDING);
+    verify(friendshipRepository).delete(expired);
+  }
+
+  @Test
   void sendFriendRequestFailsWhenTheReceiverHasNoProfile() {
     when(friendshipRepository.findBetween(LUIS, ANA)).thenReturn(Optional.empty());
     when(userProfileRepository.existsById(ANA)).thenReturn(false);
@@ -159,6 +196,40 @@ class FriendshipCommandServiceImplTests {
   }
 
   @Test
+  void aRequestCanStillBeAcceptedBeforeTheDeadline() {
+    when(friendshipRepository.findById(FRIENDSHIP_ID))
+        .thenReturn(Optional.of(pendingSentHoursAgo(47)));
+    when(friendshipRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+
+    var result = service.handle(new RespondFriendRequestCommand(ANA, FRIENDSHIP_ID, true));
+
+    assertThat(result.toOptional().orElseThrow().getStatus()).isEqualTo(FriendshipStatus.ACCEPTED);
+  }
+
+  @Test
+  void anExpiredRequestCannotBeAccepted() {
+    when(friendshipRepository.findById(FRIENDSHIP_ID))
+        .thenReturn(Optional.of(pendingSentHoursAgo(49)));
+
+    var result = service.handle(new RespondFriendRequestCommand(ANA, FRIENDSHIP_ID, true));
+
+    assertThat(errorCodeOf(result)).isEqualTo("FRIEND_REQUEST_EXPIRED");
+    verify(friendshipRepository, never()).save(any());
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
+  void anExpiredRequestCannotBeRejected() {
+    when(friendshipRepository.findById(FRIENDSHIP_ID))
+        .thenReturn(Optional.of(pendingSentHoursAgo(49)));
+
+    var result = service.handle(new RespondFriendRequestCommand(ANA, FRIENDSHIP_ID, false));
+
+    assertThat(errorCodeOf(result)).isEqualTo("FRIEND_REQUEST_EXPIRED");
+    verify(friendshipRepository, never()).save(any());
+  }
+
+  @Test
   void aRequestCannotBeAnsweredTwice() {
     Friendship accepted = friendship(LUIS, ANA, FriendshipStatus.ACCEPTED, Instant.now());
     when(friendshipRepository.findById(FRIENDSHIP_ID)).thenReturn(Optional.of(accepted));
@@ -170,7 +241,13 @@ class FriendshipCommandServiceImplTests {
 
   private static Friendship friendship(
       UserId requester, UserId receiver, FriendshipStatus status, Instant updatedAt) {
-    return new Friendship(FRIENDSHIP_ID, requester, receiver, status, updatedAt);
+    return new Friendship(FRIENDSHIP_ID, requester, receiver, status, updatedAt, updatedAt);
+  }
+
+  // A request Luis sent to Ana that nobody answered
+  private static Friendship pendingSentHoursAgo(long hours) {
+    Instant sentAt = Instant.now().minus(hours, ChronoUnit.HOURS);
+    return new Friendship(FRIENDSHIP_ID, LUIS, ANA, FriendshipStatus.PENDING, sentAt, sentAt);
   }
 
   private static String errorCodeOf(Result<?, ApplicationError> result) {

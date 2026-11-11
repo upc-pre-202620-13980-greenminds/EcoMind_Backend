@@ -13,6 +13,7 @@ public final class FriendResourceFromEntityAssembler {
         friendship.getId(),
         friendship.getRequesterId().value(),
         friendship.getReceiverId().value(),
-        friendship.getStatus().name());
+        friendship.getStatus().name(),
+        friendship.getCreatedAt());
   }
 }

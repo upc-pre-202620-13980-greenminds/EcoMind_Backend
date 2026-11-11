@@ -71,6 +71,17 @@ public final class UsersErrors {
         "A rejected friend request can be sent again after 7 days");
   }
 
+  public static ApplicationError friendRequestUnansweredRecently() {
+    return ApplicationError.businessRuleViolation(
+        "FRIEND_REQUEST_UNANSWERED_RECENTLY",
+        "An unanswered friend request can be sent again 7 days after it expired");
+  }
+
+  public static ApplicationError friendRequestExpired() {
+    return ApplicationError.businessRuleViolation(
+        "FRIEND_REQUEST_EXPIRED", "The friend request expired after 48 hours without an answer");
+  }
+
   public static ApplicationError friendRequestAlreadyAnswered() {
     return ApplicationError.businessRuleViolation(
         "FRIEND_REQUEST_ALREADY_ANSWERED", "The friend request was already answered");
