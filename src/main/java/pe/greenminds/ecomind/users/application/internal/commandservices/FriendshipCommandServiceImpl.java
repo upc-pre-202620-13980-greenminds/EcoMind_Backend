@@ -9,6 +9,7 @@ import pe.greenminds.ecomind.shared.application.result.Result;
 import pe.greenminds.ecomind.users.application.commandservices.FriendshipCommandService;
 import pe.greenminds.ecomind.users.application.internal.UsersErrors;
 import pe.greenminds.ecomind.users.domain.model.aggregates.Friendship;
+import pe.greenminds.ecomind.users.domain.model.commands.RemoveFriendshipCommand;
 import pe.greenminds.ecomind.users.domain.model.commands.RespondFriendRequestCommand;
 import pe.greenminds.ecomind.users.domain.model.commands.SendFriendRequestCommand;
 import pe.greenminds.ecomind.users.domain.model.events.FriendRequestAcceptedEvent;
@@ -63,6 +64,24 @@ public class FriendshipCommandServiceImpl implements FriendshipCommandService {
         .ifPresent(friendshipRepository::delete);
     return Result.success(
         friendshipRepository.save(Friendship.request(command.requesterId(), receiverId)));
+  }
+
+  @Override
+  @Transactional
+  public Result<Friendship, ApplicationError> handle(RemoveFriendshipCommand command) {
+    var found = friendshipRepository.findById(command.friendshipId());
+    if (found.isEmpty()) {
+      return Result.failure(UsersErrors.friendshipNotFound(command.friendshipId()));
+    }
+    Friendship friendship = found.get();
+    if (!friendship.involves(command.requestedBy())) {
+      return Result.failure(UsersErrors.friendshipAccessForbidden());
+    }
+    if (!friendship.canBeRemoved(Instant.now())) {
+      return Result.failure(UsersErrors.friendshipInWaitingPeriod());
+    }
+    friendshipRepository.delete(friendship);
+    return Result.success(friendship);
   }
 
   @Override

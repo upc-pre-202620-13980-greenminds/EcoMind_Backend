@@ -18,6 +18,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 import pe.greenminds.ecomind.shared.application.result.Result;
 import pe.greenminds.ecomind.users.domain.model.aggregates.Friendship;
+import pe.greenminds.ecomind.users.domain.model.commands.RemoveFriendshipCommand;
 import pe.greenminds.ecomind.users.domain.model.commands.RespondFriendRequestCommand;
 import pe.greenminds.ecomind.users.domain.model.commands.SendFriendRequestCommand;
 import pe.greenminds.ecomind.users.domain.model.events.FriendRequestAcceptedEvent;
@@ -268,6 +269,97 @@ class FriendshipCommandServiceImplTests {
 
     assertThat(errorCodeOf(result)).isEqualTo("FRIEND_REQUEST_EXPIRED");
     verify(friendshipRepository, never()).save(any());
+  }
+
+  @Test
+  void theRequesterCanRemoveAFriendship() {
+    Friendship accepted = friendship(LUIS, ANA, FriendshipStatus.ACCEPTED, Instant.now());
+    when(friendshipRepository.findById(FRIENDSHIP_ID)).thenReturn(Optional.of(accepted));
+
+    var result = service.handle(new RemoveFriendshipCommand(LUIS, FRIENDSHIP_ID));
+
+    assertThat(result.toOptional()).isPresent();
+    verify(friendshipRepository).delete(accepted);
+  }
+
+  @Test
+  void theReceiverCanRemoveAFriendship() {
+    Friendship accepted = friendship(LUIS, ANA, FriendshipStatus.ACCEPTED, Instant.now());
+    when(friendshipRepository.findById(FRIENDSHIP_ID)).thenReturn(Optional.of(accepted));
+
+    var result = service.handle(new RemoveFriendshipCommand(ANA, FRIENDSHIP_ID));
+
+    assertThat(result.toOptional()).isPresent();
+    verify(friendshipRepository).delete(accepted);
+  }
+
+  @Test
+  void aPendingRequestWithinTheDeadlineCanBeRemoved() {
+    Friendship pending = pendingSentHoursAgo(10);
+    when(friendshipRepository.findById(FRIENDSHIP_ID)).thenReturn(Optional.of(pending));
+
+    var result = service.handle(new RemoveFriendshipCommand(LUIS, FRIENDSHIP_ID));
+
+    assertThat(result.toOptional()).isPresent();
+    verify(friendshipRepository).delete(pending);
+  }
+
+  @Test
+  void someoneOutsideTheFriendshipCannotRemoveIt() {
+    UserId marta = new UserId(3L);
+    when(friendshipRepository.findById(FRIENDSHIP_ID))
+        .thenReturn(Optional.of(friendship(LUIS, ANA, FriendshipStatus.ACCEPTED, Instant.now())));
+
+    var result = service.handle(new RemoveFriendshipCommand(marta, FRIENDSHIP_ID));
+
+    assertThat(errorCodeOf(result)).isEqualTo("FRIENDSHIP_ACCESS_FORBIDDEN");
+    verify(friendshipRepository, never()).delete(any());
+  }
+
+  @Test
+  void removingAFriendshipThatDoesNotExistFails() {
+    when(friendshipRepository.findById(FRIENDSHIP_ID)).thenReturn(Optional.empty());
+
+    var result = service.handle(new RemoveFriendshipCommand(LUIS, FRIENDSHIP_ID));
+
+    assertThat(errorCodeOf(result)).isEqualTo("FRIENDSHIP_NOT_FOUND");
+    verify(friendshipRepository, never()).delete(any());
+  }
+
+  @Test
+  void aRequestRejectedLessThanSevenDaysAgoCannotBeRemoved() {
+    Instant rejectedAt = Instant.now().minus(3, ChronoUnit.DAYS);
+    when(friendshipRepository.findById(FRIENDSHIP_ID))
+        .thenReturn(Optional.of(friendship(LUIS, ANA, FriendshipStatus.REJECTED, rejectedAt)));
+
+    var result = service.handle(new RemoveFriendshipCommand(LUIS, FRIENDSHIP_ID));
+
+    assertThat(errorCodeOf(result)).isEqualTo("FRIENDSHIP_IN_WAITING_PERIOD");
+    verify(friendshipRepository, never()).delete(any());
+  }
+
+  @Test
+  void anExpiredRequestCannotBeRemovedDuringItsWaitingPeriod() {
+    // Sent 3 days ago: expired 1 day ago, so 6 more days of waiting are left
+    when(friendshipRepository.findById(FRIENDSHIP_ID))
+        .thenReturn(Optional.of(pendingSentHoursAgo(3 * 24)));
+
+    var result = service.handle(new RemoveFriendshipCommand(LUIS, FRIENDSHIP_ID));
+
+    assertThat(errorCodeOf(result)).isEqualTo("FRIENDSHIP_IN_WAITING_PERIOD");
+    verify(friendshipRepository, never()).delete(any());
+  }
+
+  @Test
+  void aRejectedRequestCanBeRemovedOnceTheWaitingPeriodEnded() {
+    Instant rejectedAt = Instant.now().minus(8, ChronoUnit.DAYS);
+    Friendship rejected = friendship(LUIS, ANA, FriendshipStatus.REJECTED, rejectedAt);
+    when(friendshipRepository.findById(FRIENDSHIP_ID)).thenReturn(Optional.of(rejected));
+
+    var result = service.handle(new RemoveFriendshipCommand(LUIS, FRIENDSHIP_ID));
+
+    assertThat(result.toOptional()).isPresent();
+    verify(friendshipRepository).delete(rejected);
   }
 
   @Test

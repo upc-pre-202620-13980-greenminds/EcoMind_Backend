@@ -72,6 +72,23 @@ public class Friendship {
     return receiverId.equals(userId);
   }
 
+  /** True when the user is one of the two people of the friendship. */
+  public boolean involves(UserId userId) {
+    return requesterId.equals(userId) || receiverId.equals(userId);
+  }
+
+  /**
+   * A friendship or a pending request can be removed at any time. A rejected or expired request
+   * can only be removed once its waiting time passed; removing it earlier would let the requester
+   * send a new one right away and skip the 7 days.
+   */
+  public boolean canBeRemoved(Instant now) {
+    if (status == FriendshipStatus.ACCEPTED || (isPending() && !isExpired(now))) {
+      return true;
+    }
+    return canBeRequestedAgain(now);
+  }
+
   /** True when the request is still pending once the given time has passed since it was sent. */
   public boolean isUnansweredAfter(Duration time, Instant now) {
     return isPending() && createdAt != null && !now.isBefore(createdAt.plus(time));

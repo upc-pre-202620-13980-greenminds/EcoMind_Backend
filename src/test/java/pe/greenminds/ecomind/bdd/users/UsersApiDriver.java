@@ -79,6 +79,10 @@ public class UsersApiDriver {
     api.put("/api/v1/friend/" + friendshipId, Map.of("accepted", accepted), tokenOf(name));
   }
 
+  public void removeFriendship(String name, Long friendshipId) {
+    api.delete("/api/v1/friend/" + friendshipId, tokenOf(name));
+  }
+
   public void getFriendRequests(String name) {
     api.get("/api/v1/friend?user_id=" + idOf(name), tokenOf(name));
   }
