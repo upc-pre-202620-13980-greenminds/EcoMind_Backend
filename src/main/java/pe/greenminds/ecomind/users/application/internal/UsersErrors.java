@@ -56,6 +56,12 @@ public final class UsersErrors {
     return ApplicationError.notFound("FRIENDSHIP", String.valueOf(friendshipId));
   }
 
+  // The code is not repeated in the message, so it does not end up in the logs
+  public static ApplicationError invitationCodeNotFound() {
+    return new ApplicationError(
+        ErrorType.NOT_FOUND, "INVITATION_CODE_NOT_FOUND", "No user has this invitation code", null);
+  }
+
   public static ApplicationError friendRequestToSelf() {
     return ApplicationError.businessRuleViolation(
         "FRIEND_REQUEST_TO_SELF", "A user cannot send a friend request to themselves");

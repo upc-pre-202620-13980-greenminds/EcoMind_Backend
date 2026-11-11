@@ -1,6 +1,7 @@
 package pe.greenminds.ecomind.users.interfaces.rest.transform;
 
 import pe.greenminds.ecomind.users.domain.model.aggregates.UserProfile;
+import pe.greenminds.ecomind.users.domain.model.valueobjects.UserId;
 import pe.greenminds.ecomind.users.interfaces.rest.resources.UserProfileResource;
 
 public final class UserProfileResourceFromEntityAssembler {
@@ -8,7 +9,8 @@ public final class UserProfileResourceFromEntityAssembler {
   private UserProfileResourceFromEntityAssembler() {
   }
 
-  public static UserProfileResource toResourceFromEntity(UserProfile profile) {
+  /** The invitation code is only shown to the owner of the profile. */
+  public static UserProfileResource toResourceFromEntity(UserProfile profile, UserId viewer) {
     return new UserProfileResource(
         profile.getUserId().value(),
         profile.getName(),
@@ -17,6 +19,15 @@ public final class UserProfileResourceFromEntityAssembler {
         profile.getLastStreakDate(),
         profile.getEcopoints(),
         profile.getGemBalance(),
-        profile.getEquippedCosmeticId());
+        profile.getEquippedCosmeticId(),
+        invitationCodeFor(profile, viewer));
+  }
+
+  /** Null unless the user who asks is the owner of the profile. */
+  public static String invitationCodeFor(UserProfile profile, UserId viewer) {
+    if (viewer == null || !profile.isOwnedBy(viewer) || profile.getInvitationCode() == null) {
+      return null;
+    }
+    return profile.getInvitationCode().value();
   }
 }
