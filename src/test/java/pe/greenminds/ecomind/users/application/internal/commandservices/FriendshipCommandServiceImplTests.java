@@ -156,7 +156,8 @@ class FriendshipCommandServiceImplTests {
 
   @Test
   void sendFriendRequestWithAnInvitationCodeGoesToItsOwner() {
-    when(userProfileRepository.findByInvitationCode(ANA_CODE)).thenReturn(Optional.of(anaProfile()));
+    when(userProfileRepository.findByInvitationCode(ANA_CODE))
+        .thenReturn(Optional.of(anaProfile()));
     when(friendshipRepository.findBetween(LUIS, ANA)).thenReturn(Optional.empty());
     when(userProfileRepository.existsById(ANA)).thenReturn(true);
     when(friendshipRepository.save(any())).thenAnswer(call -> call.getArgument(0));
@@ -181,7 +182,8 @@ class FriendshipCommandServiceImplTests {
   @Test
   void sendFriendRequestWithOwnInvitationCodeFails() {
     // Ana uses her own code: the rule against requests to oneself still applies
-    when(userProfileRepository.findByInvitationCode(ANA_CODE)).thenReturn(Optional.of(anaProfile()));
+    when(userProfileRepository.findByInvitationCode(ANA_CODE))
+        .thenReturn(Optional.of(anaProfile()));
 
     var result = service.handle(new SendFriendRequestCommand(ANA, ANA_CODE));
 

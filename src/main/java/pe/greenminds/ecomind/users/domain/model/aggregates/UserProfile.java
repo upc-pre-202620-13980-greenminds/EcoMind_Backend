@@ -54,7 +54,9 @@ public class UserProfile {
     return new UserProfile(userId, name.trim(), socialRole, 0, null, 0, 0, null, null);
   }
 
-  /** Replaces the name shown in the profile; it follows the same length rule as the registration. */
+  /**
+   * Replaces the name shown in the profile; it follows the same length rule as the registration.
+   */
   public void rename(String name) {
     if (name == null || name.isBlank()) {
       throw new IllegalArgumentException("Profile name is required");

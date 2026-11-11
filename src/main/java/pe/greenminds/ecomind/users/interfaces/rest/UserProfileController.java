@@ -114,7 +114,8 @@ public class UserProfileController {
                             examples =
                                     @ExampleObject(
                                             """
-                                            {"code": "USER_PROFILE_NOT_FOUND", "message": "The user profile was not found."}\
+                                            {"code": "USER_PROFILE_NOT_FOUND",
+                                             "message": "The user profile was not found."}\
                                             """)))
     public ResponseEntity<?> getUserProfile(
             @PathVariable Long id, @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {

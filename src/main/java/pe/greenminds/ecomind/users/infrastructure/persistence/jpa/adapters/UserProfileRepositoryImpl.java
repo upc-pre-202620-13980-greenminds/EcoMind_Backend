@@ -46,7 +46,9 @@ public class UserProfileRepositoryImpl implements UserProfileRepository {
 
   @Override
   public List<UserProfile> findAll() {
-    return persistenceRepository.findAll().stream().map(UserProfileRepositoryImpl::toDomain).toList();
+    return persistenceRepository.findAll().stream()
+        .map(UserProfileRepositoryImpl::toDomain)
+        .toList();
   }
 
   @Override
