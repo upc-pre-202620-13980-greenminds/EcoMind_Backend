@@ -1,6 +1,7 @@
 package pe.greenminds.ecomind.users.interfaces.rest.resources;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.Instant;
 
 @Schema(description = "Friend request between two users and its state")
 public record FriendResource(
@@ -11,5 +12,9 @@ public record FriendResource(
     @Schema(description = "User who received the request", example = "8")
     Long receiverId,
     @Schema(example = "PENDING", allowableValues = {"PENDING", "ACCEPTED", "REJECTED"})
-    String status) {
+    String status,
+    @Schema(
+        description = "When the request was sent; a pending request expires 48 hours later",
+        example = "2026-11-11T15:30:00Z")
+    Instant createdAt) {
 }

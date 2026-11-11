@@ -81,8 +81,9 @@ public class FriendController {
   @Operation(
       summary = "Send a friend request",
       description = "Sends a friend request from the authenticated user to another user. A "
-          + "request cannot be sent to oneself or repeated while one is pending or accepted; "
-          + "after a rejection it can be sent again once 7 days have passed.")
+          + "request cannot be sent to oneself or repeated while one is pending or accepted. "
+          + "A pending request expires 48 hours after it was sent; a new one can be sent 7 "
+          + "days after a rejection, or 7 days after an unanswered request expired.")
   @ApiResponse(responseCode = "201", description = "Friend request sent",
       content = @Content(schema = @Schema(implementation = FriendResource.class)))
   @ApiResponse(responseCode = "400", description = "Missing or invalid fields",
@@ -95,7 +96,8 @@ public class FriendController {
               {"code": "FRIENDSHIP_CONFLICT",
                "message": "There is already a friend request between you and this user."}""")))
   @ApiResponse(responseCode = "422",
-      description = "The request is to oneself or was rejected less than 7 days ago",
+      description = "The request is to oneself, or the waiting time after a rejection or an "
+          + "expired request has not passed",
       content = @Content(schema = @Schema(implementation = ErrorResource.class)))
   public ResponseEntity<?> sendFriendRequest(
       @Valid @RequestBody SendFriendRequestResource resource,
@@ -113,7 +115,8 @@ public class FriendController {
   @PutMapping("/{id}")
   @Operation(
       summary = "Answer a friend request",
-      description = "Accepts or rejects a pending friend request. Only the user who received "
+      description = "Accepts or rejects a pending friend request within 48 hours of being "
+          + "sent. Only the user who received "
           + "it can answer.")
   @ApiResponse(responseCode = "200", description = "Friend request answered",
       content = @Content(schema = @Schema(implementation = FriendResource.class)))
@@ -126,7 +129,8 @@ public class FriendController {
                "message": "Only the user who received the friend request can answer it."}""")))
   @ApiResponse(responseCode = "404", description = "The friend request does not exist",
       content = @Content(schema = @Schema(implementation = ErrorResource.class)))
-  @ApiResponse(responseCode = "422", description = "The request was already answered",
+  @ApiResponse(responseCode = "422",
+      description = "The request was already answered or expired after 48 hours",
       content = @Content(schema = @Schema(implementation = ErrorResource.class)))
   public ResponseEntity<?> respondFriendRequest(
       @PathVariable Long id,

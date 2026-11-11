@@ -42,6 +42,24 @@ Feature: Friend requests
     Then the response status is 201
     And the friend request is "PENDING"
 
+  Scenario: An unanswered request cannot be accepted after 48 hours
+    Given "Luis" has sent a friend request to "Ana"
+    And 49 hours have passed since the friend request was sent
+    When "Ana" accepts the friend request
+    Then the response status is 422
+    And the error code is "FRIEND_REQUEST_EXPIRED"
+
+  Scenario: An unanswered request can be sent again 7 days after it expired
+    Given "Luis" has sent a friend request to "Ana"
+    And 100 hours have passed since the friend request was sent
+    When "Luis" sends a friend request to "Ana"
+    Then the response status is 422
+    And the error code is "FRIEND_REQUEST_UNANSWERED_RECENTLY"
+    Given 217 hours have passed since the friend request was sent
+    When "Luis" sends a friend request to "Ana"
+    Then the response status is 201
+    And the friend request is "PENDING"
+
   Scenario: A friend request cannot be duplicated
     Given "Luis" has sent a friend request to "Ana"
     When "Ana" sends a friend request to "Luis"

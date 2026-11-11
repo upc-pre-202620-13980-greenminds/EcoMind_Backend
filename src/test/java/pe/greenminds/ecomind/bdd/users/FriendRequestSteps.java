@@ -64,6 +64,14 @@ public class FriendRequestSteps {
         friendshipId);
   }
 
+  // Same idea for the sending date, which decides when a pending request expires.
+  @Given("{int} hours have passed since the friend request was sent")
+  public void hoursHavePassedSinceTheRequestWasSent(int hours) {
+    Instant sentAt = Instant.now().minus(hours, ChronoUnit.HOURS);
+    jdbcTemplate.update(
+        "UPDATE friendships SET created_at = ? WHERE id = ?", Timestamp.from(sentAt), friendshipId);
+  }
+
   @Then("the friend request is {string}")
   public void theFriendRequestIs(String status) {
     assertThat(api.jsonValue("$.status")).isEqualTo(status);
