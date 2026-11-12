@@ -42,4 +42,10 @@ public class CommunityGoalRepositoryImpl implements CommunityGoalRepository {
     public boolean existsActiveByCommunityId(Long communityId) {
         return repository.existsByCommunityIdAndStatus(communityId, CommunityGoalStatus.ACTIVE);
     }
+
+    @Override
+    public Optional<CommunityGoal> findByIdForUpdate(Long id) {
+        return repository.findByIdForUpdate(id)
+                .map(CommunityGoalPersistenceAssembler::toDomain);
+    }
 }

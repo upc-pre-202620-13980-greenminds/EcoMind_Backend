@@ -13,8 +13,10 @@ import pe.greenminds.ecomind.community.domain.model.commands.DeleteEventCommand;
 import pe.greenminds.ecomind.community.domain.model.queries.SearchEventsQuery;
 import pe.greenminds.ecomind.community.interfaces.rest.resources.CreateEventResource;
 import pe.greenminds.ecomind.community.interfaces.rest.resources.EventResource;
+import pe.greenminds.ecomind.community.interfaces.rest.resources.UpdateEventResource;
 import pe.greenminds.ecomind.community.interfaces.rest.transform.EventResourceFromEntityAssembler;
 import pe.greenminds.ecomind.community.interfaces.rest.transform.CreateEventCommandFromResourceAssembler;
+import pe.greenminds.ecomind.community.interfaces.rest.transform.UpdateEventCommandFromResourceAssembler;
 import pe.greenminds.ecomind.shared.interfaces.rest.transform.ResponseEntityAssembler;
 import pe.greenminds.ecomind.shared.infrastructure.documentation.openapi.configuration.OpenApiConfiguration;
 import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
@@ -47,6 +49,26 @@ public class EventController {
         var command = CreateEventCommandFromResourceAssembler.toCommandFromResource(resource, principal.accountId());
         return responses.toResponseEntityFromResult(commands.handle(command),
                 EventResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.CREATED);
+    }
+
+    @PatchMapping(
+            value = "/{id}",
+            consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> update(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateEventResource resource,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+
+        var command =
+                UpdateEventCommandFromResourceAssembler.toCommandFromResource(
+                        resource,
+                        id,
+                        principal.accountId());
+
+        return responses.toResponseEntityFromResult(
+                commands.handle(command),
+                EventResourceFromEntityAssembler::toResourceFromEntity,
+                HttpStatus.OK);
     }
 
     @DeleteMapping("/{id}")

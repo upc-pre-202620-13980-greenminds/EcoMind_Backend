@@ -9,4 +9,5 @@ public interface CommunityGoalRepository{
     Optional<CommunityGoal> findById(Long id);
     List<CommunityGoal> findAll(Long communityId);
     boolean existsActiveByCommunityId(Long communityId);
+    Optional<CommunityGoal> findByIdForUpdate(Long id);
 }

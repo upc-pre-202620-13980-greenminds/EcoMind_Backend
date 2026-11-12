@@ -16,7 +16,7 @@ public record CreateEventResource(
         @Schema(description = "Event address or location", example = "315 Paloma Avenue, Lima") String location,
         @Schema(description = "Latitude of the event location", example = "-12.0464") Double latitude,
         @Schema(description = "Longitude of the event location", example = "-77.0428") Double longitude,
-        @Schema(description = "Maximum number of participants", example = "40")
+        @Schema(description = "Total participant limit, including the automatically registered creator", example = "40")
         @NotNull @Positive Integer capacity,
         @Schema(description = "Event image URL", example = "https://example.com/garden-cleanup.png") String image_url) {
 }

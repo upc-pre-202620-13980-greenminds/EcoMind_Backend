@@ -5,9 +5,12 @@ import pe.greenminds.ecomind.community.domain.model.commands.CancelEventRegistra
 import pe.greenminds.ecomind.community.domain.model.commands.RegisterForEventCommand;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 import pe.greenminds.ecomind.shared.application.result.Result;
+import pe.greenminds.ecomind.community.domain.model.commands.LeaveEventCommand;
 
 public interface EventRegistrationCommandService {
     Result<EventRegistration, ApplicationError> handle(RegisterForEventCommand command);
 
     Result<Void, ApplicationError> handle(CancelEventRegistrationCommand command);
+
+    Result<Void, ApplicationError> handle(LeaveEventCommand command);
 }

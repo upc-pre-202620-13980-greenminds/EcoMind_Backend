@@ -22,6 +22,7 @@
 		<cucumber.version>8.0.4</cucumber.version>
 		<jjwt.version>0.12.6</jjwt.version>
 		<mockito.version>5.20.0</mockito.version>
+		<cloudinary.version>2.6.0</cloudinary.version>
 	</properties>
 
 	<dependencyManagement>
@@ -151,6 +152,11 @@
 			<groupId>org.junit.platform</groupId>
 			<artifactId>junit-platform-suite</artifactId>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.cloudinary</groupId>
+			<artifactId>cloudinary-http5</artifactId>
+			<version>${cloudinary.version}</version>
 		</dependency>
 	</dependencies>
 

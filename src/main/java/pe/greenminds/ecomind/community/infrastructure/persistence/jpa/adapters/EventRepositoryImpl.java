@@ -36,4 +36,16 @@ public class EventRepositoryImpl implements EventRepository {
     public void delete(Event event) {
         repository.deleteById(event.getId());
     }
+
+    @Override
+    public Optional<Event> findByIdForUpdate(Long id) {
+        return repository.findByIdForUpdate(id)
+                .map(EventPersistenceAssembler::toDomain);
+    }
+
+    @Override
+    public List<Event> findByCommunityIdForUpdate(Long communityId) {
+        return repository.findByCommunityIdForUpdate(communityId).stream()
+                .map(EventPersistenceAssembler::toDomain).toList();
+    }
 }

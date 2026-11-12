@@ -41,6 +41,9 @@ Set the following variables in the environment before running the application. K
 | `AZURE_EMAIL_FROM_EMAIL` | Azure email | Verified managed-domain sender |
 | `PORT` | prod | HTTP port the application listens on |
 | `SPRING_PROFILES_ACTIVE` | prod | Use `prod`; on Azure Container Apps use `prod,azure` |
+| `CLOUDINARY_CLOUD_NAME` | dev, prod | Cloudinary cloud name for Community event images |
+| `CLOUDINARY_API_KEY` | dev, prod | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | dev, prod | Cloudinary API secret |
 
 Real email requires the credentials and sender of the selected provider. Empty required
 settings fail startup. The recovery URL has the Android default
@@ -90,6 +93,9 @@ export DATABASE_USERNAME=<your-user>
 export DATABASE_PASSWORD=<your-password>
 export JWT_SECRET=<a-random-secret-of-at-least-32-characters>
 export JWT_EXPIRATION_MINUTES=60
+export CLOUDINARY_CLOUD_NAME="<your-cloud-name>"
+export CLOUDINARY_API_KEY="<your-api-key>"
+export CLOUDINARY_API_SECRET="<your-api-secret>"
 ./mvnw spring-boot:run
 ```
 
@@ -104,6 +110,9 @@ $env:JWT_EXPIRATION_MINUTES = "60"
 $env:CULQI_SECRET_KEY = "<your-culqi-secret-key>" # optional
 $env:PAYPAL_CLIENT_ID = "<your-paypal-client-id>" # optional
 $env:PAYPAL_SECRET = "<your-paypal-secret>" # optional
+$env:CLOUDINARY_CLOUD_NAME = "<your-cloud-name>" # optional
+$env:CLOUDINARY_API_KEY = "<your-api-key>" # optional
+$env:CLOUDINARY_API_SECRET = "<your-api-secret>" # optional
 .\mvnw.cmd spring-boot:run
 ```
 
