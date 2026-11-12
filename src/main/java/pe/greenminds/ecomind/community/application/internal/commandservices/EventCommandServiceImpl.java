@@ -108,7 +108,7 @@ public class EventCommandServiceImpl implements EventCommandService {
                     .stream()
                     .filter(registration ->
                             registration.status() == EventRegistrationStatus.REGISTERED)
-                    .mapToLong(EventRegistration::participantCount)
+                    .mapToLong(EventRegistration::activeParticipantCount)
                     .sum();
 
             if (updated.getCapacity() < occupied) {

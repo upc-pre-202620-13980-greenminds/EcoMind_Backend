@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import pe.greenminds.ecomind.community.domain.model.valueobjects.EventRegistrationStatus;
 import pe.greenminds.ecomind.community.domain.model.valueobjects.EventRegistrationType;
 import pe.greenminds.ecomind.shared.infrastructure.persistence.jpa.entities.AuditableAbstractPersistenceEntity;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "community_event_registrations", uniqueConstraints = {
@@ -25,6 +27,14 @@ public class EventRegistrationPersistenceEntity extends AuditableAbstractPersist
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private EventRegistrationStatus status;
+    @ElementCollection
+    @CollectionTable(
+            name = "community_event_registration_participants",
+            joinColumns = @JoinColumn(name = "registration_id"),
+            uniqueConstraints = @UniqueConstraint(
+                    columnNames = {"registration_id", "user_id"}))
+    @Column(name = "user_id", nullable = false)
+    private Set<Long> participantIds = new HashSet<>();
 
     protected EventRegistrationPersistenceEntity() {
     }
@@ -68,6 +78,7 @@ public class EventRegistrationPersistenceEntity extends AuditableAbstractPersist
 
     public void cancel() {
         status = EventRegistrationStatus.CANCELLED;
+        participantIds.clear();
     }
 
     public void reactivate(EventRegistrationType registrationType, Long familyId, Integer participantCount) {
@@ -75,5 +86,14 @@ public class EventRegistrationPersistenceEntity extends AuditableAbstractPersist
         this.familyId = familyId;
         this.participantCount = participantCount;
         status = EventRegistrationStatus.REGISTERED;
+    }
+
+    public Set<Long> getParticipantIds() {
+        return Set.copyOf(participantIds);
+    }
+
+    public void replaceParticipants(Set<Long> participants) {
+        participantIds.clear();
+        participantIds.addAll(participants);
     }
 }

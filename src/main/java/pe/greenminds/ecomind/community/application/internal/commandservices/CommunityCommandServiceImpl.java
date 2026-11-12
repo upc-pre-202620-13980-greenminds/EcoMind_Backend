@@ -132,16 +132,25 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
         }
 
         for (var event : events.findByCommunityIdForUpdate(command.communityId())) {
-            var registration = registrations.findByEventIdAndUserId(event.getId(), command.userId())
-                    .filter(existingRegistration -> existingRegistration.status() == EventRegistrationStatus.REGISTERED);
-            if (registration.isEmpty()) {
-                continue;
+            int releasedPlaces = 0;
+
+            for (var registration : registrations.findByEventId(event.getId())) {
+                if (registration.status() != EventRegistrationStatus.REGISTERED) {
+                    continue;
+                }
+
+                if (registration.userId().equals(command.userId())) {
+                    releasedPlaces += registration.activeParticipantCount();
+                    registrations.save(registration.cancel());
+                } else if (registration.includes(command.userId())) {
+                    releasedPlaces++;
+                    registrations.save(registration.removeParticipant(command.userId()));
+                }
             }
-            var eventRegistration = registration.get();
-            registrations.save(new EventRegistration(eventRegistration.id(), eventRegistration.eventId(),
-                    eventRegistration.userId(), eventRegistration.registrationType(), eventRegistration.familyId(),
-                    eventRegistration.participantCount(), EventRegistrationStatus.CANCELLED));
-            events.save(event.releasePlaces(eventRegistration.participantCount()));
+
+            if (releasedPlaces > 0) {
+                events.save(event.releasePlaces(releasedPlaces));
+            }
         }
 
         memberships.delete(membership.get());

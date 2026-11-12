@@ -10,6 +10,7 @@ import pe.greenminds.ecomind.community.domain.model.valueobjects.EventRegistrati
 import pe.greenminds.ecomind.community.domain.model.commands.*;
 import pe.greenminds.ecomind.community.domain.repositories.*;
 import pe.greenminds.ecomind.shared.application.result.*;
+import java.util.Set;
 
 @Service
 public class EventRegistrationCommandServiceImpl implements EventRegistrationCommandService {
@@ -28,37 +29,88 @@ public class EventRegistrationCommandServiceImpl implements EventRegistrationCom
     @Override
     public Result<EventRegistration, ApplicationError> handle(RegisterForEventCommand command) {
         var event = events.findByIdForUpdate(command.eventId());
-        if (event.isEmpty())
-            return Result.failure(ApplicationError.notFound("Event", String.valueOf(command.eventId())));
-        var previousRegistration = registrations.findByEventIdAndUserId(command.eventId(), command.userId());
-        if (previousRegistration.filter(existingRegistration -> existingRegistration.status() == EventRegistrationStatus.REGISTERED)
-                .isPresent())
+
+        if (event.isEmpty()) {
             return Result.failure(
-                    ApplicationError.conflict("Event registration", "The user already has an active registration"));
-        int count;
+                    ApplicationError.notFound("Event", String.valueOf(command.eventId())));
+        }
+
+        var previousRegistration = registrations.findByEventIdAndUserId(
+                command.eventId(),
+                command.userId());
+
+        if (previousRegistration
+                .filter(registration -> registration.status() == EventRegistrationStatus.REGISTERED)
+                .isPresent()) {
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "EVENT_REGISTRATION_ALREADY_ACTIVE",
+                    "The user already manages an active registration"));
+        }
+
+        Set<Long> participants;
+
         if (command.registrationType() == EventRegistrationType.INDIVIDUAL) {
-            if (command.familyId() != null)
-                return Result.failure(ApplicationError.validationError("Event registration",
+            if (command.familyId() != null) {
+                return Result.failure(ApplicationError.validationError(
+                        "Event registration",
                         "Individual registration cannot include family id"));
-            count = 1;
+            }
+
+            participants = Set.of(command.userId());
         } else if (command.registrationType() == EventRegistrationType.FAMILY) {
-            if (command.familyId() == null)
-                return Result.failure(ApplicationError.validationError("Event registration", "Family id is required"));
+            if (command.familyId() == null) {
+                return Result.failure(ApplicationError.validationError(
+                        "Event registration",
+                        "Family id is required"));
+            }
+
             try {
-                count = actors.requireFamilyParentAndCount(command.userId(), command.familyId());
+                participants = actors.requireFamilyParentAndGetMembers(
+                        command.userId(),
+                        command.familyId());
             } catch (SecurityException exception) {
-                return Result.failure(ApplicationError.forbidden("FAMILY_REGISTRATION_FORBIDDEN", exception.getMessage()));
+                return Result.failure(ApplicationError.forbidden(
+                        "FAMILY_REGISTRATION_FORBIDDEN",
+                        exception.getMessage()));
             }
         } else {
-            return Result.failure(ApplicationError.validationError("Event registration",
+            return Result.failure(ApplicationError.validationError(
+                    "Event registration",
                     "Registration type must be INDIVIDUAL or FAMILY"));
         }
-        if (count > event.get().getCapacity())
-            return Result.failure(ApplicationError.conflict("Event capacity", "Event capacity exceeded"));
 
-        var registration = registrations.save(new EventRegistration(previousRegistration.map(EventRegistration::id).orElse(null), command.eventId(), command.userId(),
-                command.registrationType(), command.familyId(), count, EventRegistrationStatus.REGISTERED));
+        var existingRegistrations = registrations.findByEventId(command.eventId());
+
+        boolean participantAlreadyRegistered = existingRegistrations.stream()
+                .filter(registration -> registration.status() == EventRegistrationStatus.REGISTERED)
+                .anyMatch(registration -> participants.stream().anyMatch(registration::includes));
+
+        if (participantAlreadyRegistered) {
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "EVENT_PARTICIPANT_ALREADY_REGISTERED",
+                    "One or more participants already belong to this event"));
+        }
+
+        int count = participants.size();
+
+        if (count > event.get().getCapacity()) {
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "EVENT_CAPACITY_EXCEEDED",
+                    "There are not enough available places"));
+        }
+
+        var registration = registrations.save(new EventRegistration(
+                previousRegistration.map(EventRegistration::id).orElse(null),
+                command.eventId(),
+                command.userId(),
+                command.registrationType(),
+                command.familyId(),
+                count,
+                EventRegistrationStatus.REGISTERED,
+                participants));
+
         events.save(event.get().reservePlaces(count));
+
         return Result.success(registration);
     }
 
@@ -66,21 +118,79 @@ public class EventRegistrationCommandServiceImpl implements EventRegistrationCom
     @Override
     public Result<Void, ApplicationError> handle(CancelEventRegistrationCommand command) {
         var event = events.findByIdForUpdate(command.eventId());
-        if (event.isEmpty())
-            return Result.failure(ApplicationError.notFound("Event", String.valueOf(command.eventId())));
-        var registration = registrations.findById(command.registrationId()).filter(existingRegistration -> existingRegistration.eventId().equals(command.eventId()));
-        if (registration.isEmpty())
-            return Result.failure(ApplicationError.notFound("Event registration", String.valueOf(command.registrationId())));
-        if (!registration.get().userId().equals(command.requestedBy()))
-            return Result.failure(ApplicationError.forbidden("EVENT_REGISTRATION_CANCEL_FORBIDDEN",
-                    "Only the registration owner may cancel it"));
-        if (registration.get().status() == EventRegistrationStatus.CANCELLED)
-            return Result.failure(ApplicationError.businessRuleViolation("EVENT_REGISTRATION_ALREADY_CANCELLED",
+
+        if (event.isEmpty()) {
+            return Result.failure(
+                    ApplicationError.notFound("Event", String.valueOf(command.eventId())));
+        }
+
+        var registration = registrations.findById(command.registrationId())
+                .filter(existingRegistration ->
+                        existingRegistration.eventId().equals(command.eventId()));
+
+        if (registration.isEmpty()) {
+            return Result.failure(ApplicationError.notFound(
+                    "Event registration",
+                    String.valueOf(command.registrationId())));
+        }
+
+        var current = registration.get();
+
+        if (!current.userId().equals(command.requestedBy())) {
+            return Result.failure(ApplicationError.forbidden(
+                    "EVENT_REGISTRATION_CANCEL_FORBIDDEN",
+                    "Only the registration owner may cancel the group"));
+        }
+
+        if (current.status() == EventRegistrationStatus.CANCELLED) {
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "EVENT_REGISTRATION_ALREADY_CANCELLED",
                     "Registration is already cancelled"));
-        var eventRegistration = registration.get();
-        registrations.save(new EventRegistration(eventRegistration.id(), eventRegistration.eventId(), eventRegistration.userId(), eventRegistration.registrationType(), eventRegistration.familyId(),
-                eventRegistration.participantCount(), EventRegistrationStatus.CANCELLED));
-        events.save(event.get().releasePlaces(eventRegistration.participantCount()));
+        }
+
+        if (event.get().getAuthorId().equals(command.requestedBy())) {
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "EVENT_CREATOR_CANNOT_LEAVE",
+                    "The creator must delete the event instead of leaving it"));
+        }
+
+        int releasedPlaces = current.activeParticipantCount();
+
+        registrations.save(current.cancel());
+        events.save(event.get().releasePlaces(releasedPlaces));
+
+        return Result.success(null);
+    }
+
+    @Transactional
+    @Override
+    public Result<Void, ApplicationError> handle(LeaveEventCommand command) {
+        var event = events.findByIdForUpdate(command.eventId());
+
+        if (event.isEmpty()) {
+            return Result.failure(
+                    ApplicationError.notFound("Event", String.valueOf(command.eventId())));
+        }
+
+        if (event.get().getAuthorId().equals(command.requestedBy())) {
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "EVENT_CREATOR_CANNOT_LEAVE",
+                    "The creator must delete the event instead of leaving it"));
+        }
+
+        var registration = registrations.findByEventId(command.eventId()).stream()
+                .filter(existingRegistration -> existingRegistration.includes(command.requestedBy()))
+                .findFirst();
+
+        if (registration.isEmpty()) {
+            return Result.failure(ApplicationError.notFound(
+                    "Event participation",
+                    command.eventId() + ":" + command.requestedBy()));
+        }
+
+        registrations.save(registration.get().removeParticipant(command.requestedBy()));
+        events.save(event.get().releasePlaces(1));
+
         return Result.success(null);
     }
 }

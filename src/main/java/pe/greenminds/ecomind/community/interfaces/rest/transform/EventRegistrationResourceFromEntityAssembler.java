@@ -10,6 +10,6 @@ public final class EventRegistrationResourceFromEntityAssembler {
     public static EventRegistrationResource toResourceFromEntity(EventRegistration eventRegistration) {
         return new EventRegistrationResource(eventRegistration.id(), eventRegistration.eventId(),
                 eventRegistration.userId(), eventRegistration.registrationType(), eventRegistration.familyId(),
-                eventRegistration.participantCount(), eventRegistration.status());
+                eventRegistration.activeParticipantCount(), eventRegistration.status());
     }
 }

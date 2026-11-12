@@ -8,8 +8,10 @@ import pe.greenminds.ecomind.community.domain.repositories.EventRegistrationRepo
 import pe.greenminds.ecomind.community.domain.model.valueobjects.EventRegistrationStatus;
 import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.assemblers.EventRegistrationPersistenceAssembler;
 import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.repositories.EventRegistrationPersistenceRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
+@Transactional
 public class EventRegistrationRepositoryImpl implements EventRegistrationRepository {
     private final EventRegistrationPersistenceRepository repository;
 
@@ -19,12 +21,23 @@ public class EventRegistrationRepositoryImpl implements EventRegistrationReposit
 
     @Override
     public EventRegistration save(EventRegistration eventRegistration) {
-        var entity = eventRegistration.id() == null ? EventRegistrationPersistenceAssembler.toEntity(eventRegistration)
+        var entity = eventRegistration.id() == null
+                ? EventRegistrationPersistenceAssembler.toEntity(eventRegistration)
                 : repository.findById(eventRegistration.id()).orElseThrow();
-        if (eventRegistration.status() == EventRegistrationStatus.CANCELLED)
+
+        if (eventRegistration.status() == EventRegistrationStatus.CANCELLED) {
             entity.cancel();
-        else if (eventRegistration.id() != null)
-            entity.reactivate(eventRegistration.registrationType(), eventRegistration.familyId(), eventRegistration.participantCount());
+        } else {
+            if (eventRegistration.id() != null) {
+                entity.reactivate(
+                        eventRegistration.registrationType(),
+                        eventRegistration.familyId(),
+                        eventRegistration.participantCount());
+            }
+
+            entity.replaceParticipants(eventRegistration.participantIds());
+        }
+
         return EventRegistrationPersistenceAssembler.toDomain(repository.save(entity));
     }
 
