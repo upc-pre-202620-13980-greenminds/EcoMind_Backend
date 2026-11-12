@@ -30,22 +30,27 @@ class EventRegistrationCommandServiceImplTests {
   }
 
   void event(int capacity) {
-    when(events.findById(1L))
-        .thenReturn(
-            Optional.of(
-                new Event(
-                    1L,
-                    2L,
-                    10L,
-                    "Cleanup",
-                    null,
-                    LocalDate.of(2026, 11, 1),
-                    LocalTime.NOON,
-                    "Lima",
-                    null,
-                    null,
-                    capacity,
-                    null)));
+    event(1L, capacity);
+  }
+
+  void event(long id, int capacity) {
+    when(events.findByIdForUpdate(id)).thenReturn(Optional.of(eventAggregate(id, capacity)));
+  }
+
+  Event eventAggregate(long id, int capacity) {
+    return new Event(
+        id,
+        2L,
+        10L,
+        "Cleanup",
+        null,
+        LocalDate.now().plusDays(2),
+        LocalTime.NOON,
+        "Lima",
+        null,
+        null,
+        capacity,
+        null);
   }
 
   EventRegistration registration(EventRegistrationStatus status) {
@@ -94,7 +99,8 @@ class EventRegistrationCommandServiceImplTests {
   @Test
   void familySizeComesFromUsersContext() {
     event(4);
-    when(actors.requireFamilyParentAndCount(20L, 8L)).thenReturn(3);
+    when(actors.requireFamilyParentAndGetMembers(20L, 8L))
+        .thenReturn(Set.of(20L, 21L, 22L));
     when(registrations.save(any())).thenAnswer(c -> c.getArgument(0));
     var result =
         service
@@ -106,10 +112,20 @@ class EventRegistrationCommandServiceImplTests {
 
   @Test
   void wholeFamilyMustFitInCapacity() {
-    event(3);
-    when(actors.requireFamilyParentAndCount(20L, 8L)).thenReturn(3);
+    event(2);
+    when(actors.requireFamilyParentAndGetMembers(20L, 8L))
+        .thenReturn(Set.of(20L, 21L, 22L));
     when(registrations.findByEventId(1L))
-        .thenReturn(List.of(registration(EventRegistrationStatus.REGISTERED)));
+        .thenReturn(
+            List.of(
+                new EventRegistration(
+                    6L,
+                    1L,
+                    30L,
+                    EventRegistrationType.INDIVIDUAL,
+                    null,
+                    1,
+                    EventRegistrationStatus.REGISTERED)));
     assertTrue(
         service
             .handle(new RegisterForEventCommand(1L, 20L, EventRegistrationType.FAMILY, 8L))
@@ -142,7 +158,7 @@ class EventRegistrationCommandServiceImplTests {
     event(3);
     doThrow(new SecurityException("Not a family parent"))
         .when(actors)
-        .requireFamilyParentAndCount(20L, 8L);
+        .requireFamilyParentAndGetMembers(20L, 8L);
     assertTrue(
         service
             .handle(new RegisterForEventCommand(1L, 20L, EventRegistrationType.FAMILY, 8L))
@@ -152,6 +168,7 @@ class EventRegistrationCommandServiceImplTests {
 
   @Test
   void cancellationRequiresOwner() {
+    event(3);
     when(registrations.findById(5L))
         .thenReturn(Optional.of(registration(EventRegistrationStatus.REGISTERED)));
     assertTrue(service.handle(new CancelEventRegistrationCommand(1L, 5L, 30L)).isFailure());
@@ -160,6 +177,7 @@ class EventRegistrationCommandServiceImplTests {
 
   @Test
   void cancellationRequiresMatchingEvent() {
+    event(2L, 3);
     when(registrations.findById(5L))
         .thenReturn(Optional.of(registration(EventRegistrationStatus.REGISTERED)));
     assertTrue(service.handle(new CancelEventRegistrationCommand(2L, 5L, 20L)).isFailure());
@@ -168,6 +186,7 @@ class EventRegistrationCommandServiceImplTests {
 
   @Test
   void ownerCanCancel() {
+    event(3);
     when(registrations.findById(5L))
         .thenReturn(Optional.of(registration(EventRegistrationStatus.REGISTERED)));
     assertTrue(service.handle(new CancelEventRegistrationCommand(1L, 5L, 20L)).isSuccess());
@@ -176,6 +195,7 @@ class EventRegistrationCommandServiceImplTests {
 
   @Test
   void repeatedCancellationIsRejected() {
+    event(3);
     when(registrations.findById(5L))
         .thenReturn(Optional.of(registration(EventRegistrationStatus.CANCELLED)));
     assertTrue(service.handle(new CancelEventRegistrationCommand(1L, 5L, 20L)).isFailure());

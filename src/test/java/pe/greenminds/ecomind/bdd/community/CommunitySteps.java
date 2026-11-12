@@ -33,6 +33,7 @@ public class CommunitySteps {
             "community_achievement_notices",
             "community_post_reactions",
             "community_posts",
+            "community_event_registration_participants",
             "community_event_registrations",
             "community_events",
             "community_achievements",
@@ -43,7 +44,7 @@ public class CommunitySteps {
     }
   }
 
-  @Given("a local community managed by {string}")
+  @Given("a local community created by {string}")
   public void local(String actor) {
     api.post(
         BASE + "/Communities/Local",
@@ -51,6 +52,9 @@ public class CommunitySteps {
         users.tokenOf(actor));
     assertThat(api.status()).as(api.body()).isEqualTo(201);
     communityId = id();
+    api.postWithoutBody(
+        BASE + "/Communities/" + communityId + "/Memberships", users.tokenOf(actor));
+    assertThat(api.status()).as(api.body()).isEqualTo(201);
   }
 
   @When("{string} joins the community")
@@ -145,7 +149,7 @@ public class CommunitySteps {
   public void achievements(int count) {
     assertThat(
             jdbc.queryForObject(
-                "SELECT COUNT(*) FROM community_achievements WHERE community_id=?",
+                "SELECT COUNT(*) FROM community_achievements WHERE community_id=? AND community_goal_id IS NOT NULL",
                 Integer.class,
                 communityId))
         .isEqualTo(count);
