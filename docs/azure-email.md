@@ -23,10 +23,11 @@ An initial poll retains the provider operation ID for later status diagnosis if 
 HTTP operations have 5-second connect and 10-second response/read timeouts, with no
 automatic retries. Polling waits up to 60 seconds; an in-flight HTTP request can extend
 the total request duration. Do not describe this as a strict 60-second end-to-end bound.
-The adapter uses a 30-second polling interval instead of the SDK's short default.
-This reduces status traffic, but does not enforce subscription-wide quotas when
-several users send concurrently. Successful acceptance logs a validated operation
-UUID for correlation; it never claims delivery or logs recipients or message content.
+Azure currently returns a three-second `Retry-After` on status reads. The SDK honors
+that response ahead of its configurable default interval; changing only the default
+does not reduce this traffic. Subscription-wide status quotas still apply.
+Successful acceptance logs a validated operation UUID for correlation; it never
+claims delivery or logs recipients or message content.
 
 ## Reproducible setup
 

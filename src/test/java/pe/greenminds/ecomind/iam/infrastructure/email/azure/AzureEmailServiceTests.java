@@ -103,7 +103,6 @@ class AzureEmailServiceTests {
     assertThat(formattedLogs(logs)).containsExactly(
         "email_accepted provider=azure operation_id=" + operationId,
         "email_accepted provider=azure operation_id=unavailable");
-    verify(poller, times(2)).setPollInterval(Duration.ofSeconds(30));
   }
 
   @Test
