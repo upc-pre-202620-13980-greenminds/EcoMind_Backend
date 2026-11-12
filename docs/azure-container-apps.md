@@ -303,11 +303,12 @@ additional backup storage, email/domain charges and demo time with minimum 1 can
 increase it. Review actual cost after the first few days. Do not enable paid Defender
 plans, NAT Gateway, HA, geo-replication or duplicate environments by default.
 
-Automatic production CD is not enabled by this feature. After the subscription exists,
-configure a GitHub production environment and a federated identity scoped to this
-resource group / registry. Use OIDC rather than a long-lived Azure client secret. Keep
-the existing CI checks and require the exact tested image for releases. Capture that
-actual setup before documenting CD as enabled.
+The follow-up in `feature/azure-develop-deployment` configures automatic deployment
+from `develop` with a branch-scoped federated identity. It publishes the same tested
+and scanned image by digest, verifies the ready revision and public API, and restores
+the previous image on a failed rollout when safe. See [the delivery workflow](ci-cd.md)
+for configuration, checks, recovery and the observed deployment record. Initial manual
+provisioning above remains historical setup evidence.
 
 The existing Aiven database is not migrated by creating an empty Azure database.
 Preserving accounts and progress requires an authorized export, compatible restore,

@@ -1,52 +1,142 @@
 # Backend delivery workflow
 
-## Continuous integration
+## Branches and checks
 
-`.github/workflows/backend.yml` runs for pull requests targeting `develop` or `main`, pushes to those branches, manual dispatches, and `v*` release tags. Release tags must have the form `vMAJOR.MINOR.PATCH` and match the project version in `pom.xml`. Java 21 and the Maven Wrapper compile the service and execute `clean verify` with two database configurations: H2 in PostgreSQL compatibility mode and PostgreSQL 17.
+Work starts in `feature/*` and is integrated by pull request into `develop`. Releases
+and hotfixes target `main` through the existing GitFlow. Use Conventional Commit titles.
+Pull requests targeting either branch run all checks without Azure credentials.
 
-Both configurations execute the unit, integration and Cucumber acceptance suites. A failed test or coverage below 85% of lines or 65% of branches fails the job. Each execution retains Surefire XML, Cucumber HTML/JSON/JUnit reports and JaCoCo coverage for 14 days. The PostgreSQL job also uploads the executable JAR. The container job builds the existing deployment Dockerfile only after both verification jobs pass. Pull requests do not deploy.
+Java 21 and the Maven Wrapper run `clean verify` against H2 and PostgreSQL 17. Unit,
+integration and Cucumber suites must pass, with at least 85% line and 65% branch
+coverage. The deployment helper's isolated tests run before Maven. Existing thresholds
+and tests remain mandatory. Both database jobs retain test/coverage reports for 14 days;
+the PostgreSQL job also retains the executable JAR.
 
-The workflow validates Conventional Commit pull request titles. Feature work targets `develop`; release and hotfix branches target `main`. Release versions use `MAJOR.MINOR.PATCH` and are updated in `pom.xml` before creating the release tag. Dependency updates for Maven and GitHub Actions are proposed through Dependabot pull requests and follow the same checks.
+After both jobs pass, the container job builds `Dockerfile.azure` for Linux AMD64. It
+rejects packaged development/local configuration, scans OS/Java dependencies with a
+pinned Trivy release and fails on fixable HIGH/CRITICAL vulnerabilities. The JSON scan
+report is retained for 14 days, including failed scans. Unfixed vulnerabilities remain
+visible in the report but are not this gate's threshold. Dependabot proposes weekly
+Maven, action and Docker updates into `develop`; updates use the same checks.
 
-## Continuous deployment
+## Automatic Azure deployment
 
-The production deployment job runs only after successful verification and container build for a push to `main`. It is disabled unless the repository variable `RENDER_DEPLOY_ENABLED` equals `true`.
+Only `push` events on `develop`, including merged pull requests, deploy when
+`AZURE_DEPLOY_ENABLED=true`. PRs, `main`, tags and manual workflow dispatches do not
+deploy this shared environment. Direct pushes to `develop` also trigger the workflow;
+branch protection must require PRs to prevent that route.
 
-The service administrator configures:
+The tested/scanned image is exported once and retained for one day. The deployment job:
 
-1. A Git-backed Render service pointing to this repository, with the existing `Dockerfile` and `main` branch.
-2. Automatic deploys disabled in Render, so unverified commits do not bypass the workflow.
-3. The `production` GitHub environment, with the secret `RENDER_DEPLOY_HOOK_URL` containing that service's deploy hook.
-4. The repository variable `RENDER_DEPLOY_ENABLED=true`.
+1. Skips a commit superseded by a newer `develop` head.
+2. Downloads that run's image, verifies its source SHA, Linux AMD64 platform and
+   non-root user `10001:10001`; it does not rebuild application code.
+3. Authenticates with OIDC and publishes to the existing Azure Container Registry,
+   using a commit/run/attempt tag.
+4. Updates only the existing `ca-ecomind-api` container image, pinned by SHA256 digest.
+   Existing secrets, identity, network, probes, database and 0–2 scaling stay configured.
+5. Waits for the exact expected revision and image to be active, Healthy and Provisioned,
+   then checks OpenAPI 200 and anonymous account access 401. An older serving revision
+   cannot satisfy this check. The final ready revision is checked again after HTTP probes.
 
-The job requests the exact verified commit using Render's `ref` parameter. It accepts only an HTTPS Render hook. A missing hook or rejected request fails the job; credentials are never stored in source control. HTTP 200/202 confirms that Render accepted the request. Deployment completion and runtime health are verified in the Render service's deployment logs.
+Deployments are serialized and are not canceled halfway through an update. The summary
+records the image digest, ready revision, previous revision and public URL. A pipeline
+passing compilation alone is not recorded as a completed deployment.
 
-Production database, JWT, email and payment credentials remain in the service configuration. Tests use isolated local credentials and do not require access to production or external payment providers.
+## Authentication and infrastructure
+
+`infra/azure/github-deploy.bicep` creates the separate user-assigned identity
+`id-ecomind-github-deploy`. Its federated credential trusts exactly
+`repo:upc-pre-202620-13980-greenminds/EcoMind_Backend:ref:refs/heads/develop`, issued by
+`https://token.actions.githubusercontent.com` for `api://AzureADTokenExchange`.
+There is no Azure client secret. Only the deployment job receives `id-token: write`.
+
+GitHub repository secrets `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and
+`AZURE_SUBSCRIPTION_ID` hold its identifiers. Runtime database, JWT, mail and provider
+credentials remain in Azure; the workflow does not read or replace them.
+
+The custom deployment role permits app read/write/revision read and registry metadata
+read. It is assigned only to this Container App and this registry. `AcrPush` is assigned
+only to this registry. The identity has no Key Vault, PostgreSQL, network or role-management
+assignment. The app's separate pull identity retains its existing `AcrPull` assignment.
+
+A subscription administrator can reproduce identity/role setup with:
+
+```bash
+bash scripts/azure.sh deployment group validate -g rg-ecomind-prod --template-file infra/azure/github-deploy.bicep
+bash scripts/azure.sh deployment group what-if -g rg-ecomind-prod --template-file infra/azure/github-deploy.bicep
+bash scripts/azure.sh deployment group create -g rg-ecomind-prod --template-file infra/azure/github-deploy.bicep
+```
+
+Configure the three output identifiers as GitHub secrets and set repository variable
+`AZURE_DEPLOY_ENABLED=true`. The resource names/registry host in the workflow identify
+this existing shared environment. There is no second paid deployment environment.
+
+## Failure and recovery
+
+A test, coverage, image configuration or vulnerability-gate failure prevents deployment.
+An update already in progress outside this pipeline must finish before another begins.
+If rollout or public smoke checks fail, the helper restores and verifies the previous
+image only when the failed attempt still owns the current image/revision. It leaves a
+subsequent external update alone. A restored rollout still fails the GitHub job and
+reports recovery; it does not mark the attempted version successful.
+
+Image rollback does not reverse database schema/data changes or external side effects.
+Keep schema changes backward compatible and review their recovery plan in the PR. The
+existing PostgreSQL backup/PITR configuration is separate; restore requires an authorized
+operator and a verified restore point. Do not point tests at the application database.
+
+To pause deployments while keeping CI active:
+
+```bash
+gh variable set AZURE_DEPLOY_ENABLED --body false
+```
+
+Investigate the failed GitHub job and its retained test/security reports first. Use the
+project Azure CLI wrapper to read app/revision state and Azure logs; keep raw application
+logs private. Never print secrets, recovery links or access tokens. Once the cause is
+fixed, merge a new tested commit and re-enable the variable. Rerunning an old commit
+superseded by `develop` will not deploy it.
+
+For an operator-driven image rollback, use a previously verified digest from the job
+summary and preserve the current application configuration:
+
+```bash
+bash scripts/azure.sh containerapp update -g rg-ecomind-prod -n ca-ecomind-api --container-name ecomind-api --image '<registry>/ecomind-backend@sha256:<verified-digest>' --output none
+python3 scripts/verify-deployment.py 'https://<app-fqdn>'
+```
+
+Confirm the exact ready revision and image as well as HTTP health. Existing Azure logs,
+metrics, retention/cap and cost budget remain in use. GitHub run failures are visible in
+Actions; personal notification preferences are managed by each team member.
+
+## Merge protection and releases
+
+A repository administrator should require `Pull request conventions`, `Tests (h2)`,
+`Tests (postgresql)` and `Build deployment image`, require an up-to-date PR, resolve
+conversations and disallow force pushes/deletions on `develop` and `main`. The deployment
+job is not a PR check: it runs after merging. Configuration of the workflow alone does
+not prove these repository protection settings are enabled.
+
+Release tags use `vMAJOR.MINOR.PATCH` and must match `pom.xml`. Tags and `main` run the
+same verification and retain artifacts, without replacing the `develop` Azure image.
+The old Render deploy hook is no longer used by this workflow.
 
 ## Local verification
 
 ```bash
+python3 -m unittest discover -s scripts -p 'test_*.py'
 bash ./mvnw --batch-mode --no-transfer-progress clean verify
 ```
 
-For PostgreSQL, create a disposable test database and supply its connection:
-
-```bash
-export TEST_DATABASE_URL=jdbc:postgresql://localhost:5432/ecomind_test
-export TEST_DATABASE_DRIVER=org.postgresql.Driver
-export TEST_DATABASE_USERNAME=ecomind_test
-export TEST_DATABASE_PASSWORD=test-only-password
-bash ./mvnw --batch-mode --no-transfer-progress clean verify
-```
-
-The test profile recreates its database tables with `create-drop`; use a dedicated test database. Reports are written under `target/surefire-reports`, `target/cucumber` and `target/site/jacoco`.
-
-## Required checks
-
-The merge checks are `Pull request conventions`, `Tests (h2)`, `Tests (postgresql)` and `Build deployment image`. Repository administrators can select those checks in branch protection for `develop` and `main`. The workflow has read-only repository permissions and does not merge pull requests.
+PostgreSQL tests use `TEST_DATABASE_URL`, `TEST_DATABASE_DRIVER`,
+`TEST_DATABASE_USERNAME` and `TEST_DATABASE_PASSWORD` for an isolated disposable database.
+The test profile recreates tables with `create-drop`.
 
 ## References
 
-- [GitHub Actions: Java with Maven](https://docs.github.com/en/actions/tutorials/build-and-test-code/java-with-maven)
-- [Render deploy hooks](https://render.com/docs/deploy-hooks)
-- [JaCoCo Maven agent](https://www.jacoco.org/jacoco/trunk/doc/prepare-agent-mojo.html)
+- [Azure Login with OIDC](https://learn.microsoft.com/azure/developer/github/connect-from-azure-openid-connect)
+- [Federated managed identity](https://learn.microsoft.com/entra/workload-id/workload-identity-federation-create-trust-user-assigned-managed-identity)
+- [Azure Container Apps revisions](https://learn.microsoft.com/azure/container-apps/revisions)
+- [Trivy action](https://github.com/aquasecurity/trivy-action)
+- [GitHub protected branches](https://docs.github.com/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)

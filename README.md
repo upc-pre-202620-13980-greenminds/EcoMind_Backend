@@ -186,7 +186,7 @@ This runs the unit tests and the acceptance tests written with Cucumber. Feature
 
 ## Continuous integration and delivery
 
-The [backend workflow](.github/workflows/backend.yml) verifies pull requests with H2 and PostgreSQL, exports test and coverage reports, and builds the deployment image. See [CI/CD configuration](docs/ci-cd.md) for local commands, merge checks and the production deployment configuration.
+The [backend workflow](.github/workflows/backend.yml) verifies pull requests with H2 and PostgreSQL, enforces coverage, scans the Azure image and retains reports. Merges into `develop` deploy the same image to Azure by digest through OIDC, verify the ready revision and public API, and restore the previous image if rollout checks fail when safe. See [CI/CD configuration](docs/ci-cd.md) for GitFlow, configuration, checks and recovery.
 
 ## Verifying real IAM email
 
