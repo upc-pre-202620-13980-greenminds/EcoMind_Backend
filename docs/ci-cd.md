@@ -50,8 +50,10 @@ passing compilation alone is not recorded as a completed deployment.
 
 `infra/azure/github-deploy.bicep` creates the separate user-assigned identity
 `id-ecomind-github-deploy`. Its federated credential trusts exactly
-`repo:upc-pre-202620-13980-greenminds/EcoMind_Backend:ref:refs/heads/develop`, issued by
+`repo:upc-pre-202620-13980-greenminds@323838917/EcoMind_Backend@1391221057:ref:refs/heads/develop`, issued by
 `https://token.actions.githubusercontent.com` for `api://AzureADTokenExchange`.
+The immutable owner/repository IDs match the subject observed in the real GitHub
+OIDC assertion; a display-name-only subject does not match this repository.
 There is no Azure client secret. Only the deployment job receives `id-token: write`.
 
 GitHub repository secrets `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and
