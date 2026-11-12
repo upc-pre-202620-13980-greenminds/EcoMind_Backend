@@ -2,6 +2,7 @@ package pe.greenminds.ecomind.community.domain.model.aggregates;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import pe.greenminds.ecomind.community.domain.model.commands.UpdateEventCommand;
 
 public class Event {
     private final Long id, communityId, authorId;
@@ -29,6 +30,55 @@ public class Event {
         this.longitude = longitude;
         this.capacity = capacity;
         this.imageUrl = imageUrl;
+    }
+
+    public Event updateDetails(UpdateEventCommand command) {
+        if ((command.latitude() == null) != (command.longitude() == null)) {
+            throw new IllegalArgumentException(
+                    "Latitude and longitude must be provided together");
+        }
+
+        if (command.latitude() != null) {
+            if (!Double.isFinite(command.latitude())
+                    || command.latitude() < -90
+                    || command.latitude() > 90) {
+                throw new IllegalArgumentException(
+                        "Latitude must be between -90 and 90");
+            }
+
+            if (!Double.isFinite(command.longitude())
+                    || command.longitude() < -180
+                    || command.longitude() > 180) {
+                throw new IllegalArgumentException(
+                        "Longitude must be between -180 and 180");
+            }
+        }
+
+        return new Event(
+                id,
+                communityId,
+                authorId,
+                command.name() != null ? command.name() : name,
+                updatedOptionalText(description, command.description()),
+                command.date() != null ? command.date() : date,
+                command.startTime() != null ? command.startTime() : startTime,
+                updatedOptionalText(location, command.location()),
+                command.latitude() != null ? command.latitude() : latitude,
+                command.longitude() != null ? command.longitude() : longitude,
+                command.capacity() != null ? command.capacity() : capacity,
+                updatedOptionalText(imageUrl, command.imageUrl()));
+    }
+
+    private static String updatedOptionalText(
+            String currentValue,
+            String requestedValue) {
+
+        if (requestedValue == null) {
+            return currentValue;
+        }
+
+        String trimmed = requestedValue.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     public Long getId() {

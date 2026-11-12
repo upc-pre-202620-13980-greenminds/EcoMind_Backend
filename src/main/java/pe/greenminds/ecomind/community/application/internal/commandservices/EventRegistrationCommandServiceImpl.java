@@ -27,7 +27,7 @@ public class EventRegistrationCommandServiceImpl implements EventRegistrationCom
     @Transactional
     @Override
     public Result<EventRegistration, ApplicationError> handle(RegisterForEventCommand command) {
-        var event = events.findById(command.eventId());
+        var event = events.findByIdForUpdate(command.eventId());
         if (event.isEmpty())
             return Result.failure(ApplicationError.notFound("Event", String.valueOf(command.eventId())));
         var previousRegistration = registrations.findByEventIdAndUserId(command.eventId(), command.userId());

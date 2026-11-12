@@ -12,4 +12,6 @@ public interface EventRepository {
     List<Event> findAll(Long communityId);
 
     void delete(Event event);
+
+    Optional<Event> findByIdForUpdate(Long id);
 }

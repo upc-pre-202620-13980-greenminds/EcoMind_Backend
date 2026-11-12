@@ -24,9 +24,7 @@ public class EventCommandServiceImpl implements EventCommandService {
     private final CommunityActorGateway actors;
     private final ApplicationEventPublisher publisher;
 
-    public EventCommandServiceImpl(EventRepository eventRepository, CommunityRepository communityRepository, CommunityMembershipRepository communityMembershipRepository,
-            EventRegistrationRepository registrations, PostRepository postRepository, CommunityActorGateway communityActorGateway,
-            ApplicationEventPublisher publisher) {
+    public EventCommandServiceImpl(EventRepository eventRepository, CommunityRepository communityRepository, CommunityMembershipRepository communityMembershipRepository, EventRegistrationRepository registrations, PostRepository postRepository, CommunityActorGateway communityActorGateway, ApplicationEventPublisher publisher) {
         events = eventRepository;
         communities = communityRepository;
         memberships = communityMembershipRepository;
@@ -65,7 +63,7 @@ public class EventCommandServiceImpl implements EventCommandService {
     @Transactional
     @Override
     public Result<Void, ApplicationError> handle(DeleteEventCommand command) {
-        var found = events.findById(command.eventId());
+        var found = events.findByIdForUpdate(command.eventId());
         if (found.isEmpty())
             return Result.failure(ApplicationError.notFound("Event", String.valueOf(command.eventId())));
         boolean creator = found.get().getAuthorId().equals(command.requestedBy());
@@ -76,5 +74,50 @@ public class EventCommandServiceImpl implements EventCommandService {
                     "Only the event creator or community administrator may delete it"));
         events.delete(found.get());
         return Result.success(null);
+    }
+
+    @Transactional
+    @Override
+    public Result<Event, ApplicationError> handle(UpdateEventCommand command) {
+        var found = events.findByIdForUpdate(command.eventId());
+
+        if (found.isEmpty()) {
+            return Result.failure(ApplicationError.notFound(
+                    "Event", String.valueOf(command.eventId())));
+        }
+
+        Event current = found.get();
+
+        if (!current.getAuthorId().equals(command.requestedBy())) {
+            return Result.failure(ApplicationError.forbidden(
+                    "EVENT_UPDATE_FORBIDDEN",
+                    "Only the event creator may update it"));
+        }
+
+        Event updated;
+
+        try {
+            updated = current.updateDetails(command);
+        } catch (IllegalArgumentException exception) {
+            return Result.failure(ApplicationError.validationError(
+                    "Event", exception.getMessage()));
+        }
+
+        if (command.capacity() != null) {
+            long occupied = registrations.findByEventId(command.eventId())
+                    .stream()
+                    .filter(registration ->
+                            registration.status() == EventRegistrationStatus.REGISTERED)
+                    .mapToLong(EventRegistration::participantCount)
+                    .sum();
+
+            if (updated.getCapacity() < occupied) {
+                return Result.failure(ApplicationError.conflict(
+                        "Event capacity",
+                        "Capacity cannot be lower than the number of registered participants"));
+            }
+        }
+
+        return Result.success(events.save(updated));
     }
 }
