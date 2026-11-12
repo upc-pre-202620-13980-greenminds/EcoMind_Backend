@@ -26,11 +26,10 @@ Resource inventory and templates document the deployed configuration without sec
 
 Current validation URL:
 `https://ca-ecomind-api.icybush-bd135296.westus2.azurecontainerapps.io`
-with Swagger at `/swagger-ui.html`. The running image is
+with Swagger at `/swagger-ui.html`. The first branded-mail rollout verified image
 `sha256:9cda70edabf84f4cd3ad7acb2b22a608f571bac0b40044a603635f9012dfa46b`
-(application source commit `930cdcd`; branded templates and HTTPS handoff). Previous Aiven accounts and progress were not copied. This database contains new,
-explicitly labeled demonstration data; see [email and fixture operations](azure-email.md). The Android and Flutter feature branches now default to Azure; their draft PRs still require
-team integration through the existing release process.
+(application source commit `930cdcd`; branded templates and HTTPS handoff). Subsequent integration preserves the same endpoint; record each new source/digest with its validation. Previous Aiven accounts and progress were not copied. This database contains new,
+explicitly labeled demonstration data; see [email and fixture operations](azure-email.md). Android and Flutter default to Azure, including Android debug builds. Continue client integration and releases through the existing GitFlow process.
 
 This feature starts from `develop` at `f0f5051`. The IAM email improvements from backend PR #30
 are merged into this feature branch, followed by Azure delivery and shared branded templates.
