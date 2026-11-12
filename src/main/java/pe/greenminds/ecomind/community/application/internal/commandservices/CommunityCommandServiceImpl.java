@@ -22,6 +22,9 @@ import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 import pe.greenminds.ecomind.shared.application.result.Result;
 import pe.greenminds.ecomind.community.domain.model.commands.LeaveCommunityCommand;
 import pe.greenminds.ecomind.community.application.commandservices.EventLifecycleService;
+import pe.greenminds.ecomind.community.domain.model.aggregates.Post;
+import pe.greenminds.ecomind.community.domain.repositories.PostRepository;
+import java.util.Locale;
 
 @Service
 public class CommunityCommandServiceImpl implements CommunityCommandService {
@@ -32,8 +35,10 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
     private final EventRepository events;
     private final EventRegistrationRepository registrations;
     private final EventLifecycleService lifecycle;
+    private final PostRepository posts;
 
-    public CommunityCommandServiceImpl(CommunityRepository communities, CommunityMembershipRepository memberships, CommunityAchievementRepository achievements, CommunityActorGateway actors, EventRepository events, EventRegistrationRepository registrations, EventLifecycleService lifecycle) {
+
+    public CommunityCommandServiceImpl(CommunityRepository communities, CommunityMembershipRepository memberships, CommunityAchievementRepository achievements, CommunityActorGateway actors, EventRepository events, EventRegistrationRepository registrations, EventLifecycleService lifecycle, PostRepository posts) {
         this.communities = communities;
         this.memberships = memberships;
         this.achievements = achievements;
@@ -41,18 +46,20 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
         this.events = events;
         this.registrations = registrations;
         this.lifecycle = lifecycle;
+        this.posts = posts;
     }
     @Override
     @Transactional
     public Result<Community, ApplicationError> handle(CreateLocalCommunityCommand command) {
-        try {
-            return create(CommunityType.LOCAL, command.name(), command.description(), null, command.locality(), null,
-                    command.iconUrl(), command.userId());
-        } catch (IllegalArgumentException | NullPointerException exception) {
-            return Result.failure(ApplicationError.validationError("Community", exception.getMessage()));
-        } catch (Exception exception) {
-            return Result.failure(ApplicationError.unexpected("Community creation", exception.getMessage()));
-        }
+        return create(
+                CommunityType.LOCAL,
+                command.name(),
+                command.description(),
+                null,
+                command.locality(),
+                null,
+                command.iconUrl(),
+                command.userId());
     }
 
     @Override
@@ -60,32 +67,73 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
     public Result<Community, ApplicationError> handle(CreateTopicCommunityCommand command) {
         try {
             actors.requireParent(command.userId());
-            return create(CommunityType.TOPIC, command.name(), command.description(), command.topic(), null,
-                    command.memberLimit(), command.iconUrl(), command.userId());
         } catch (SecurityException exception) {
-            return Result.failure(ApplicationError.forbidden("COMMUNITY_CREATOR_NOT_PARENT", exception.getMessage()));
-        } catch (IllegalArgumentException | NullPointerException exception) {
-            return Result.failure(ApplicationError.validationError("Community", exception.getMessage()));
-        } catch (Exception exception) {
-            return Result.failure(ApplicationError.unexpected("Community creation", exception.getMessage()));
+            return Result.failure(ApplicationError.forbidden(
+                    "COMMUNITY_CREATOR_NOT_PARENT",
+                    exception.getMessage()));
         }
+
+        return create(
+                CommunityType.TOPIC,
+                command.name(),
+                command.description(),
+                command.topic(),
+                null,
+                command.memberLimit(),
+                command.iconUrl(),
+                command.userId());
     }
 
-    private Result<Community, ApplicationError> create(CommunityType type, String name, String description,
-            String topic, String locality, Integer memberLimit, String iconUrl, Long creatorId) {
-        Community community = new Community(null, name, description, type, topic, locality, memberLimit,
-                iconUrl, creatorId);
-        Community saved = communities.save(community);
-        if (type == CommunityType.TOPIC && creatorId != null) {
-            memberships.save(new CommunityMembership(null, saved.getId(), creatorId, CommunityRole.ADMIN));
+    private Result<Community, ApplicationError> create(
+            CommunityType type,
+            String name,
+            String description,
+            String topic,
+            String locality,
+            Integer memberLimit,
+            String iconUrl,
+            Long creatorId) {
+        Community candidate;
+
+        try {
+            candidate = new Community(
+                    null,
+                    name,
+                    description,
+                    type,
+                    topic,
+                    locality,
+                    memberLimit,
+                    iconUrl,
+                    creatorId);
+        } catch (IllegalArgumentException | NullPointerException exception) {
+            return Result.failure(ApplicationError.validationError(
+                    "Community",
+                    exception.getMessage()));
         }
+
+        Community saved = communities.save(candidate);
+
+        if (type == CommunityType.TOPIC && creatorId != null) {
+            memberships.save(new CommunityMembership(
+                    null,
+                    saved.getId(),
+                    creatorId,
+                    CommunityRole.ADMIN));
+        }
+
+        awardCommunityAchievement(
+                saved.getId(),
+                "Community created",
+                "Our community has been created. Welcome to everyone!");
+
         return Result.success(saved);
     }
 
     @Override
     @Transactional
     public Result<CommunityMembership, ApplicationError> handle(JoinCommunityCommand command) {
-        var community = communities.findById(command.communityId());
+        var community = communities.findByIdForUpdate(command.communityId());
         if (community.isEmpty()) {
             return Result.failure(ApplicationError.notFound("Community", String.valueOf(command.communityId())));
         }
@@ -106,10 +154,7 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
         }
         CommunityMembership saved = memberships.save(
                 new CommunityMembership(null, command.communityId(), command.userId(), CommunityRole.MEMBER));
-        if (memberships.countByCommunityId(command.communityId()) == 1000) {
-            achievements.save(new CommunityAchievement(null, command.communityId(), "1,000 members",
-                    "The community reached 1,000 members.", null));
-        }
+        awardMembershipMilestone(command.communityId());
         return Result.success(saved);
     }
 
@@ -120,6 +165,12 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
                 command.communityId(),
                 command.userId()
         );
+
+        if (communities.findByIdForUpdate(command.communityId()).isEmpty()) {
+            return Result.failure(ApplicationError.notFound(
+                    "Community",
+                    String.valueOf(command.communityId())));
+        }
 
         if (membership.isEmpty()) {
             return Result.failure(
@@ -159,5 +210,54 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
 
         memberships.delete(membership.get());
         return Result.success(null);
+    }
+
+    private void awardCommunityAchievement(
+            Long communityId,
+            String title,
+            String description) {
+        boolean alreadyAwarded = achievements.findAll(communityId)
+                .stream()
+                .anyMatch(achievement ->
+                        achievement.communityGoalId() == null
+                                && title.equals(achievement.title()));
+
+        if (alreadyAwarded) {
+            return;
+        }
+
+        achievements.save(new CommunityAchievement(
+                null,
+                communityId,
+                title,
+                description,
+                null));
+
+        posts.save(new Post(
+                null,
+                communityId,
+                null,
+                description,
+                "COMMUNITY_ACHIEVEMENT_EARNED",
+                null,
+                null));
+    }
+
+    private void awardMembershipMilestone(Long communityId) {
+        long memberCount = memberships.countByCommunityId(communityId);
+
+        boolean firstMilestone = memberCount == 10;
+        boolean hundredMilestone = memberCount >= 100 && memberCount % 100 == 0;
+
+        if (!firstMilestone && !hundredMilestone) {
+            return;
+        }
+
+        String formattedCount = String.format(Locale.US, "%,d", memberCount);
+
+        awardCommunityAchievement(
+                communityId,
+                formattedCount + " members",
+                "Our community reached " + formattedCount + " members!");
     }
 }

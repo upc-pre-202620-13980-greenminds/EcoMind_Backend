@@ -43,4 +43,10 @@ public class CommunityRepositoryImpl implements CommunityRepository {
                         : repository.findByType(query.type());
         return list.stream().map(CommunityPersistenceAssembler::toDomain).toList();
     }
+
+    @Override
+    public Optional<Community> findByIdForUpdate(Long id) {
+        return repository.findByIdForUpdate(id)
+                .map(CommunityPersistenceAssembler::toDomain);
+    }
 }

@@ -13,4 +13,6 @@ public interface CommunityRepository {
     List<Community> search(SearchCommunitiesQuery query);
 
     boolean existsById(Long id);
+
+    Optional<Community> findByIdForUpdate(Long id);
 }

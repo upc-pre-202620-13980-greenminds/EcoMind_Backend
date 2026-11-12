@@ -91,8 +91,8 @@ public class EventCommandServiceImpl implements EventCommandService {
 
         posts.save(new Post(
                 null,
-                command.communityId(),
-                null,
+                event.getCommunityId(),
+                event.getAuthorId(),
                 "A new event was created: " + event.getName(),
                 "EVENT_CREATED",
                 command.imageUrl(),
