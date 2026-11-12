@@ -55,4 +55,9 @@ public class EventRegistrationRepositoryImpl implements EventRegistrationReposit
     public List<EventRegistration> findByEventId(Long id) {
         return repository.findByEventId(id).stream().map(EventRegistrationPersistenceAssembler::toDomain).toList();
     }
+
+    @Override
+    public void deleteByEventId(Long eventId) {
+        repository.deleteByEventId(eventId);
+    }
 }

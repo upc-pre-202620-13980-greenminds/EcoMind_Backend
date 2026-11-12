@@ -7,7 +7,6 @@ import pe.greenminds.ecomind.community.application.outboundservices.CommunityAct
 import pe.greenminds.ecomind.community.domain.model.aggregates.Community;
 import pe.greenminds.ecomind.community.domain.model.aggregates.CommunityAchievement;
 import pe.greenminds.ecomind.community.domain.model.aggregates.CommunityMembership;
-import pe.greenminds.ecomind.community.domain.model.aggregates.EventRegistration;
 import pe.greenminds.ecomind.community.domain.model.commands.CreateLocalCommunityCommand;
 import pe.greenminds.ecomind.community.domain.model.commands.CreateTopicCommunityCommand;
 import pe.greenminds.ecomind.community.domain.model.commands.JoinCommunityCommand;
@@ -22,6 +21,7 @@ import pe.greenminds.ecomind.community.domain.repositories.EventRegistrationRepo
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 import pe.greenminds.ecomind.shared.application.result.Result;
 import pe.greenminds.ecomind.community.domain.model.commands.LeaveCommunityCommand;
+import pe.greenminds.ecomind.community.application.commandservices.EventLifecycleService;
 
 @Service
 public class CommunityCommandServiceImpl implements CommunityCommandService {
@@ -31,18 +31,17 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
     private final CommunityActorGateway actors;
     private final EventRepository events;
     private final EventRegistrationRepository registrations;
+    private final EventLifecycleService lifecycle;
 
-    public CommunityCommandServiceImpl(CommunityRepository communities,
-            CommunityMembershipRepository memberships, CommunityAchievementRepository achievements,
-            CommunityActorGateway actors, EventRepository events, EventRegistrationRepository registrations) {
+    public CommunityCommandServiceImpl(CommunityRepository communities, CommunityMembershipRepository memberships, CommunityAchievementRepository achievements, CommunityActorGateway actors, EventRepository events, EventRegistrationRepository registrations, EventLifecycleService lifecycle) {
         this.communities = communities;
         this.memberships = memberships;
         this.achievements = achievements;
         this.actors = actors;
         this.events = events;
         this.registrations = registrations;
+        this.lifecycle = lifecycle;
     }
-
     @Override
     @Transactional
     public Result<Community, ApplicationError> handle(CreateLocalCommunityCommand command) {
@@ -132,6 +131,11 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
         }
 
         for (var event : events.findByCommunityIdForUpdate(command.communityId())) {
+            if (event.getAuthorId().equals(command.userId())) {
+                lifecycle.delete(event.getId());
+                continue;
+            }
+
             int releasedPlaces = 0;
 
             for (var registration : registrations.findByEventId(event.getId())) {

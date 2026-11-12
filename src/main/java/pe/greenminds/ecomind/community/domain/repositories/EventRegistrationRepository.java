@@ -12,4 +12,6 @@ public interface EventRegistrationRepository {
     Optional<EventRegistration> findById(Long id);
 
     List<EventRegistration> findByEventId(Long eventId);
+
+    void deleteByEventId(Long eventId);
 }

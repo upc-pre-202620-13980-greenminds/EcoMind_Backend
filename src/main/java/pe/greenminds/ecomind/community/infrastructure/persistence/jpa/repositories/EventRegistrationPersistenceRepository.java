@@ -10,4 +10,6 @@ public interface EventRegistrationPersistenceRepository
     List<EventRegistrationPersistenceEntity> findByEventId(Long eventId);
 
     Optional<EventRegistrationPersistenceEntity> findByEventIdAndUserId(Long eventId, Long userId);
+
+    void deleteByEventId(Long eventId);
 }

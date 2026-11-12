@@ -10,4 +10,8 @@ public interface CommunityActorGateway {
     int requireFamilyParentAndCount(Long userId, Long familyId);
 
     Set<Long> requireFamilyParentAndGetMembers(Long userId, Long familyId);
+
+    String getUserName(Long userId);
+
+    Long getRegistrableFamilyId(Long userId);
 }

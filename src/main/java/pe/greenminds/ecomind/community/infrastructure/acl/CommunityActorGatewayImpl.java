@@ -42,4 +42,22 @@ public class CommunityActorGatewayImpl implements CommunityActorGateway {
 
         return participants;
     }
+
+    @Override
+    public String getUserName(Long userId) {
+        return users.getUserName(userId).orElse("User " + userId);
+    }
+
+    @Override
+    public Long getRegistrableFamilyId(Long userId) {
+        if (!users.isParent(userId)) {
+            return null;
+        }
+
+        return users.getFamilyIdOfUser(userId)
+                .filter(familyId -> users.getFamilyRole(familyId, userId)
+                        .filter("PARENT"::equals)
+                        .isPresent())
+                .orElse(null);
+    }
 }

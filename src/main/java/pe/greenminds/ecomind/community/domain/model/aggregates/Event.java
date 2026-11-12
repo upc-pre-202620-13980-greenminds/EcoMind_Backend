@@ -3,6 +3,8 @@ package pe.greenminds.ecomind.community.domain.model.aggregates;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import pe.greenminds.ecomind.community.domain.model.commands.UpdateEventCommand;
+import java.time.Instant;
+import java.time.ZoneId;
 
 public class Event {
     private final Long id, communityId, authorId;
@@ -96,6 +98,17 @@ public class Event {
 
         String trimmed = requestedValue.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    public Instant getChatExpiresAt() {
+        return date.atTime(startTime)
+                .atZone(ZoneId.of("America/Lima"))
+                .toInstant()
+                .plusSeconds(24 * 60 * 60);
+    }
+
+    public boolean isChatOpen(Instant now) {
+        return now.isBefore(getChatExpiresAt());
     }
 
     public Long getId() {

@@ -11,6 +11,7 @@ import pe.greenminds.ecomind.community.domain.model.commands.*;
 import pe.greenminds.ecomind.community.domain.repositories.*;
 import pe.greenminds.ecomind.shared.application.result.*;
 import java.util.Set;
+import java.time.Instant;
 
 @Service
 public class EventRegistrationCommandServiceImpl implements EventRegistrationCommandService {
@@ -33,6 +34,12 @@ public class EventRegistrationCommandServiceImpl implements EventRegistrationCom
         if (event.isEmpty()) {
             return Result.failure(
                     ApplicationError.notFound("Event", String.valueOf(command.eventId())));
+        }
+
+        if (!event.get().isChatOpen(Instant.now())) {
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "EVENT_REGISTRATION_CLOSED",
+                    "Registration is closed for this event"));
         }
 
         var previousRegistration = registrations.findByEventIdAndUserId(
