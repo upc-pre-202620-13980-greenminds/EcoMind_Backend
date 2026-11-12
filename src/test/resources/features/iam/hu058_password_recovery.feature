@@ -15,7 +15,7 @@ Feature: Password recovery
   Scenario: Recovery requested for an email that is not registered
     When I request a password recovery for "nobody@example.com"
     Then the response status is 200
-    And the response message is "If the email address is registered, a recovery link has been sent."
+    And the response message is "Request received. If the address is registered, we will attempt to send a recovery link. Check your inbox and try again later if it does not arrive."
     And no recovery link is sent
 
   Scenario: Successful password reset

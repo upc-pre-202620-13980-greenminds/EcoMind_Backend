@@ -46,6 +46,7 @@ public class WebSecurityConfiguration {
             authorize ->
                 authorize
                     .requestMatchers(HttpMethod.POST, PUBLIC_AUTHENTICATION_ROUTES).permitAll()
+                    .requestMatchers(HttpMethod.GET, "/authentication/reset-password").permitAll()
                     .requestMatchers(DOCUMENTATION_ROUTES).permitAll()
                     .anyRequest().authenticated())
         .addFilterBefore(

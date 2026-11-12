@@ -5,7 +5,7 @@ Feature: Community participation
   Background:
     Given the parent "Ana" is registered
     And the student "Bruno" is registered
-    And a local community managed by "Ana"
+    And a local community created by "Ana"
 
   @HU-060
   Scenario: Join a local community once
@@ -53,7 +53,8 @@ Feature: Community participation
     When "Ana" creates an event with 1 places
     Then the response status is 201
     When "Bruno" registers for the event individually
-    Then the response status is 409
+    Then the response status is 422
+    And the error code is "EVENT_CAPACITY_EXCEEDED"
 
   @HU-014 @HU-037
   Scenario: Cancellation releases a place and allows a new registration
@@ -75,6 +76,8 @@ Feature: Community participation
 
   @HU-063 @HU-064
   Scenario: Members complete a community goal only once
+    When "Ana" creates a topic community with 3 places
+    Then the response status is 201
     When "Ana" creates a goal of 1 energy quests
     Then the response status is 201
     When "Bruno" contributes to the community goal
@@ -91,6 +94,8 @@ Feature: Community participation
 
   @HU-063
   Scenario: A community can only have one active goal
+    When "Ana" creates a topic community with 3 places
+    Then the response status is 201
     When "Ana" creates a goal of 2 energy quests
     Then the response status is 201
     When "Ana" creates a goal of 3 energy quests

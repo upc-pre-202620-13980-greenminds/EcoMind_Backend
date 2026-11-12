@@ -13,6 +13,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import pe.greenminds.ecomind.community.application.commandservices.EventLifecycleService;
 import pe.greenminds.ecomind.community.application.outboundservices.CommunityActorGateway;
 import pe.greenminds.ecomind.community.domain.model.aggregates.*;
 import pe.greenminds.ecomind.community.domain.model.commands.*;
@@ -29,6 +30,7 @@ class EventCommandServiceImplTests {
   @Mock PostRepository posts;
   @Mock CommunityActorGateway actors;
   @Mock ApplicationEventPublisher publisher;
+  @Mock EventLifecycleService lifecycle;
   @InjectMocks EventCommandServiceImpl service;
 
   CreateEventCommand create() {
@@ -93,34 +95,39 @@ class EventCommandServiceImplTests {
   @Test
   void missingEventCannotBeDeleted() {
     assertTrue(service.handle(new DeleteEventCommand(2L, 20L)).isFailure());
+    verify(events).findByIdForUpdate(2L);
     verify(events, never()).delete(any());
+    verifyNoInteractions(lifecycle);
   }
 
   @ParameterizedTest
   @ValueSource(longs = {20, 30})
   void creatorOrAdministratorCanDelete(long actor) {
     var e = event();
-    when(events.findById(2L)).thenReturn(Optional.of(e));
+    when(events.findByIdForUpdate(2L)).thenReturn(Optional.of(e));
     if (actor == 30)
       when(memberships.findByCommunityIdAndUserId(1L, actor))
           .thenReturn(Optional.of(new CommunityMembership(4L, 1L, actor, CommunityRole.ADMIN)));
     assertTrue(service.handle(new DeleteEventCommand(2L, actor)).isSuccess());
-    verify(events).delete(e);
+    verify(lifecycle).delete(2L);
+    verify(events, never()).delete(any());
   }
 
   @Test
   void ordinaryMemberCannotDeleteEvent() {
-    when(events.findById(2L)).thenReturn(Optional.of(event()));
+    when(events.findByIdForUpdate(2L)).thenReturn(Optional.of(event()));
     when(memberships.findByCommunityIdAndUserId(1L, 30L))
         .thenReturn(Optional.of(new CommunityMembership(4L, 1L, 30L, CommunityRole.MEMBER)));
     assertTrue(service.handle(new DeleteEventCommand(2L, 30L)).isFailure());
     verify(events, never()).delete(any());
+    verifyNoInteractions(lifecycle);
   }
 
   @Test
   void outsiderCannotDeleteEvent() {
-    when(events.findById(2L)).thenReturn(Optional.of(event()));
+    when(events.findByIdForUpdate(2L)).thenReturn(Optional.of(event()));
     assertTrue(service.handle(new DeleteEventCommand(2L, 30L)).isFailure());
     verify(events, never()).delete(any());
+    verifyNoInteractions(lifecycle);
   }
 }

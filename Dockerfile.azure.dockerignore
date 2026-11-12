@@ -1,0 +1,14 @@
+.git
+.github
+.idea
+.vscode
+*.iml
+target
+.env
+.env.*
+*.log
+**/.DS_Store
+**/application-dev.properties
+**/application-local.properties
+docs
+scripts
