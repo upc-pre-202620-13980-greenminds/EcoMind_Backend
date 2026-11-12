@@ -37,7 +37,7 @@ Credentials are never stored in the repository. Set these variables before runni
 | `RESEND_FROM_EMAIL` | prod | Sender address of the emails, verified in Resend |
 | `PASSWORD_RECOVERY_URL` | prod | URL of the screen that sets a new password. The recovery token is appended as the `token` query parameter |
 | `PORT` | prod | HTTP port the application listens on |
-| `SPRING_PROFILES_ACTIVE` | prod | Must be `prod` in the production environment |
+| `SPRING_PROFILES_ACTIVE` | prod | Use `prod`; on Azure Container Apps use `prod,azure` |
 
 None of these variables has a default value: the application does not start if one required by
 the active profile is missing.
@@ -67,7 +67,12 @@ the tables are created and read; it must exist before the application starts (Po
 |---|---|---|
 | `dev` | Local development (default) | Port 8092, SQL statements are logged. Emails are not sent: verification codes and recovery tokens are written to the console |
 | `prod` | Production | Every setting comes from environment variables |
+| `azure` | Azure Container Apps, together with `prod` | Small database pool, proxy headers and graceful shutdown |
 | `test` | Automated tests | In-memory H2 database in PostgreSQL compatibility mode, activated by the tests themselves. It needs no environment variables |
+
+For Azure Container Apps resource configuration, runtime secrets, CLI access and deployment
+evidence, see the [deployment guide](docs/azure-container-apps.md). This guide describes the
+prepared configuration; it does not imply an environment has been deployed.
 
 ## Running the application
 
