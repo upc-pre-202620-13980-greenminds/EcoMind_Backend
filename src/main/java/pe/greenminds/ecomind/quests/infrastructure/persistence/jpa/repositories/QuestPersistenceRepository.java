@@ -19,6 +19,9 @@ import java.util.Optional;
 @Repository
 public interface QuestPersistenceRepository extends JpaRepository<QuestPersistenceEntity, Long> {
     boolean existsByMinigameId(Long minigameId);
+    boolean existsByMinigameIdAndQuestTypeAndPublicationStatus(
+            Long minigameId, QuestType questType, QuestPublicationStatus publicationStatus);
+    boolean existsByTitleAndQuestTypeAndCategory(String title, QuestType questType, Category category);
     @Query("""
             SELECT q FROM QuestPersistenceEntity q
             WHERE q.publicationStatus = :status
@@ -45,7 +48,7 @@ public interface QuestPersistenceRepository extends JpaRepository<QuestPersisten
     Optional<QuestPersistenceEntity> findPublishedByVersionGroupId(
             @Param("versionGroupId") Long versionGroupId);
 
-    Optional<QuestPersistenceEntity> findByQuestTypeAndAssignedDateAndPublicationStatus(
+    Optional<QuestPersistenceEntity> findFirstByQuestTypeAndAssignedDateAndPublicationStatusOrderByIdAsc(
             QuestType questType,
             LocalDate assignedDate,
             QuestPublicationStatus publicationStatus

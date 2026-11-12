@@ -17,6 +17,8 @@ public interface QuestRepository {
     List<Quest> findByVersionGroupId(Long versionGroupId);
     Optional<Quest> findPublishedByVersionGroupId(Long versionGroupId);
     Optional<Quest> findByTypeAndAssignedDate(QuestType questType, LocalDate assignedDate);
+    boolean existsByTitleAndTypeAndCategory(String title, QuestType type, Category category);
+    void lockCatalog();
     Optional<Quest> findLatestTemplateByType(QuestType questType);
     List<Quest> search(
             String title,
@@ -28,4 +30,5 @@ public interface QuestRepository {
     Quest save(Quest quest);
     boolean existsById(Long id);
     boolean existsByMinigameId(Long minigameId);
+    boolean existsPublishedMinigameQuest(Long minigameId);
 }

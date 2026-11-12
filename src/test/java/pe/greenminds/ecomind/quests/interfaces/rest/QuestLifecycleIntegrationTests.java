@@ -4,11 +4,15 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 
 import com.jayway.jsonpath.JsonPath;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.*;
@@ -19,6 +23,13 @@ import org.springframework.test.web.servlet.*;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import pe.greenminds.ecomind.iam.application.outboundservices.TokenService;
 import pe.greenminds.ecomind.iam.domain.model.valueobjects.*;
+import pe.greenminds.ecomind.quests.application.internal.services.DailyQuestLifecycleService;
+import pe.greenminds.ecomind.quests.application.internal.services.QuestCatalogSeed;
+import pe.greenminds.ecomind.quests.domain.model.aggregates.Quest;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.Category;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestPublicationStatus;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestType;
+import pe.greenminds.ecomind.quests.domain.repositories.QuestRepository;
 import pe.greenminds.ecomind.users.domain.model.aggregates.UserProfile;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.*;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.SocialRole;
@@ -34,6 +45,9 @@ class QuestLifecycleIntegrationTests {
   @Autowired TokenService tokens;
   @Autowired UserProfileRepository profiles;
   @Autowired pe.greenminds.ecomind.quests.domain.repositories.CollabQuestSessionRepository sessions;
+  @Autowired QuestCatalogSeed questCatalogSeed;
+  @Autowired QuestRepository quests;
+  @Autowired DailyQuestLifecycleService dailyQuests;
   long owner, participant, outsider, family;
 
   @BeforeEach
@@ -122,6 +136,40 @@ class QuestLifecycleIntegrationTests {
 
   long assignment(long quest, long actor) throws Exception {
     return id(call(get("/api/v1/quest-users/me/quest/" + quest), actor, null, 200));
+  }
+
+  @Test
+  void startupCatalogHasThreeDailyQuestsAndAutomaticallyAssignsOne() throws Exception {
+    var published = quests.findByPublicationStatus(QuestPublicationStatus.PUBLISHED);
+    for (var category : Category.values()) {
+      assertTrue(published.stream().filter(quest -> quest.getCategory() == category)
+          .filter(quest -> quest.getType() == QuestType.ACTIVITIES || quest.getType() == QuestType.COLLABORATIVE)
+          .count() >= 4);
+      assertTrue(published.stream().anyMatch(quest -> quest.getCategory() == category
+          && quest.getType() == QuestType.COLLABORATIVE));
+    }
+    assertTrue(published.stream().filter(quest -> quest.getType() == QuestType.FAMILY).count() >= 4);
+    assertTrue(published.stream().anyMatch(quest -> quest.getType() == QuestType.MINIGAME
+        && quest.getMinigameId() != null));
+
+    var questCount = quests.findAll().size();
+    questCatalogSeed.run(new DefaultApplicationArguments());
+    assertEquals(questCount, quests.findAll().size());
+
+    var today = dailyQuests.today();
+    var dailies = published.stream()
+        .filter(quest -> quest.getType() == QuestType.DAILY_QUEST && today.equals(quest.getAssignedDate()))
+        .toList();
+    assertEquals(3, dailies.size());
+    assertEquals(Set.of(Category.values()), dailies.stream().map(Quest::getCategory).collect(Collectors.toSet()));
+
+    var status = "/api/v1/quest-users/me/status/IN_PROGRESS";
+    List<Integer> assignedIds = JsonPath.read(call(get(status), participant, null, 200), "$[*].questId");
+    assertEquals(1, assignedIds.size());
+    var assignedId = assignedIds.getFirst().longValue();
+    assertTrue(dailies.stream().anyMatch(quest -> quest.getId() == assignedId));
+    List<Integer> repeated = JsonPath.read(call(get(status), participant, null, 200), "$[*].questId");
+    assertEquals(assignedIds, repeated);
   }
 
   void submit(long assignment, long actor) throws Exception {
