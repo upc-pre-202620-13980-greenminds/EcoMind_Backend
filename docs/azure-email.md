@@ -2,8 +2,9 @@
 
 ## Scope and service limits
 
-The Azure environment uses an Azure-managed email domain for IAM verification and
-password recovery. Resend remains available through the same `EmailService` port.
+The Azure environment uses an Azure-managed email domain in **Europe** for IAM
+verification and password recovery. The API, database and Log Analytics workspace
+remain in West US 2. Resend remains available through the same `EmailService` port.
 Set `EMAIL_PROVIDER=azure` or `resend`; development uses the existing console adapter
 unless the `email` profile is explicitly enabled. Automated tests never send email.
 
@@ -31,9 +32,16 @@ claims delivery or logs recipients or message content.
 
 ## Reproducible setup
 
-`infra/azure/email.bicep` creates the email service, Azure-managed domain, communication
-resource and a Key Vault secret. ARM resolves the generated connection string directly
-into `azure-email-connection-string`; it is never a template output or local credential.
+`infra/azure/email.bicep` creates the email service, Azure-managed domain and communication
+resource. Defaults target `ecs-ecomind-2c297d64-eu` and `acs-ecomind-2c297d64-eu` in
+Europe. Selecting `emailDataLocation='United States'` derives the original US names;
+the existing resources are retained during the incident investigation.
+
+`configureConnectionSecret=false` prepares resources without switching the production
+vault. After the exact endpoint has delivered a test, explicitly enable that parameter
+and roll out the matching sender through `application.bicep`. ARM resolves the generated
+connection string directly into `azure-email-connection-string`; it is never a template
+output or local credential. The vault retains the original `resourceSuffix` and location.
 Engagement tracking is disabled. There is no new service principal or runtime vault
 permission. The connection string grants access to this dedicated communication
 resource; it is not an email-only RBAC credential.
@@ -45,9 +53,17 @@ bash scripts/azure.sh deployment group create -g rg-ecomind-prod \
   --template-file infra/azure/email.bicep
 ```
 
-Verify the domain, SPF, DKIM, DKIM2 and DMARC states. The actual deployment on November
-12 returned `Verified` for all five. Its sender is
-`DoNotReply@4d885c80-0190-4ef1-b5b3-888f9aa6f8e6.azurecomm.net`.
+Verify the domain, SPF, DKIM, DKIM2 and DMARC states and receipt of a controlled test.
+The European production resource on November 12 returned `Verified` for all five.
+Its sender is `DoNotReply@f952adf7-c9e7-4eaa-a6e6-d4f4e1f3b909.azurecomm.net`.
+Then preview and apply the explicit secret switch:
+
+```bash
+bash scripts/azure.sh deployment group what-if -g rg-ecomind-prod \
+  --template-file infra/azure/email.bicep --parameters configureConnectionSecret=true
+bash scripts/azure.sh deployment group create -g rg-ecomind-prod \
+  --template-file infra/azure/email.bicep --parameters configureConnectionSecret=true
+```
 
 Deploy a tested immutable application image using `infra/azure/application.bicep`, with
 `emailProvider=azure`, `azureEmailFromEmail` set to that sender, and
@@ -55,6 +71,14 @@ Deploy a tested immutable application image using `infra/azure/application.bicep
 required root parameter so maintenance cannot silently revert to Resend. The nested
 module resolves the mail secret through Key Vault into an ACA native secret reference.
 No sender address or connection string is accepted as evidence of real delivery.
+
+For key rotation, deploy `email.bicep` with `configureConnectionSecret=true`, then the
+application template and restart or revise running replicas. Secret updates alone do
+not refresh a running process. Retain the previous tested image and sender configuration.
+ACA native secrets are shared across revisions: rollback must restore the matching
+connection string and sender together; switching traffic to an old revision alone is
+insufficient. Test a real inbox after rotation. Avoid a competing application rollout
+while changing the provider configuration.
 
 ## Delivery diagnostics
 
@@ -76,7 +100,9 @@ The workspace currently retains logs for 30 days and has a 0.1 GB daily ingestio
 cap. Azure status logs can contain recipient email addresses. Keep workspace read
 access restricted and omit recipient fields from shared evidence. These Azure logs
 have a different privacy boundary from the redacted application logs. Existing
-workspace retention, access and cap are not changed by the template.
+workspace retention, access and cap are not changed by the template. European email
+operational logs are exported to the existing US workspace; Europe is a routing choice,
+not a claim that all application data remains in Europe.
 
 Logs start after the setting is enabled and can take time to appear. Correlate a
 fresh operation with these resource-specific tables; a `GetMessageStatus` row alone
@@ -85,15 +111,19 @@ is not a recipient delivery event:
 ```kusto
 ACSEmailSendMailOperational
 | where TimeGenerated > ago(1h)
+| where _ResourceId endswith "/acs-ecomind-2c297d64-eu"
 | project TimeGenerated, OperationName, CorrelationId
+```
 
+```kusto
 ACSEmailStatusUpdateOperational
 | where TimeGenerated > ago(1h)
+| where _ResourceId endswith "/acs-ecomind-2c297d64-eu"
 | project TimeGenerated, OperationName, CorrelationId, DeliveryStatus,
           FailureReason, SmtpStatusCode
 ```
 
-On November 12, fresh recovery and verification calls reproduced an unresolved
+On November 12, fresh US recovery and verification calls reproduced an unresolved
 provider operation: send accepted with 202, subsequent status reads 200/`Running`,
 and no confirmed new mailbox receipt. Independent signed REST requests with plain
 text, no attachments and API versions 2023-03-31 and 2025-09-01 reproduced the pending
@@ -101,8 +131,8 @@ state. Following `Operation-Location` did not change it. Domain authentication w
 verified. The original resource's measured API series contained 202/200 responses
 and no 429; this does not establish the health of every subscription-level quota.
 
-These observations supersede any assumption that earlier successful messages prove
-current delivery. The cause is still under investigation. Reducing polling or
+These observations supersede any assumption that earlier successful US messages prove
+current delivery. The US cause is still under investigation. Reducing polling or
 enabling logs must not be reported as a delivery fix. No automatic resend is enabled.
 
 An Azure support case was opened with the owner's authorization. The contemporaneous
@@ -112,9 +142,43 @@ showed no active event, and this subscription's Resource Health event list was e
 The incident's relationship to ACS is unconfirmed. Private case details and operation
 identifiers remain outside the repositories.
 
-For key rotation, redeploy `email.bicep`, then the application template and restart or
-revise running replicas. Secret updates alone do not refresh a running process. Keep
-the previous working revision/image for rollback. Test a real inbox after rotation.
+An isolated European endpoint completed its send and delivered a plain-text diagnostic
+to the owner's Gmail. A separate production-named European endpoint was then created,
+and its own diagnostic also reached Gmail. Only that exact tested production endpoint
+is eligible for the connection-secret switch. This is a verified routing workaround;
+it does not establish the underlying US failure's cause or a connection to Microsoft 365.
+
+### European routing validation — November 12
+
+The matching secret and sender were rolled out together to the tested immutable image
+`sha256:e17940b3004086670dcf232dd145d0b98f12dbaca8aa52a968fd9e10ae2ef651`.
+Revision `ca-ecomind-api--0000006` became Healthy/Running. The public API origin and
+recovery helper URL remain unchanged, so the clients require no URL change for this
+mail routing update. OpenAPI returned 200 with 133 paths and anonymous account access
+returned 401.
+
+| Real-mail check | Observed result |
+| --- | --- |
+| Registration request | 201 in 12.43 seconds |
+| Received verification code | Gmail Inbox; verification 201, sign-in 200, code reuse 422 |
+| Recovery request | 200 in 9.718 seconds |
+| Received recovery link | Gmail Inbox; helper 200 with the same token in the Android URI |
+| Password confirmation | 204; old-password sign-in 401, new-password sign-in 200 |
+| Recovery-link reuse | 422 |
+| Logout and client token disposal | Logout 204, anonymous account access 401 |
+
+Both actual messages showed the EcoMind sender and included the bundled PNG logo
+(`888 × 324`) with the expected content ID, HTML and plain-text alternatives. Gmail's
+original messages reported SPF, DKIM and DMARC PASS. Both arrived directly in Inbox;
+no folder move or manual not-spam action was used for these messages. This confirms
+the two owned-mailbox tests and does not guarantee inbox placement for every recipient.
+The logout contract remains stateless and does not revoke already issued JWTs.
+
+The registration code and reset token came from the received messages, rather than
+controlled fixtures. Passwords, tokens, original messages and mailbox screenshots
+remain private. The API-only recovery check atomically updated the owned test account's
+private password journal immediately after confirmation. The original US resources and
+their diagnostic evidence remain available for the support investigation.
 
 ## Demonstration data
 

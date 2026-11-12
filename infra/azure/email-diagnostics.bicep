@@ -1,6 +1,7 @@
 targetScope = 'resourceGroup'
 
-param communicationServiceName string = 'acs-ecomind-2c297d64'
+param resourceSuffix string = '2c297d64'
+param communicationServiceName string = 'acs-ecomind-${resourceSuffix}-eu'
 param workspaceName string = 'log-ecomind-prod-westus2'
 
 resource communication 'Microsoft.Communication/communicationServices@2025-09-01' existing = {

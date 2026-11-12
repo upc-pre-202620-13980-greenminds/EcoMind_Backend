@@ -1,14 +1,20 @@
 targetScope = 'resourceGroup'
 
 param resourceSuffix string = '2c297d64'
+@allowed(['Europe', 'United States'])
+param emailDataLocation string = 'Europe'
 
+@description('Enable after this endpoint delivers a test, together with the matching application sender rollout.')
+param configureConnectionSecret bool = false
+
+var emailResourceSuffix = emailDataLocation == 'Europe' ? '${resourceSuffix}-eu' : resourceSuffix
 var tags = { project: 'EcoMind', environment: 'production' }
 
 resource email 'Microsoft.Communication/emailServices@2025-09-01' = {
-  name: 'ecs-ecomind-${resourceSuffix}'
+  name: 'ecs-ecomind-${emailResourceSuffix}'
   location: 'global'
   tags: tags
-  properties: { dataLocation: 'United States' }
+  properties: { dataLocation: emailDataLocation }
 }
 
 resource domain 'Microsoft.Communication/emailServices/domains@2025-09-01' = {
@@ -32,11 +38,11 @@ resource defaultSender 'Microsoft.Communication/emailServices/domains/senderUser
 }
 
 resource communication 'Microsoft.Communication/communicationServices@2025-09-01' = {
-  name: 'acs-ecomind-${resourceSuffix}'
+  name: 'acs-ecomind-${emailResourceSuffix}'
   location: 'global'
   tags: tags
   properties: {
-    dataLocation: 'United States'
+    dataLocation: emailDataLocation
     linkedDomains: [domain.id]
   }
 }
@@ -45,7 +51,7 @@ resource vault 'Microsoft.KeyVault/vaults@2024-11-01' existing = {
   name: 'kv-ecomind-${resourceSuffix}'
 }
 
-resource connection 'Microsoft.KeyVault/vaults/secrets@2024-11-01' = {
+resource connection 'Microsoft.KeyVault/vaults/secrets@2024-11-01' = if (configureConnectionSecret) {
   parent: vault
   name: 'azure-email-connection-string'
   properties: {
