@@ -69,7 +69,7 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
         Community community = new Community(null, name, description, type, topic, locality, memberLimit,
                 iconUrl, creatorId);
         Community saved = communities.save(community);
-        if (creatorId != null) {
+        if (type == CommunityType.TOPIC && creatorId != null) {
             memberships.save(new CommunityMembership(null, saved.getId(), creatorId, CommunityRole.ADMIN));
         }
         return Result.success(saved);
