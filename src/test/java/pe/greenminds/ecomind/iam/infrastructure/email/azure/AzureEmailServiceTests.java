@@ -101,10 +101,32 @@ class AzureEmailServiceTests {
       assertThatThrownBy(() -> service.sendPasswordRecoveryLink(new EmailAddress("demo@example.invalid"), "token"))
           .isInstanceOf(EmailDeliveryException.class);
     }
-    when(poller.waitForCompletion(Duration.ofSeconds(20))).thenReturn(
+    when(poller.waitForCompletion(Duration.ofSeconds(60))).thenReturn(
         new PollResponse<>(LongRunningOperationStatus.IN_PROGRESS, null));
     assertThatThrownBy(() -> service.sendPasswordRecoveryLink(new EmailAddress("demo@example.invalid"), "token"))
         .isInstanceOf(EmailDeliveryException.class);
+  }
+
+  @Test
+  void timeoutPreservesInitiallyPolledOperationIdWithoutRetryingSend() {
+    var logs = captureLogs();
+    var operationId = "f47ac10b-58cc-4372-a567-0e02b2c3d479";
+    when(poller.poll()).thenReturn(new PollResponse<>(LongRunningOperationStatus.IN_PROGRESS,
+        new EmailSendResult(operationId, EmailSendStatus.RUNNING, null)));
+    when(poller.waitForCompletion(Duration.ofSeconds(60))).thenThrow(
+        new IllegalStateException("private recipient and token must not appear",
+            new java.util.concurrent.TimeoutException("private provider detail")));
+
+    assertThatThrownBy(() -> service.sendPasswordRecoveryLink(
+        new EmailAddress("private-recipient@example.invalid"), "private-recovery-token"))
+        .isInstanceOf(EmailDeliveryException.class);
+
+    verify(client, times(1)).beginSend(any());
+    assertThat(formattedLogs(logs)).containsExactly(
+        "email_acceptance_unconfirmed provider=azure failure_type=IllegalStateException "
+            + "cause_type=TimeoutException http_status=0 operation_id=" + operationId);
+    assertThat(formattedLogs(logs).get(0))
+        .doesNotContain("private-recipient@example.invalid", "private-recovery-token", "private provider detail");
   }
 
   @Test
@@ -122,7 +144,7 @@ class AzureEmailServiceTests {
         new EmailAddress("demo@example.invalid"), "synthetic-token"))
         .isInstanceOf(EmailDeliveryException.class);
 
-    when(poller.waitForCompletion(Duration.ofSeconds(20))).thenReturn(
+    when(poller.waitForCompletion(Duration.ofSeconds(60))).thenReturn(
         new PollResponse<>(LongRunningOperationStatus.SUCCESSFULLY_COMPLETED, null));
     assertThatThrownBy(() -> service.sendPasswordRecoveryLink(
         new EmailAddress("demo@example.invalid"), "synthetic-token"))
@@ -163,9 +185,9 @@ class AzureEmailServiceTests {
         .isInstanceOf(EmailDeliveryException.class);
 
     assertThat(formattedLogs(logs)).contains(
-        "email_acceptance_unconfirmed provider=azure failure_type=HttpResponseException cause_type=HttpResponseException http_status=503",
-        "email_acceptance_unconfirmed provider=azure failure_type=IllegalStateException cause_type=HttpResponseException http_status=429",
-        "email_acceptance_unconfirmed provider=azure failure_type=HttpResponseException cause_type=HttpResponseException http_status=0");
+        "email_acceptance_unconfirmed provider=azure failure_type=HttpResponseException cause_type=HttpResponseException http_status=503 operation_id=unavailable",
+        "email_acceptance_unconfirmed provider=azure failure_type=IllegalStateException cause_type=HttpResponseException http_status=429 operation_id=unavailable",
+        "email_acceptance_unconfirmed provider=azure failure_type=HttpResponseException cause_type=HttpResponseException http_status=0 operation_id=unavailable");
   }
 
   @Test
@@ -273,7 +295,7 @@ class AzureEmailServiceTests {
   }
 
   private void completed(EmailSendResult result) {
-    when(poller.waitForCompletion(Duration.ofSeconds(20))).thenReturn(new PollResponse<>(
+    when(poller.waitForCompletion(Duration.ofSeconds(60))).thenReturn(new PollResponse<>(
         LongRunningOperationStatus.SUCCESSFULLY_COMPLETED, result));
   }
 

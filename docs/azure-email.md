@@ -19,9 +19,10 @@ Reference pricing is USD 0.00025 per email plus USD 0.00012 per MB transferred, 
 taxes. A provider success means the message is out for delivery, not that it reached an
 inbox. Confirm receipt separately. A timeout is an **unknown outcome**: it does not
 cancel provider processing, and retrying may produce a duplicate or an obsolete code.
+An initial poll retains the provider operation ID for later status diagnosis if waiting times out. Diagnostics log only validated operation IDs, safe status/error codes and exception class names; they omit message bodies, recipients and credentials. No timeout triggers an automatic resend.
 HTTP operations have 5-second connect and 10-second response/read timeouts, with no
-automatic retries. Polling waits up to 20 seconds; an in-flight HTTP request can extend
-the total request duration. Do not describe this as a strict 20-second end-to-end bound.
+automatic retries. Polling waits up to 60 seconds; an in-flight HTTP request can extend
+the total request duration. Do not describe this as a strict 60-second end-to-end bound.
 
 ## Reproducible setup
 

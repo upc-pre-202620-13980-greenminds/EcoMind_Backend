@@ -32,7 +32,7 @@ import pe.greenminds.ecomind.iam.infrastructure.email.IamEmailContentFactory;
 @ConditionalOnProperty(name = "iam.email.provider", havingValue = "azure")
 public class AzureEmailService implements EmailService {
   private static final Logger LOGGER = LoggerFactory.getLogger(AzureEmailService.class);
-  private static final Duration SEND_TIMEOUT = Duration.ofSeconds(20);
+  private static final Duration SEND_TIMEOUT = Duration.ofSeconds(60);
   private final EmailClient client;
   private final String sender;
   private final IamEmailContentFactory content;
@@ -80,8 +80,14 @@ public class AzureEmailService implements EmailService {
         .setUserEngagementTrackingDisabled(true)
         .setAttachments(new EmailAttachment(EmailBranding.LOGO_FILENAME, "image/png",
             BinaryData.fromBytes(EmailBranding.logoBytes())).setContentId(EmailBranding.LOGO_CONTENT_ID));
+    String operationId = "unavailable";
     try {
-      var completion = client.beginSend(message).waitForCompletion(SEND_TIMEOUT);
+      var poller = client.beginSend(message);
+      var initial = poller.poll();
+      if (initial != null && initial.getValue() != null) {
+        operationId = safeOperationId(initial.getValue().getId());
+      }
+      var completion = poller.waitForCompletion(SEND_TIMEOUT);
       var result = completion == null ? null : completion.getValue();
       if (result == null || !EmailSendStatus.SUCCEEDED.equals(result.getStatus())) {
         String status = result == null ? "missing"
@@ -89,7 +95,9 @@ public class AzureEmailService implements EmailService {
             : EmailSendStatus.CANCELED.equals(result.getStatus()) ? "canceled" : "unconfirmed";
         String errorCode = result == null || result.getError() == null ? "none"
             : safeErrorCode(result.getError().getCode(), recipient, content);
-        String operationId = result == null ? "unavailable" : safeOperationId(result.getId());
+        if (result != null) {
+          operationId = safeOperationId(result.getId());
+        }
         LOGGER.warn("email_acceptance_unconfirmed provider=azure result_status={} error_code={} operation_id={}",
             status, errorCode, operationId);
         throw new EmailDeliveryException(
@@ -99,8 +107,8 @@ public class AzureEmailService implements EmailService {
       throw exception;
     } catch (RuntimeException exception) {
       // SDK messages and response bodies can include recipients or credentials.
-      LOGGER.warn("email_acceptance_unconfirmed provider=azure failure_type={} cause_type={} http_status={}",
-          exception.getClass().getSimpleName(), causeType(exception), httpStatus(exception));
+      LOGGER.warn("email_acceptance_unconfirmed provider=azure failure_type={} cause_type={} http_status={} operation_id={}",
+          exception.getClass().getSimpleName(), causeType(exception), httpStatus(exception), operationId);
       throw new EmailDeliveryException(exception);
     }
   }
