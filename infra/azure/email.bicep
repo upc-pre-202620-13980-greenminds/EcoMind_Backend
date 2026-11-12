@@ -22,6 +22,15 @@ resource domain 'Microsoft.Communication/emailServices/domains@2025-09-01' = {
   }
 }
 
+resource defaultSender 'Microsoft.Communication/emailServices/domains/senderUsernames@2025-09-01' = {
+  parent: domain
+  name: 'donotreply'
+  properties: {
+    username: 'donotreply'
+    displayName: 'EcoMind'
+  }
+}
+
 resource communication 'Microsoft.Communication/communicationServices@2025-09-01' = {
   name: 'acs-ecomind-${resourceSuffix}'
   location: 'global'

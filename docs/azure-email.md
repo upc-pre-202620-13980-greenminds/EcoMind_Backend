@@ -155,6 +155,38 @@ outside the repositories and do not constitute participant App Validation eviden
 
 Physical-device handoff is not established by these API or browser checks.
 
+## Sender identity and spam follow-up — November 12
+
+Gmail's original-message view reported **SPF PASS, DKIM PASS and DMARC PASS** for the
+actual message initially classified as spam. The transport used TLS 1.3. Forward/reverse
+DNS matched the Microsoft relay. MIME contained text/plain and related text/html/PNG
+parts with the expected logo CID. These checks establish healthy authentication and
+formatting; they do not reveal Gmail's private classification criteria.
+
+`email.bicep` now manages the existing default `donotreply` sender's display name as
+`EcoMind`. ARM validation, change preview, deployment and readback succeeded. The same
+default address and live application image remain in use. The subsequent English
+recovery message showed **EcoMind** as the sender and arrived directly in **Inbox**, with
+SPF/DKIM/DMARC still passing. It was not manually moved. This mailbox had previously
+marked earlier messages as not spam, so the result is influenced by recipient history;
+it cannot establish that the name change fixed filtering for other users.
+
+The owner confirmed there is no custom domain. The report's example `greenminds.pe`
+returned NXDOMAIN and is not a verified sending domain. A future owned domain can
+provide a recognizable sender such as `donotreply@mail.<owned-domain>` with the exact
+SPF/DKIM records returned by Azure and an aligned DMARC policy. Its API link can use a
+sibling HTTPS name under the same brand. Verify DNS, certificates, both real message
+types and initial placement in another consenting inbox before making broader claims.
+Custom domains improve control of sender identity; they do not guarantee inbox placement.
+
+No whitelist, bulk warm-up traffic, authentication-policy change or removal of the
+requested logo was used as a workaround. No custom domain was purchased. The historical
+spam results remain part of the evidence.
+
+Sources: [Gmail sender guidelines](https://support.google.com/mail/answer/81126),
+[Azure domain types](https://learn.microsoft.com/azure/communication-services/concepts/email/email-domain-and-sender-authentication),
+and [managed-domain sender update](https://learn.microsoft.com/powershell/module/az.communication/update-azemailservicesenderusername).
+
 ## References
 
 - [Microsoft retirement and onboarding notice](https://learn.microsoft.com/azure/communication-services/acs-retirement-and-breaking-changes-guide).
