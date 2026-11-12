@@ -8,10 +8,13 @@ import com.azure.core.util.BinaryData;
 import pe.greenminds.ecomind.iam.infrastructure.email.EmailBranding;
 import com.azure.communication.email.models.EmailSendStatus;
 import com.azure.core.http.HttpClient;
+import com.azure.core.exception.HttpResponseException;
 import com.azure.core.util.HttpClientOptions;
 import com.azure.core.http.policy.FixedDelayOptions;
 import com.azure.core.http.policy.RetryOptions;
 import java.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -28,6 +31,7 @@ import pe.greenminds.ecomind.iam.infrastructure.email.IamEmailContentFactory;
 @Profile("!test & (!dev | email)")
 @ConditionalOnProperty(name = "iam.email.provider", havingValue = "azure")
 public class AzureEmailService implements EmailService {
+  private static final Logger LOGGER = LoggerFactory.getLogger(AzureEmailService.class);
   private static final Duration SEND_TIMEOUT = Duration.ofSeconds(20);
   private final EmailClient client;
   private final String sender;
@@ -77,12 +81,54 @@ public class AzureEmailService implements EmailService {
         .setAttachments(new EmailAttachment(EmailBranding.LOGO_FILENAME, "image/png",
             BinaryData.fromBytes(EmailBranding.logoBytes())).setContentId(EmailBranding.LOGO_CONTENT_ID));
     try {
-      var result = client.beginSend(message).waitForCompletion(SEND_TIMEOUT).getValue();
+      var completion = client.beginSend(message).waitForCompletion(SEND_TIMEOUT);
+      var result = completion == null ? null : completion.getValue();
       if (result == null || !EmailSendStatus.SUCCEEDED.equals(result.getStatus())) {
-        throw new IllegalStateException("The email provider did not confirm acceptance.");
+        String status = result == null ? "missing"
+            : EmailSendStatus.FAILED.equals(result.getStatus()) ? "failed"
+            : EmailSendStatus.CANCELED.equals(result.getStatus()) ? "canceled" : "unconfirmed";
+        String errorCode = result == null || result.getError() == null ? "none"
+            : safeErrorCode(result.getError().getCode(), recipient, content);
+        String operationId = result == null ? "unavailable" : safeOperationId(result.getId());
+        LOGGER.warn("email_acceptance_unconfirmed provider=azure result_status={} error_code={} operation_id={}",
+            status, errorCode, operationId);
+        throw new EmailDeliveryException(
+            new IllegalStateException("The email provider did not confirm acceptance."));
       }
+    } catch (EmailDeliveryException exception) {
+      throw exception;
     } catch (RuntimeException exception) {
+      // SDK messages and response bodies can include recipients or credentials.
+      LOGGER.warn("email_acceptance_unconfirmed provider=azure failure_type={} cause_type={} http_status={}",
+          exception.getClass().getSimpleName(), causeType(exception), httpStatus(exception));
       throw new EmailDeliveryException(exception);
     }
+  }
+
+  private static String safeErrorCode(String code, EmailAddress recipient,
+      IamEmailContentFactory.Content content) {
+    return code != null && code.matches("[A-Za-z][A-Za-z0-9]{1,63}")
+        && !recipient.value().contains(code) && !content.text().contains(code) ? code : "redacted";
+  }
+
+  private static String safeOperationId(String id) {
+    return id != null && id.matches("[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
+        ? id : "unavailable";
+  }
+
+  private static String causeType(Throwable exception) {
+    for (int depth = 0; depth < 7 && exception.getCause() != null; depth++) {
+      exception = exception.getCause();
+    }
+    return exception.getClass().getSimpleName();
+  }
+
+  private static int httpStatus(Throwable exception) {
+    for (int depth = 0; exception != null && depth < 8; depth++, exception = exception.getCause()) {
+      if (exception instanceof HttpResponseException response && response.getResponse() != null) {
+        return response.getResponse().getStatusCode();
+      }
+    }
+    return 0;
   }
 }

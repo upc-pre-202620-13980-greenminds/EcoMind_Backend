@@ -8,15 +8,21 @@ import com.azure.communication.email.EmailClient;
 import com.azure.communication.email.models.EmailMessage;
 import com.azure.communication.email.models.EmailSendResult;
 import com.azure.communication.email.models.EmailSendStatus;
+import com.azure.core.models.ResponseError;
+import com.azure.core.exception.HttpResponseException;
+import com.azure.core.http.HttpResponse;
 import com.azure.core.util.polling.LongRunningOperationStatus;
 import com.azure.core.util.polling.PollResponse;
 import com.azure.core.util.polling.SyncPoller;
 import java.time.Duration;
 import java.util.Locale;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
@@ -31,6 +37,8 @@ class AzureEmailServiceTests {
   private EmailClient client;
   private SyncPoller<EmailSendResult, EmailSendResult> poller;
   private AzureEmailService service;
+  private ch.qos.logback.classic.Logger serviceLogger;
+  private ListAppender<ILoggingEvent> logAppender;
 
   @BeforeEach
   @SuppressWarnings("unchecked")
@@ -48,7 +56,13 @@ class AzureEmailServiceTests {
   }
 
   @AfterEach
-  void resetLocale() { LocaleContextHolder.resetLocaleContext(); }
+  void resetLocale() {
+    LocaleContextHolder.resetLocaleContext();
+    if (serviceLogger != null && logAppender != null) {
+      serviceLogger.detachAppender(logAppender);
+      logAppender.stop();
+    }
+  }
 
   @Test
   void verificationUsesEscapedHtmlAndPlainTextWithoutTracking() {
@@ -101,6 +115,133 @@ class AzureEmailServiceTests {
   }
 
   @Test
+  void failedAndNullProviderResultsHaveSafeDistinctClassifications() {
+    var logs = captureLogs();
+    completed(EmailSendStatus.FAILED);
+    assertThatThrownBy(() -> service.sendPasswordRecoveryLink(
+        new EmailAddress("demo@example.invalid"), "synthetic-token"))
+        .isInstanceOf(EmailDeliveryException.class);
+
+    when(poller.waitForCompletion(Duration.ofSeconds(20))).thenReturn(
+        new PollResponse<>(LongRunningOperationStatus.SUCCESSFULLY_COMPLETED, null));
+    assertThatThrownBy(() -> service.sendPasswordRecoveryLink(
+        new EmailAddress("demo@example.invalid"), "synthetic-token"))
+        .isInstanceOf(EmailDeliveryException.class);
+
+    assertThat(formattedLogs(logs)).contains(
+        "email_acceptance_unconfirmed provider=azure result_status=failed error_code=none operation_id=unavailable",
+        "email_acceptance_unconfirmed provider=azure result_status=missing error_code=none operation_id=unavailable");
+  }
+
+  @Test
+  void httpResponseStatusIsReportedForDirectNestedAndMissingResponses() {
+    var logs = captureLogs();
+    var directResponse = mock(HttpResponse.class);
+    when(directResponse.getStatusCode()).thenReturn(503);
+    var direct = new HttpResponseException("synthetic direct provider detail", directResponse);
+    when(client.beginSend(any())).thenThrow(direct);
+    assertThatThrownBy(() -> service.sendPasswordRecoveryLink(
+        new EmailAddress("demo@example.invalid"), "synthetic-token"))
+        .isInstanceOf(EmailDeliveryException.class);
+
+    reset(client);
+    var nestedResponse = mock(HttpResponse.class);
+    when(nestedResponse.getStatusCode()).thenReturn(429);
+    var nested = new HttpResponseException("synthetic nested provider detail", nestedResponse);
+    var wrapped = new IllegalStateException("synthetic wrapper detail",
+        new RuntimeException("synthetic intermediate detail", nested));
+    when(client.beginSend(any())).thenThrow(wrapped);
+    assertThatThrownBy(() -> service.sendPasswordRecoveryLink(
+        new EmailAddress("demo@example.invalid"), "synthetic-token"))
+        .isInstanceOf(EmailDeliveryException.class);
+
+    reset(client);
+    when(client.beginSend(any())).thenThrow(
+        new HttpResponseException("synthetic response-less detail", (HttpResponse) null));
+    assertThatThrownBy(() -> service.sendPasswordRecoveryLink(
+        new EmailAddress("demo@example.invalid"), "synthetic-token"))
+        .isInstanceOf(EmailDeliveryException.class);
+
+    assertThat(formattedLogs(logs)).contains(
+        "email_acceptance_unconfirmed provider=azure failure_type=HttpResponseException cause_type=HttpResponseException http_status=503",
+        "email_acceptance_unconfirmed provider=azure failure_type=IllegalStateException cause_type=HttpResponseException http_status=429",
+        "email_acceptance_unconfirmed provider=azure failure_type=HttpResponseException cause_type=HttpResponseException http_status=0");
+  }
+
+  @Test
+  void providerExceptionMessagesNeverLeakRecipientTokenOrCredentialIntoLogs() {
+    var logs = captureLogs();
+    var recipient = "private-recipient@example.invalid";
+    var token = "synthetic-recovery-token-secret";
+    var credential = "synthetic-communication-key-secret";
+    when(client.beginSend(any())).thenThrow(new IllegalStateException(
+        "provider detail recipient=" + recipient + " token=" + token + " credential=" + credential));
+
+    assertThatThrownBy(() -> service.sendPasswordRecoveryLink(
+        new EmailAddress(recipient), token))
+        .isInstanceOf(EmailDeliveryException.class);
+
+    assertThat(logs.list).hasSize(1);
+    assertThat(logs.list.get(0).getFormattedMessage())
+        .contains("failure_type=IllegalStateException", "cause_type=IllegalStateException", "http_status=0")
+        .doesNotContain(recipient, token, credential, "provider detail");
+  }
+
+  @Test
+  void failedResultIncludesAWellFormedProviderCodeAndCanonicalOperationId() {
+    var logs = captureLogs();
+    var operationId = "f47ac10b-58cc-4372-a567-0e02b2c3d479";
+    completed(new EmailSendResult(operationId, EmailSendStatus.FAILED,
+        new ResponseError("InvalidRequest", "synthetic provider detail")));
+
+    assertThatThrownBy(() -> service.sendPasswordRecoveryLink(
+        new EmailAddress("demo@example.invalid"), "synthetic-token"))
+        .isInstanceOf(EmailDeliveryException.class);
+
+    assertThat(formattedLogs(logs)).containsExactly(
+        "email_acceptance_unconfirmed provider=azure result_status=failed error_code=InvalidRequest operation_id="
+            + operationId);
+  }
+
+  @Test
+  void missingProviderErrorAndInvalidOperationIdUseSafePlaceholders() {
+    var logs = captureLogs();
+    completed(new EmailSendResult("not-a-canonical-id", EmailSendStatus.FAILED, null));
+    assertThatThrownBy(() -> service.sendPasswordRecoveryLink(
+        new EmailAddress("demo@example.invalid"), "synthetic-token"))
+        .isInstanceOf(EmailDeliveryException.class);
+
+    assertThat(formattedLogs(logs)).containsExactly(
+        "email_acceptance_unconfirmed provider=azure result_status=failed error_code=none operation_id=unavailable");
+  }
+
+  @Test
+  void recipientAndBodyReflectedOrUnsafeProviderCodesAreRedacted() {
+    var logs = captureLogs();
+    var recipient = "private-recipient@example.invalid";
+    var token = "SyntheticRecoveryToken123";
+    var reflectedAndUnsafeCodes = new String[] {
+        "private", // valid code syntax, but present in the recipient address
+        token, // valid code syntax, but present in the recovery message text
+        "Bad.Request", // punctuation is outside the safe provider-code format
+        "A" + "b".repeat(64) // over the 64-character limit
+    };
+
+    for (var code : reflectedAndUnsafeCodes) {
+      completed(new EmailSendResult("f47ac10b-58cc-4372-a567-0e02b2c3d479",
+          EmailSendStatus.FAILED, new ResponseError(code, "synthetic provider error message")));
+      assertThatThrownBy(() -> service.sendPasswordRecoveryLink(
+          new EmailAddress(recipient), token))
+          .isInstanceOf(EmailDeliveryException.class);
+    }
+
+    assertThat(formattedLogs(logs)).hasSize(reflectedAndUnsafeCodes.length)
+        .allSatisfy(line -> assertThat(line)
+            .contains("result_status=failed error_code=redacted operation_id=f47ac10b-58cc-4372-a567-0e02b2c3d479")
+            .doesNotContain(recipient, token, "synthetic provider error message", "Bad.Request"));
+  }
+
+  @Test
   void configuredAzureProviderExcludesResendAndTestsExcludeBothProviders() {
     for (var profiles : new String[] {"prod", "test,prod", "test,dev,email"}) {
       try (var context = new AnnotationConfigApplicationContext()) {
@@ -128,13 +269,29 @@ class AzureEmailServiceTests {
   }
 
   private void completed(EmailSendStatus status) {
+    completed(new EmailSendResult("test-operation", status, null));
+  }
+
+  private void completed(EmailSendResult result) {
     when(poller.waitForCompletion(Duration.ofSeconds(20))).thenReturn(new PollResponse<>(
-        LongRunningOperationStatus.SUCCESSFULLY_COMPLETED, new EmailSendResult("test-operation", status, null)));
+        LongRunningOperationStatus.SUCCESSFULLY_COMPLETED, result));
   }
 
   private EmailMessage sentMessage() {
     var capture = ArgumentCaptor.forClass(EmailMessage.class);
     verify(client).beginSend(capture.capture());
     return capture.getValue();
+  }
+
+  private ListAppender<ILoggingEvent> captureLogs() {
+    serviceLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(AzureEmailService.class);
+    logAppender = new ListAppender<>();
+    logAppender.start();
+    serviceLogger.addAppender(logAppender);
+    return logAppender;
+  }
+
+  private static java.util.List<String> formattedLogs(ListAppender<ILoggingEvent> appender) {
+    return appender.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
   }
 }
