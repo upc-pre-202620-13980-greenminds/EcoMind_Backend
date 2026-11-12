@@ -47,16 +47,6 @@ public class ActivityCommandServiceImpl implements ActivityCommandService {
         try{
             var activities = activityRepository.findByQuestsIdOrderByOrderAsc(command.questId());
             int finalOrder = Math.min(activities.size() +1, command.order());
-
-            //Desplazar las existentes en la quest
-            activities.stream()
-                    .filter(activity -> activity.getOrder() >= finalOrder)
-                    .sorted(Comparator.comparing(Activity::getOrder).reversed())
-                    .forEach(activity -> {
-                        activity.setOrder(activity.getOrder() + 1);
-                        activityRepository.save(activity);
-                    });
-
             var activity = new Activity(
                     command.questId(),
                     command.description(),
@@ -65,6 +55,16 @@ public class ActivityCommandServiceImpl implements ActivityCommandService {
                     command.activityConfiguration(),
                     command.image()
             );
+
+            //Desplazar las existentes en la quest
+            activities.stream()
+                    .filter(item -> item.getOrder() >= finalOrder)
+                    .sorted(Comparator.comparing(Activity::getOrder).reversed())
+                    .forEach(item -> {
+                        item.setOrder(item.getOrder() + 1);
+                        activityRepository.save(item);
+                    });
+
             var savedActivity = activityRepository.save(activity);
 
             return Result.success(savedActivity);
@@ -167,6 +167,13 @@ public class ActivityCommandServiceImpl implements ActivityCommandService {
                     .findByQuestsIdOrderByOrderAsc(currentActivity.getQuestId());
             int oldOrder = currentActivity.getOrder();
             int finalOrder = Math.min(activities.size(), command.order());
+            currentActivity.update(
+                    command.description(),
+                    finalOrder,
+                    command.type(),
+                    command.activityConfiguration(),
+                    command.image()
+            );
 
             if (finalOrder < oldOrder) {
                 activities.stream()
@@ -191,14 +198,6 @@ public class ActivityCommandServiceImpl implements ActivityCommandService {
                             activityRepository.save(item);
                         });
             }
-
-            currentActivity.update(
-                    command.description(),
-                    finalOrder,
-                    command.type(),
-                    command.activityConfiguration(),
-                    command.image()
-            );
 
             return Result.success(activityRepository.save(currentActivity));
         } catch (IllegalArgumentException | NullPointerException exception) {

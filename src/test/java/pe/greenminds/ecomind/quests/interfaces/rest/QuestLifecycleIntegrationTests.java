@@ -142,6 +142,107 @@ class QuestLifecycleIntegrationTests {
     return s;
   }
 
+  @ParameterizedTest
+  @ValueSource(ints = {17, 24})
+  void guidedQuestSavesWrittenResponseAndCountsItOnceAlongsideCheckbox(int minCharacters)
+      throws Exception {
+    String answer = "Apagaré la luz al salir.".substring(0, minCharacters);
+    String questJson = questBody("ACTIVITIES", "Ahorra energía").replace("CHECKBOX", "WRITE");
+    long questId = id(call(post("/api/v1/quests"), owner, questJson, 201));
+    long writeActivityId = id(call(post("/api/v1/activities"), owner, """
+        {"questId":%d,"description":"¿Qué harás para ahorrar energía?","order":1,"type":"WRITE",
+         "activityConfiguration":{"minCharacters":12}}
+        """.formatted(questId), 201));
+    long checkboxActivityId = id(call(post("/api/v1/activities"), owner, """
+        {"questId":%d,"description":"Apaga la luz de un cuarto vacío.","order":2,"type":"CHECKBOX"}
+        """.formatted(questId), 201));
+    for (String config : new String[] {"{}", "{\"minCharacters\":0}", "{\"minCharacters\":1.5}",
+        "{\"minCharacters\":\"24\"}"}) {
+      call(post("/api/v1/activities"), owner, """
+          {"questId":%d,"description":"Respuesta inválida","order":1,"type":"WRITE",
+           "activityConfiguration":%s}
+          """.formatted(questId, config), 400);
+    }
+    String activityUrl = "/api/v1/activities/" + writeActivityId;
+    call(put(activityUrl), owner, """
+        {"description":"¿Qué harás para ahorrar energía?","order":2,"type":"WRITE",
+         "activityConfiguration":{"minCharacters":-1}}
+        """, 400);
+    assertEquals(2, (int) JsonPath.read(call(get("/api/v1/activities/" + checkboxActivityId),
+        owner, null, 200), "$.order"));
+    call(put(activityUrl), owner, """
+        {"description":"¿Qué harás para ahorrar energía?","order":1,"type":"WRITE",
+         "activityConfiguration":{"minCharacters":%d}}
+        """.formatted(minCharacters), 200);
+    call(patch("/api/v1/quests/" + questId + "/publish"), owner, null, 200);
+    assertEquals("WRITE", JsonPath.read(call(get("/api/v1/quests/" + questId), participant,
+        null, 200), "$.theme"));
+    assertEquals(java.util.List.of("WRITE"), JsonPath.read(call(get("/api/v1/quests"),
+        participant, null, 200), "$[?(@.id == " + questId + ")].theme"));
+
+    long assignment = id(call(post("/api/v1/quest-users"), participant,
+        "{\"questId\":" + questId + "}", 201));
+    String questUserUrl = "/api/v1/quest-users/" + assignment;
+    String activitiesUrl = "/api/v1/activity-users/quest-user/" + assignment;
+    String writeLookup = activitiesUrl + "/activity/" + writeActivityId;
+    String beforeSubmit = call(get(writeLookup), participant, null, 200);
+    assertFalse(beforeSubmit.contains("\"responseText\""));
+    assertEquals(minCharacters,
+        (int) JsonPath.read(beforeSubmit, "$.activityConfiguration.minCharacters"));
+    String writeUrl = "/api/v1/activity-users/" + id(beforeSubmit);
+    String checkbox = call(get(activitiesUrl + "/activity/" + checkboxActivityId), participant,
+        null, 200);
+    String checkboxSubmitUrl = "/api/v1/activity-users/" + id(checkbox) + "/submit";
+
+    for (String data : new String[] {"{}", "{\"text\":null}", "{\"text\":123}", "{\"text\":\" \\t \"}"}) {
+      call(post(writeUrl + "/submit"), participant, "{\"data\":" + data + "}", 400);
+    }
+    call(post(writeUrl + "/submit"), participant,
+        """
+        {"data":{"text":"  %s  "}}
+        """.formatted(answer.substring(0, minCharacters - 1)), 400);
+    String pending = call(get(writeUrl), participant, null, 200);
+    assertEquals(0.0, ((Number) JsonPath.read(pending, "$.progress")).doubleValue());
+    assertFalse(pending.contains("\"responseText\""));
+
+    String submitted = call(post(writeUrl + "/submit"), participant,
+        """
+        {"data":{"text":"  %s  "}}
+        """.formatted(answer), 200);
+    assertEquals(answer, JsonPath.read(submitted, "$.responseText"));
+    assertEquals(100.0, ((Number) JsonPath.read(submitted, "$.progress")).doubleValue());
+    String retried = call(post(writeUrl + "/submit"), participant,
+        """
+        {"data":{"text":"%s"}}
+        """.formatted(answer), 200);
+    assertEquals(JsonPath.<String>read(submitted, "$.endDate"),
+        JsonPath.<String>read(retried, "$.endDate"));
+    for (String url : new String[] {writeUrl, writeLookup}) {
+      assertEquals(answer,
+          JsonPath.read(call(get(url), participant, null, 200), "$.responseText"));
+    }
+    assertEquals(java.util.List.of(answer),
+        JsonPath.read(call(get(activitiesUrl), participant, null, 200), "$[*].responseText"));
+    call(get(writeUrl), outsider, null, 403);
+
+    String partial = call(get(questUserUrl), participant, null, 200);
+    assertEquals(50.0, ((Number) JsonPath.read(partial, "$.progress")).doubleValue());
+    assertEquals("IN_PROGRESS", JsonPath.read(partial, "$.status"));
+    call(post(questUserUrl + "/complete"), participant, null, 422);
+    call(post(checkboxSubmitUrl), participant, "{\"data\":{\"checked\":false}}", 200);
+    String checked = call(post(checkboxSubmitUrl), participant,
+        "{\"data\":{\"checked\":true}}", 200);
+    assertEquals(100.0, ((Number) JsonPath.read(checked, "$.progress")).doubleValue());
+    assertFalse(checked.contains("\"responseText\""));
+    assertEquals("READY_TO_COMPLETE",
+        JsonPath.read(call(get(questUserUrl), participant, null, 200), "$.status"));
+    assertEquals("COMPLETED",
+        JsonPath.read(call(post(questUserUrl + "/complete"), participant, null, 200), "$.status"));
+    call(post(writeUrl + "/submit"), participant, "{\"data\":{\"text\":\"Otro texto\"}}", 422);
+    assertEquals(answer,
+        JsonPath.read(call(get(writeUrl), participant, null, 200), "$.responseText"));
+  }
+
   @Test
   void collaborativeProgressSynchronizesAndCompletionRewardsEachMemberOnce() throws Exception {
     long q = quest("COLLABORATIVE"),
