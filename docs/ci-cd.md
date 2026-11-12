@@ -9,8 +9,9 @@ Pull requests targeting either branch run all checks without Azure credentials.
 Java 21 and the Maven Wrapper run `clean verify` against H2 and PostgreSQL 17. Unit,
 integration and Cucumber suites must pass, with at least 85% line and 65% branch
 coverage. The deployment helper's isolated tests run before Maven. Existing thresholds
-and tests remain mandatory. Both database jobs retain test/coverage reports for 14 days;
-the PostgreSQL job also retains the executable JAR.
+and tests remain mandatory. Both database jobs retain test/coverage reports for 14 days. The general Maven JAR
+is not uploaded: it may contain development resources. Deployment uses only the
+separately checked Azure image, which excludes those resources.
 
 After both jobs pass, the container job builds `Dockerfile.azure` for Linux AMD64. It
 rejects packaged development/local configuration, scans OS/Java dependencies with a
