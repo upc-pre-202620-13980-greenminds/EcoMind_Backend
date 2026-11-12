@@ -7,8 +7,11 @@ have been created and verified. The Basic registry has also been created, with i
 administrator account disabled. PostgreSQL B1ms allocation in East US 2 failed with
 `SkuNotAvailable`, despite appearing in the capability catalog. No server was created.
 The foundation template prepares a retry in West US 2 at the same B1ms reference
-compute/storage price. That template is not yet deployed. Local image and CI checks
-passed; cloud runtime, TLS and real email validation remain pending.
+compute/storage price. The West US 2 foundation deployment completed on November 12. PostgreSQL is Ready
+and private, the Consumption environment is provisioned, and the bootstrap job
+connected as `ecomind_app` to `ecomind` using TLS 1.3 with `verify-full`. The API
+deployment is prepared in the portal but is not yet submitted. API runtime and real
+email validation remain pending.
 Use the Azure portal for the first resource creation and capture the actual steps for
 the course report. The 202620 V4.0 assignment, page 29, requires deployment screenshots
 and explanations; page 25 requires reproducible configuration and a C4 deployment view.
@@ -92,8 +95,8 @@ It also creates a manual database bootstrap job. The three credential parameters
 a PostgreSQL administrator password, a different application database password and a
 separate random JWT signing key of at least 64 characters. Save all three in a password
 manager. Do not paste real values into a parameter file, ticket, screenshot or chat.
-The template stores them in the project Key Vault so a retry can use ARM Key Vault
-parameter references without revealing their values. Keep `vaultLocation` unchanged
+The template stores them in the project Key Vault so a CLI maintenance retry can use
+ARM Key Vault parameter references without revealing their values. Keep `vaultLocation` unchanged
 once the vault exists. Do not delete the vault or resource group to retry a region;
 recover a soft-deleted vault instead of trying to reuse its protected name. Soft-delete retention is 30 days and purge protection is enabled.
 
@@ -112,11 +115,13 @@ recover a soft-deleted vault instead of trying to reuse its protected name. Soft
    without giving the API superuser, role administration or database creation rights.
    This job does not migrate Aiven data. Review ownership/grants separately for a restore.
 5. After bootstrap succeeds, compile `infra/azure/application.bicep` and create the API
-   from that template in the portal. Supply the verified registry digest. Use secure
-   ARM Key Vault parameter references for `applicationDatabasePassword` and
-   `jwtSigningKey`; these resolve into native Container Apps secret references. The
-   runtime never receives the administrator password. The managed identity receives
-   only `AcrPull` at this registry's scope.
+   from that template in the portal. Supply the verified registry digest. This wrapper
+   resolves `db-app-password` and `jwt-signing-key` through `getSecret` into secure
+   parameters of `application-resources.bicep`; the portal form has no password fields.
+   ARM resolves the values server-side into native Container Apps secret references.
+   The runtime never receives the administrator password. The managed identity receives
+   only `AcrPull` at this registry's scope. Keep `configureEmail=false` until a real
+   `resend-api-key` exists in the vault and `resendFromEmail` is a verified sender.
 6. Remove the completed bootstrap job after validating the application login and keep
    its sanitized execution evidence. Set `deployBootstrapJob=false` for later foundation
    deployments so maintenance does not recreate the administrator job. It contains the administrator secret and should
@@ -124,17 +129,21 @@ recover a soft-deleted vault instead of trying to reuse its protected name. Soft
    authorized maintenance. A signing-key rotation requires restarting/revising the API
    and invalidates existing sessions.
 
-Use **Edit parameters** in the portal to load ARM Key Vault parameter references.
-The deploying owner needs `Microsoft.KeyVault/vaults/deploy/action`, provided by the
-subscription Owner role. Directly reading a secret in the Key Vault portal is a separate
-data-plane permission and is not required for deployment references.
+The portal Custom Deployment form discarded root-level Key Vault parameter references
+in an observed attempt, then reported empty required password fields. The application
+wrapper avoids that UI limitation by binding vault references directly in nested module
+parameters. Use this wrapper in the portal. The deploying owner needs
+`Microsoft.KeyVault/vaults/deploy/action`, provided by the subscription Owner role.
+Directly reading a secret in the Key Vault portal is a separate data-plane permission
+and is not required for these deployment references. Do not grant a runtime identity
+vault-wide access just to work around the form.
 
 An `AcrPull` assignment can take time to propagate after its creation. If the initial
 revision fails specifically with an authorization error, verify registry scope and ARM
 token authentication, allow propagation and retry the same tested digest. Do not enable
 registry administrator passwords.
 
-Example parameter reference, with no secret value:
+Example ARM parameter reference for CLI maintenance, with no secret value:
 
 ```json
 {
