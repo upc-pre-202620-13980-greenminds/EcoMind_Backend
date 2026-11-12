@@ -9,6 +9,7 @@ import pe.greenminds.ecomind.quests.domain.model.aggregates.ActivityUser;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.QuestUser;
 import pe.greenminds.ecomind.quests.domain.model.commands.CreateActivityUserCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.SubmitActivityUserCommand;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.ActivityType;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabMemberStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.CollabQuestStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestStatus;
@@ -161,9 +162,18 @@ public class ActivityUserCommandServiceImpl implements ActivityUserCommandServic
             );
         }
 
-        var submissionHandler = submissionHandlerRegistry.findByType(
-                activity.get().getActivityType()
-        );
+        var activityType = activity.get().getActivityType();
+        if (activityType == ActivityType.WRITE
+                && activityUser.get().getCollaborativeSessionId() != null) {
+            return Result.failure(
+                    ApplicationError.businessRuleViolation(
+                            "Unsupported activity type",
+                            "Written responses require an individual activity assignment"
+                    )
+            );
+        }
+
+        var submissionHandler = submissionHandlerRegistry.findByType(activityType);
         if (submissionHandler.isEmpty()) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
@@ -197,16 +207,7 @@ public class ActivityUserCommandServiceImpl implements ActivityUserCommandServic
         }
 
         var savedActivityUser = activityUserRepository.save(activityUser.get());
-        var activityUsers = activityUserRepository.findByQuestUserId(
-                questUser.get().getId()
-        );
-        var questProgress = activityUsers.stream()
-                .mapToDouble(ActivityUser::getProgress)
-                .average()
-                .orElse(0.0);
-
-        questUser.get().updateProgress(questProgress);
-        questUserRepository.save(questUser.get());
+        updateQuestUserProgress(questUser.get());
 
         return Result.success(savedActivityUser);
     }
