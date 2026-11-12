@@ -3,10 +3,12 @@
 ## Status and scope
 
 As of November 12, 2026, the EcoMind subscription, resource group and virtual network
-have been created and verified. PostgreSQL is prepared in the portal and awaits the
-owner's credential entry and submission. The registry, Container Apps environment and
-application have not been deployed. Local image and CI checks passed; cloud runtime,
-TLS and real email validation remain pending.
+have been created and verified. The Basic registry has also been created, with its
+administrator account disabled. PostgreSQL B1ms allocation in East US 2 failed with
+`SkuNotAvailable`, despite appearing in the capability catalog. No server was created.
+The foundation template prepares a retry in West US 2 at the same B1ms reference
+compute/storage price. That template is not yet deployed. Local image and CI checks
+passed; cloud runtime, TLS and real email validation remain pending.
 Use the Azure portal for the first resource creation and capture the actual steps for
 the course report. The 202620 V4.0 assignment, page 29, requires deployment screenshots
 and explanations; page 25 requires reproducible configuration and a C4 deployment view.
@@ -39,8 +41,9 @@ and any subscription activation remain owner actions.
 
 Use the existing resource group, `rg-ecomind-prod`, in East US 2, tagged `project=EcoMind`
 and `environment=production`. PostgreSQL provisioning is restricted in East US for this
-subscription; East US 2 lists B1ms without that restriction. Confirm SKU
-availability before creation. Do not silently switch to a
+subscription; East US 2 lists B1ms but actual provisioning failed. The next allocation
+attempt is West US 2. Keep PostgreSQL and Container Apps on the same regional VNet.
+The catalog and template validation do not guarantee allocation. Do not silently switch to a
 larger tier if B1ms or Consumption is unavailable.
 
 | Resource | Initial configuration |
@@ -79,6 +82,77 @@ so that attached services and later subnet changes are preserved:
 bash scripts/azure.sh deployment group what-if -g rg-ecomind-prod \
   --template-file infra/azure/network.bicep
 ```
+
+## Reproducible portal deployment
+
+`infra/azure/foundation.bicep` creates a regional VNet, private PostgreSQL 17 B1ms server
+and empty `ecomind` database, Key Vault, Log Analytics and a Consumption environment.
+It also creates a manual database bootstrap job. The three credential parameters are
+`securestring` values with no defaults. The owner enters them privately in the portal:
+a PostgreSQL administrator password, a different application database password and a
+separate random JWT signing key of at least 64 characters. Save all three in a password
+manager. Do not paste real values into a parameter file, ticket, screenshot or chat.
+The template stores them in the project Key Vault so a retry can use ARM Key Vault
+parameter references without revealing their values. Keep `vaultLocation` unchanged
+once the vault exists. Do not delete the vault or resource group to retry a region;
+recover a soft-deleted vault instead of trying to reuse its protected name. Soft-delete retention is 30 days and purge protection is enabled.
+
+1. Compile the foundation template with `bash scripts/azure.sh bicep build --file
+   infra/azure/foundation.bicep --outfile /tmp/ecomind-foundation.json`.
+2. In the portal, choose **Deploy a custom template**, load that JSON in the editor,
+   select the existing project subscription/resource group and inspect the resource
+   preview. The owner completes the three secure fields and submits the deployment.
+   Capture configuration and results while keeping all credential values hidden.
+3. Verify PostgreSQL is ready and private. Start `job-ecomind-db-bootstrap` through the
+   CLI. Wait for a successful execution and inspect its non-secret result: the
+   `ecomind_app` login must connect to `ecomind` with TLS. The job uses `verify-full`
+   and the image CA trust bundle. Never weaken that setting to fix a connection issue.
+4. The bootstrap grants the application login `CONNECT` and `USAGE, CREATE` on the
+   empty database's public schema. This allows the current Hibernate schema updates
+   without giving the API superuser, role administration or database creation rights.
+   This job does not migrate Aiven data. Review ownership/grants separately for a restore.
+5. After bootstrap succeeds, compile `infra/azure/application.bicep` and create the API
+   from that template in the portal. Supply the verified registry digest. Use secure
+   ARM Key Vault parameter references for `applicationDatabasePassword` and
+   `jwtSigningKey`; these resolve into native Container Apps secret references. The
+   runtime never receives the administrator password. The managed identity receives
+   only `AcrPull` at this registry's scope.
+6. Remove the completed bootstrap job after validating the application login and keep
+   its sanitized execution evidence. Set `deployBootstrapJob=false` for later foundation
+   deployments so maintenance does not recreate the administrator job. It contains the administrator secret and should
+   not remain available for routine application operation. Keep the Key Vault copy for
+   authorized maintenance. A signing-key rotation requires restarting/revising the API
+   and invalidates existing sessions.
+
+Use **Edit parameters** in the portal to load ARM Key Vault parameter references.
+The deploying owner needs `Microsoft.KeyVault/vaults/deploy/action`, provided by the
+subscription Owner role. Directly reading a secret in the Key Vault portal is a separate
+data-plane permission and is not required for deployment references.
+
+An `AcrPull` assignment can take time to propagate after its creation. If the initial
+revision fails specifically with an authorization error, verify registry scope and ARM
+token authentication, allow propagation and retry the same tested digest. Do not enable
+registry administrator passwords.
+
+Example parameter reference, with no secret value:
+
+```json
+{
+  "applicationDatabasePassword": {
+    "reference": {
+      "keyVault": { "id": "<project-key-vault-resource-id>" },
+      "secretName": "db-app-password"
+    }
+  }
+}
+```
+
+Both templates compile locally. The foundation passed ARM validation and change preview
+using explicitly non-live validation values. Those checks do not create resources or
+prove regional capacity, DNS, egress, certificate validation, startup or email delivery.
+The SQL bootstrap passed twice against an isolated local PostgreSQL 17 instance,
+including a password with quotes and rejection of database creation by the app login.
+That local SQL check does not validate Azure TLS.
 
 ## Image
 
@@ -185,8 +259,10 @@ the Container Apps monthly free grant covers most API execution, PostgreSQL B1ms
 running for 730 hours, 32 GiB storage and ACR Basic. Private DNS and logs may add
 charges. The subscription budget `ecomind-monthly-30` is configured for USD 30 per month
 with actual-cost alerts at 50%, 80% and 100%. A budget alert is a notification, not a
-spending cap. The prepared PostgreSQL B1ms / 32 GiB configuration shows USD 16.09 per
-month in the portal; the remaining resources and taxes are additional.
+spending cap. The East US 2 portal estimate for PostgreSQL B1ms / 32 GiB was USD 16.09 per month.
+The Microsoft Retail API lists West US 2 B1ms at USD 0.017/hour and storage at
+USD 0.115/GB-month, giving the same planning total at 730 hours. Key Vault operations,
+DNS, registry, logs, cross-region image pulls and taxes are additional.
 
 There is no high availability in this budget. Size upgrades, excess traffic/logs,
 additional backup storage, email/domain charges and demo time with minimum 1 can

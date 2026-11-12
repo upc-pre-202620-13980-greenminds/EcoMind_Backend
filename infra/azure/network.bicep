@@ -4,11 +4,13 @@ targetScope = 'resourceGroup'
 param location string = resourceGroup().location
 
 param virtualNetworkName string = 'vnet-ecomind-prod'
+param tags object = {}
 
-// Matches the network created in the portal. Application resources are managed separately.
+// Shared network layout. Foundation sets the region and name explicitly.
 resource network 'Microsoft.Network/virtualNetworks@2025-07-01' = {
   name: virtualNetworkName
   location: location
+  tags: tags
   properties: {
     addressSpace: {
       addressPrefixes: ['10.42.0.0/16']
