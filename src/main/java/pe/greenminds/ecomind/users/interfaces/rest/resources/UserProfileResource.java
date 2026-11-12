@@ -28,4 +28,6 @@ public record UserProfileResource(
                                         + "the profile",
                         example = "K7MP4QXZ",
                         nullable = true)
-                String invitationCode) {}
+                String invitationCode,
+        @Schema(description = "Equipped avatar image reference on an individual profile", nullable = true)
+                String avatarImageReference) {}

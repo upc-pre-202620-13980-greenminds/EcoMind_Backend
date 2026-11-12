@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import pe.greenminds.ecomind.gamification.interfaces.acl.GamificationContextFacade;
+import pe.greenminds.ecomind.monetization.interfaces.acl.EquippedAvatarReader;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 import pe.greenminds.ecomind.shared.infrastructure.documentation.openapi.configuration.OpenApiConfiguration;
 import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
@@ -50,6 +51,7 @@ public class UserProfileController {
 
     private final ProfileCommandService profileCommandService;
     private final GamificationContextFacade gamification;
+    private final EquippedAvatarReader avatars;
     private final ProfileQueryService profileQueryService;
     private final ResponseEntityAssembler responseEntityAssembler;
     private final ErrorResponseAssembler errorResponseAssembler;
@@ -59,7 +61,9 @@ public class UserProfileController {
             ProfileQueryService profileQueryService,
             ResponseEntityAssembler responseEntityAssembler,
             ErrorResponseAssembler errorResponseAssembler,
-            GamificationContextFacade gamification) {
+            GamificationContextFacade gamification,
+            EquippedAvatarReader avatars) {
+        this.avatars = avatars;
         this.profileCommandService = profileCommandService;
         this.gamification = gamification;
         this.profileQueryService = profileQueryService;
@@ -89,7 +93,7 @@ public class UserProfileController {
         UserId viewer = viewerOf(principal);
         var resources =
                 profileQueryService.handle(new GetAllUserProfilesQuery()).stream()
-                        .map(profile -> toProfileResource(profile, viewer))
+                        .map(profile -> toProfileResource(profile, viewer, null))
                         .toList();
         return ResponseEntity.ok(resources);
     }
@@ -123,7 +127,7 @@ public class UserProfileController {
         return profileQueryService
                 .handle(new GetUserProfileQuery(new UserId(id)))
                 .<ResponseEntity<?>>map(
-                        profile -> ResponseEntity.ok(toProfileResource(profile, viewer)))
+                        profile -> ResponseEntity.ok(toIndividualProfileResource(profile, viewer)))
                 .orElseGet(
                         () ->
                                 errorResponseAssembler.toErrorResponseFromApplicationError(
@@ -171,7 +175,7 @@ public class UserProfileController {
                         principal.accountId(), id, resource);
         return responseEntityAssembler.toResponseEntityFromResult(
                 profileCommandService.handle(command),
-                (UserProfile profile) -> toProfileResource(profile, viewerOf(principal)),
+                (UserProfile profile) -> toIndividualProfileResource(profile, viewerOf(principal)),
                 HttpStatus.OK);
     }
 
@@ -179,7 +183,13 @@ public class UserProfileController {
         return principal == null ? null : new UserId(principal.accountId());
     }
 
-    private UserProfileResource toProfileResource(UserProfile profile, UserId viewer) {
+    private UserProfileResource toIndividualProfileResource(UserProfile profile, UserId viewer) {
+        return toProfileResource(
+                profile, viewer, avatars.findImageReference(profile.getUserId().value()).orElse(null));
+    }
+
+    private UserProfileResource toProfileResource(
+            UserProfile profile, UserId viewer, String avatarImageReference) {
         var progress = gamification.getUserProgress(profile.getUserId().value());
         return new UserProfileResource(
                 profile.getUserId().value(),
@@ -190,6 +200,7 @@ public class UserProfileController {
                 progress.ecopoints(),
                 profile.getGemBalance(),
                 profile.getEquippedCosmeticId(),
-                UserProfileResourceFromEntityAssembler.invitationCodeFor(profile, viewer));
+                UserProfileResourceFromEntityAssembler.invitationCodeFor(profile, viewer),
+                avatarImageReference);
     }
 }

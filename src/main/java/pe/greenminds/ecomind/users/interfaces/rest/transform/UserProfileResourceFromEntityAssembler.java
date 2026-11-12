@@ -20,7 +20,8 @@ public final class UserProfileResourceFromEntityAssembler {
         profile.getEcopoints(),
         profile.getGemBalance(),
         profile.getEquippedCosmeticId(),
-        invitationCodeFor(profile, viewer));
+        invitationCodeFor(profile, viewer),
+        null);
   }
 
   /** Null unless the user who asks is the owner of the profile. */
