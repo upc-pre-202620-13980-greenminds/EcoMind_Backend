@@ -11,8 +11,10 @@ compute/storage price. The West US 2 foundation deployment completed on November
 and private, the Consumption environment is provisioned, and the bootstrap job
 connected as `ecomind_app` to `ecomind` using TLS 1.3 with `verify-full`. The API deployment completed after owner approval, and its ready revision serves
 OpenAPI over HTTPS. The public smoke checks and a database-backed invalid-credentials
-request passed. Real email delivery, successful account lifecycle checks and migration
-of the previous database remain pending.
+request passed. The email service and managed domain are now provisioned. Four synthetic
+accounts and sample family, community and quest data were created and read through the API.
+Real email receipt and the full account lifecycle still require validation with the new adapter.
+The owner chose new demonstration data instead of migration from the unavailable previous database.
 Use the Azure portal for the first resource creation and capture the actual steps for
 the course report. The 202620 V4.0 assignment, page 29, requires deployment screenshots
 and explanations; page 25 requires reproducible configuration and a C4 deployment view.
@@ -24,8 +26,8 @@ Current validation URL:
 `https://ca-ecomind-api.icybush-bd135296.westus2.azurecontainerapps.io`
 with Swagger at `/swagger-ui.html`. The running image is
 `sha256:d7c7bab91a21bb204c84a787d84f3051e8f52c30c9f4f06bc5f9ee401fa86a94`
-(application source commit `ac2941b`). The database is new; previous Aiven accounts and
-progress have not yet been copied. Existing mobile release URLs still point to Render.
+(application source commit `ac2941b`). Previous Aiven accounts and progress were not copied. This database contains new,
+explicitly labeled demonstration data; see [email and fixture operations](azure-email.md). Existing mobile release URLs still point to Render.
 
 This feature starts from `develop` at `f0f5051`. The IAM email improvements in backend
 PR #30 must also be integrated before validating the final recovery email experience.

@@ -14,6 +14,10 @@ param imageDigest string
 param configureEmail bool = false
 param resendFromEmail string = ''
 
+@allowed(['resend', 'azure'])
+param emailProvider string
+param azureEmailFromEmail string = ''
+
 resource vault 'Microsoft.KeyVault/vaults@2024-11-01' existing = {
   name: 'kv-ecomind-${resourceSuffix}'
 }
@@ -30,6 +34,9 @@ module runtime './application-resources.bicep' = {
     jwtSigningKey: vault.getSecret('jwt-signing-key')
     resendApiKey: configureEmail ? vault.getSecret('resend-api-key') : ''
     resendFromEmail: resendFromEmail
+    emailProvider: emailProvider
+    azureEmailConnectionString: emailProvider == 'azure' ? vault.getSecret('azure-email-connection-string') : ''
+    azureEmailFromEmail: azureEmailFromEmail
   }
 }
 

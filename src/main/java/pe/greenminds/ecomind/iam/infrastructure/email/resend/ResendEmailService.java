@@ -3,24 +3,20 @@ package pe.greenminds.ecomind.iam.infrastructure.email.resend;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Profile;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import pe.greenminds.ecomind.iam.infrastructure.email.IamEmailContentFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.util.HtmlUtils;
-import org.springframework.web.util.UriComponentsBuilder;
 import pe.greenminds.ecomind.iam.application.outboundservices.EmailService;
 import pe.greenminds.ecomind.iam.application.outboundservices.EmailDeliveryException;
-import pe.greenminds.ecomind.iam.domain.model.aggregates.PasswordResetToken;
-import pe.greenminds.ecomind.iam.domain.model.aggregates.PendingRegistration;
 import pe.greenminds.ecomind.iam.domain.model.valueobjects.EmailAddress;
 
 /**
@@ -28,14 +24,14 @@ import pe.greenminds.ecomind.iam.domain.model.valueobjects.EmailAddress;
  */
 @Service
 @Profile("!test & (!dev | email)")
+@ConditionalOnProperty(name = "iam.email.provider", havingValue = "resend", matchIfMissing = true)
 public class ResendEmailService implements EmailService {
 
   private static final String RESEND_API_URL = "https://api.resend.com";
 
   private final RestClient restClient;
-  private final MessageSource messageSource;
+  private final IamEmailContentFactory content;
   private final String fromEmail;
-  private final String passwordRecoveryUrl;
 
   @Autowired
   public ResendEmailService(
@@ -49,14 +45,15 @@ public class ResendEmailService implements EmailService {
   ResendEmailService(
       MessageSource messageSource, String apiKey, String fromEmail, String passwordRecoveryUrl,
       RestClient.Builder builder) {
+    org.springframework.util.Assert.hasText(apiKey, "Resend API key is required.");
+    org.springframework.util.Assert.hasText(fromEmail, "Resend sender is required.");
     this.restClient =
         builder
             .baseUrl(RESEND_API_URL)
             .defaultHeaders(headers -> headers.setBearerAuth(apiKey))
             .build();
-    this.messageSource = messageSource;
+    this.content = new IamEmailContentFactory(messageSource, passwordRecoveryUrl);
     this.fromEmail = fromEmail;
-    this.passwordRecoveryUrl = passwordRecoveryUrl;
   }
 
   private static RestClient.Builder emailClientBuilder() {
@@ -68,45 +65,15 @@ public class ResendEmailService implements EmailService {
 
   @Override
   public void sendVerificationCode(EmailAddress recipient, String name, String verificationCode) {
-    Locale locale = LocaleContextHolder.getLocale();
-    String subject = messageSource.getMessage("iam.email.verification.subject", null, locale);
-    String body =
-        messageSource.getMessage(
-            "iam.email.verification.body",
-            new Object[] {
-                HtmlUtils.htmlEscape(name),
-                verificationCode,
-                PendingRegistration.VALIDITY.toMinutes()
-            },
-            locale);
-    String text = messageSource.getMessage(
-        "iam.email.verification.text",
-        new Object[] {name, verificationCode, PendingRegistration.VALIDITY.toMinutes()}, locale);
-    send(recipient, subject, body, text);
+    send(recipient, content.verification(name, verificationCode));
   }
 
   @Override
   public void sendPasswordRecoveryLink(EmailAddress recipient, String recoveryToken) {
-    Locale locale = LocaleContextHolder.getLocale();
-    String link =
-        UriComponentsBuilder.fromUriString(passwordRecoveryUrl)
-            .replaceQueryParam("token", "{token}")
-            .encode()
-            .buildAndExpand(recoveryToken)
-            .toUriString();
-    String subject = messageSource.getMessage("iam.email.recovery.subject", null, locale);
-    String body =
-        messageSource.getMessage(
-            "iam.email.recovery.body",
-            new Object[] {HtmlUtils.htmlEscape(link), PasswordResetToken.VALIDITY.toMinutes()},
-            locale);
-    String text = messageSource.getMessage(
-        "iam.email.recovery.text",
-        new Object[] {link, PasswordResetToken.VALIDITY.toMinutes()}, locale);
-    send(recipient, subject, body, text);
+    send(recipient, content.recovery(recoveryToken));
   }
 
-  private void send(EmailAddress recipient, String subject, String htmlBody, String textBody) {
+  private void send(EmailAddress recipient, IamEmailContentFactory.Content content) {
     try {
       restClient
         .post()
@@ -116,9 +83,9 @@ public class ResendEmailService implements EmailService {
             Map.of(
                 "from", fromEmail,
                 "to", List.of(recipient.value()),
-                "subject", subject,
-                "html", htmlBody,
-                "text", textBody))
+                "subject", content.subject(),
+                "html", content.html(),
+                "text", content.text()))
         .retrieve()
         .toBodilessEntity();
     } catch (RestClientException exception) {

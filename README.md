@@ -33,14 +33,17 @@ Set the following variables in the environment before running the application. K
 | `CULQI_SECRET_KEY` | optional | Enables CARD and YAPE gem-package payments |
 | `PAYPAL_CLIENT_ID` | optional | Enables PayPal gem-package payments |
 | `PAYPAL_SECRET` | optional | Enables PayPal gem-package payments |
-| `RESEND_API_KEY` | prod, email | API key of the Resend email service |
-| `RESEND_FROM_EMAIL` | prod, email | Sender address of the emails, verified in Resend |
+| `RESEND_API_KEY` | Resend | API key of the Resend email service |
+| `RESEND_FROM_EMAIL` | Resend | Sender address of the emails, verified in Resend |
 | `PASSWORD_RECOVERY_URL` | prod, email | Optional recovery screen URL; defaults to `ecomind://authentication/reset-password`. The recovery token is appended as the `token` query parameter |
+| `EMAIL_PROVIDER` | prod, email | `resend` (default) or `azure` |
+| `AZURE_EMAIL_CONNECTION_STRING` | Azure email | Native secret reference resolved from Key Vault |
+| `AZURE_EMAIL_FROM_EMAIL` | Azure email | Verified managed-domain sender |
 | `PORT` | prod | HTTP port the application listens on |
 | `SPRING_PROFILES_ACTIVE` | prod | Use `prod`; on Azure Container Apps use `prod,azure` |
 
-Real email requires `RESEND_API_KEY` and `RESEND_FROM_EMAIL`; there are no defaults for these
-credentials. Missing required settings fail startup. The recovery URL has the Android default
+Real email requires the credentials and sender of the selected provider. Empty required
+settings fail startup. The recovery URL has the Android default
 shown above and can be overridden explicitly.
 
 ### Database URL
@@ -74,7 +77,8 @@ the tables are created and read; it must exist before the application starts (Po
 
 For Azure Container Apps resource configuration, runtime secrets, CLI access and deployment
 evidence, see the [deployment guide](docs/azure-container-apps.md). This guide describes the
-prepared configuration; it does not imply an environment has been deployed.
+deployed Azure environment. See [Azure email and demo data](docs/azure-email.md) for
+provider limits, the retirement notice, synthetic fixtures and remaining validation.
 
 ## Running the application
 

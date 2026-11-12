@@ -24,6 +24,12 @@ param jwtSigningKey string
 param resendApiKey string = ''
 param resendFromEmail string = ''
 
+@allowed(['resend', 'azure'])
+param emailProvider string = 'resend'
+@secure()
+param azureEmailConnectionString string = ''
+param azureEmailFromEmail string = ''
+
 var tags = {
   project: 'EcoMind'
   environment: 'production'
@@ -83,7 +89,8 @@ resource app 'Microsoft.App/containerApps@2025-07-01' = {
       secrets: concat([
         { name: 'db-password', value: applicationDatabasePassword }
         { name: 'jwt-secret', value: jwtSigningKey }
-      ], empty(resendApiKey) ? [] : [{ name: 'resend-api-key', value: resendApiKey }])
+      ], empty(resendApiKey) ? [] : [{ name: 'resend-api-key', value: resendApiKey }],
+        empty(azureEmailConnectionString) ? [] : [{ name: 'azure-email-connection-string', value: azureEmailConnectionString }])
     }
     template: {
       terminationGracePeriodSeconds: 30
@@ -104,8 +111,11 @@ resource app 'Microsoft.App/containerApps@2025-07-01' = {
             { name: 'JWT_SECRET', secretRef: 'jwt-secret' }
             { name: 'JWT_EXPIRATION_MINUTES', value: '60' }
             { name: 'RESEND_FROM_EMAIL', value: resendFromEmail }
+            { name: 'EMAIL_PROVIDER', value: emailProvider }
+            { name: 'AZURE_EMAIL_FROM_EMAIL', value: azureEmailFromEmail }
             { name: 'PASSWORD_RECOVERY_URL', value: 'ecomind://authentication/reset-password' }
-          ], empty(resendApiKey) ? [{ name: 'RESEND_API_KEY', value: '' }] : [{ name: 'RESEND_API_KEY', secretRef: 'resend-api-key' }])
+          ], empty(resendApiKey) ? [{ name: 'RESEND_API_KEY', value: '' }] : [{ name: 'RESEND_API_KEY', secretRef: 'resend-api-key' }],
+            empty(azureEmailConnectionString) ? [] : [{ name: 'AZURE_EMAIL_CONNECTION_STRING', secretRef: 'azure-email-connection-string' }])
           probes: [
             {
               type: 'Startup'
