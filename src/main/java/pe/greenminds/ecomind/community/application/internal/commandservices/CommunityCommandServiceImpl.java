@@ -17,6 +17,7 @@ import pe.greenminds.ecomind.community.domain.repositories.CommunityMembershipRe
 import pe.greenminds.ecomind.community.domain.repositories.CommunityRepository;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 import pe.greenminds.ecomind.shared.application.result.Result;
+import pe.greenminds.ecomind.community.domain.model.commands.LeaveCommunityCommand;
 
 @Service
 public class CommunityCommandServiceImpl implements CommunityCommandService {
@@ -103,5 +104,26 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
                     "The community reached 1,000 members.", null));
         }
         return Result.success(saved);
+    }
+
+    @Override
+    @Transactional
+    public Result<Void, ApplicationError> handle(LeaveCommunityCommand command) {
+        var membership = memberships.findByCommunityIdAndUserId(
+                command.communityId(),
+                command.userId()
+        );
+
+        if (membership.isEmpty()) {
+            return Result.failure(
+                    ApplicationError.notFound(
+                            "Community membership",
+                            command.communityId() + ":" + command.userId()
+                    )
+            );
+        }
+
+        memberships.delete(membership.get());
+        return Result.success(null);
     }
 }

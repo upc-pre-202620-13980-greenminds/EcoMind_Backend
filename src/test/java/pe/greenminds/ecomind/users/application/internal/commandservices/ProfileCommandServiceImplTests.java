@@ -3,6 +3,7 @@ package pe.greenminds.ecomind.users.application.internal.commandservices;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -23,6 +24,7 @@ import pe.greenminds.ecomind.users.domain.model.events.ProfileCreatedEvent;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.SocialRole;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.UserId;
 import pe.greenminds.ecomind.users.domain.repositories.UserProfileRepository;
+import pe.greenminds.ecomind.users.domain.services.InvitationCodeGenerator;
 
 @ExtendWith(MockitoExtension.class)
 class ProfileCommandServiceImplTests {
@@ -39,7 +41,11 @@ class ProfileCommandServiceImplTests {
 
   @BeforeEach
   void setUp() {
-    service = new ProfileCommandServiceImpl(userProfileRepository, eventPublisher);
+    service =
+        new ProfileCommandServiceImpl(
+            userProfileRepository,
+            new InvitationCodeGenerator(userProfileRepository),
+            eventPublisher);
   }
 
   @Test
@@ -57,7 +63,21 @@ class ProfileCommandServiceImplTests {
     assertThat(profile.getStreak()).isZero();
     assertThat(profile.getEcopoints()).isZero();
     assertThat(profile.getGemBalance()).isZero();
+    assertThat(profile.getInvitationCode()).isNotNull();
     verify(eventPublisher).publishEvent(any(ProfileCreatedEvent.class));
+  }
+
+  @Test
+  void createProfileDrawsAnotherInvitationCodeWhenTheFirstOneIsTaken() {
+    when(userProfileRepository.existsById(USER_ID)).thenReturn(false);
+    when(userProfileRepository.existsByInvitationCode(any())).thenReturn(true, false);
+    when(userProfileRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+
+    var result =
+        service.handle(new CreateProfileCommand(USER_ID, "Camila Torres", SocialRole.STUDENT));
+
+    assertThat(result.toOptional().orElseThrow().getInvitationCode()).isNotNull();
+    verify(userProfileRepository, times(2)).existsByInvitationCode(any());
   }
 
   @Test
@@ -72,14 +92,17 @@ class ProfileCommandServiceImplTests {
   }
 
   @Test
-  void updateProfileReplacesTheProgressOfTheOwner() {
+  void updateProfileReplacesTheNameAndTheProgressOfTheOwner() {
     UserProfile profile = UserProfile.create(USER_ID, "Camila Torres", SocialRole.STUDENT);
     when(userProfileRepository.findById(USER_ID)).thenReturn(Optional.of(profile));
     when(userProfileRepository.save(any())).thenAnswer(call -> call.getArgument(0));
 
-    var result = service.handle(new UpdateProfileCommand(USER_ID, USER_ID, 3, TODAY, 120, 10));
+    var result =
+        service.handle(
+            new UpdateProfileCommand(USER_ID, USER_ID, "Camila Rojas", 3, TODAY, 120, 10));
 
     UserProfile updated = result.toOptional().orElseThrow();
+    assertThat(updated.getName()).isEqualTo("Camila Rojas");
     assertThat(updated.getStreak()).isEqualTo(3);
     assertThat(updated.getLastStreakDate()).isEqualTo(TODAY);
     assertThat(updated.getEcopoints()).isEqualTo(120);
@@ -87,9 +110,25 @@ class ProfileCommandServiceImplTests {
   }
 
   @Test
+  void updateProfileTrimsTheNewName() {
+    UserProfile profile = UserProfile.create(USER_ID, "Camila Torres", SocialRole.STUDENT);
+    when(userProfileRepository.findById(USER_ID)).thenReturn(Optional.of(profile));
+    when(userProfileRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+
+    var result =
+        service.handle(
+            new UpdateProfileCommand(USER_ID, USER_ID, "  Camila Rojas  ", 3, TODAY, 120, 10));
+
+    assertThat(result.toOptional().orElseThrow().getName()).isEqualTo("Camila Rojas");
+    verify(userProfileRepository).save(profile);
+  }
+
+  @Test
   void updateProfileIsForbiddenForAnotherUser() {
     var result =
-        service.handle(new UpdateProfileCommand(new UserId(99L), USER_ID, 3, TODAY, 120, 10));
+        service.handle(
+            new UpdateProfileCommand(
+                new UserId(99L), USER_ID, "Camila Rojas", 3, TODAY, 120, 10));
 
     assertThat(errorCodeOf(result)).isEqualTo("PROFILE_ACCESS_FORBIDDEN");
     verify(userProfileRepository, never()).save(any());
@@ -99,7 +138,9 @@ class ProfileCommandServiceImplTests {
   void updateProfileFailsWhenTheProfileDoesNotExist() {
     when(userProfileRepository.findById(USER_ID)).thenReturn(Optional.empty());
 
-    var result = service.handle(new UpdateProfileCommand(USER_ID, USER_ID, 3, TODAY, 120, 10));
+    var result =
+        service.handle(
+            new UpdateProfileCommand(USER_ID, USER_ID, "Camila Rojas", 3, TODAY, 120, 10));
 
     assertThat(errorCodeOf(result)).isEqualTo("USER_PROFILE_NOT_FOUND");
   }

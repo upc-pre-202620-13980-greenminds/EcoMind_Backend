@@ -76,6 +76,7 @@ public class FriendshipRepositoryImpl implements FriendshipRepository {
         new UserId(entity.getRequesterId()),
         new UserId(entity.getReceiverId()),
         FriendshipStatus.valueOf(entity.getStatus()),
+        entity.getCreatedAt() == null ? null : entity.getCreatedAt().toInstant(),
         entity.getUpdatedAt() == null ? null : entity.getUpdatedAt().toInstant());
   }
 }

@@ -2,6 +2,7 @@ package pe.greenminds.ecomind.users.interfaces.rest.transform;
 
 import pe.greenminds.ecomind.users.domain.model.commands.RespondFriendRequestCommand;
 import pe.greenminds.ecomind.users.domain.model.commands.SendFriendRequestCommand;
+import pe.greenminds.ecomind.users.domain.model.valueobjects.InvitationCode;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.UserId;
 import pe.greenminds.ecomind.users.interfaces.rest.resources.RespondFriendRequestResource;
 import pe.greenminds.ecomind.users.interfaces.rest.resources.SendFriendRequestResource;
@@ -13,6 +14,11 @@ public final class FriendshipCommandFromResourceAssembler {
 
   public static SendFriendRequestCommand toCommandFromResource(
       Long requesterId, SendFriendRequestResource resource) {
+    // The resource already checked that exactly one of the two was sent
+    if (resource.invitationCode() != null) {
+      return new SendFriendRequestCommand(
+          new UserId(requesterId), new InvitationCode(resource.invitationCode()));
+    }
     return new SendFriendRequestCommand(
         new UserId(requesterId), new UserId(resource.receiverId()));
   }

@@ -47,10 +47,10 @@ public class UserProgressCommandServiceImpl implements UserProgressCommandServic
     }
 
     public void handle(UpdateUserStreakCommand command) {
+        var progress = users.lockForReward(command.userId());
         if (protection.hasPendingBefore(command.userId(), command.activityDate()))
             throw new IllegalStateException(
                     "A previous streak day is awaiting protection confirmation");
-        var progress = users.lockForReward(command.userId());
         var oldStreak = progress.getCurrentStreak();
         var oldDate = progress.getLastActivityDate();
         progress.applyReward(new Reward(0, 0), command.activityDate(), true);

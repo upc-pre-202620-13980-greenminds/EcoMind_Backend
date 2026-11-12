@@ -42,4 +42,12 @@ public class CommunityMembershipRepositoryImpl implements CommunityMembershipRep
     public long countByCommunityId(Long id) {
         return repository.countByCommunityId(id);
     }
+
+    @Override
+    public void delete(CommunityMembership membership) {
+        repository.deleteByCommunityIdAndUserId(
+                membership.communityId(),
+                membership.userId()
+        );
+    }
 }

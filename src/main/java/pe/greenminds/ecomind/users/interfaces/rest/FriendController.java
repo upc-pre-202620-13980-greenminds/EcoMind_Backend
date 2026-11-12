@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,6 +31,7 @@ import pe.greenminds.ecomind.shared.interfaces.rest.transform.ResponseEntityAsse
 import pe.greenminds.ecomind.users.application.commandservices.FriendshipCommandService;
 import pe.greenminds.ecomind.users.application.queryservices.FriendshipQueryService;
 import pe.greenminds.ecomind.users.domain.model.aggregates.Friendship;
+import pe.greenminds.ecomind.users.domain.model.commands.RemoveFriendshipCommand;
 import pe.greenminds.ecomind.users.domain.model.queries.GetAllFriendshipsQuery;
 import pe.greenminds.ecomind.users.domain.model.queries.GetFriendsByUserQuery;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.UserId;
@@ -81,21 +83,38 @@ public class FriendController {
   @Operation(
       summary = "Send a friend request",
       description = "Sends a friend request from the authenticated user to another user. A "
-          + "request cannot be sent to oneself or repeated while one is pending or accepted; "
-          + "after a rejection it can be sent again once 7 days have passed.")
+          + "request cannot be sent to oneself or repeated while one is pending or accepted. "
+          + "A pending request expires 48 hours after it was sent; a new one can be sent 7 "
+          + "days after a rejection, or 7 days after an unanswered request expired. The "
+          + "receiver is given either by receiverId or by invitationCode, never both.")
+  @io.swagger.v3.oas.annotations.parameters.RequestBody(
+      content = @Content(
+          schema = @Schema(implementation = SendFriendRequestResource.class),
+          examples = {
+              @ExampleObject(name = "By user id", value = """
+                  {"receiverId": 8}"""),
+              @ExampleObject(name = "By invitation code", value = """
+                  {"invitationCode": "K7MP4QXZ"}""")
+          }))
   @ApiResponse(responseCode = "201", description = "Friend request sent",
       content = @Content(schema = @Schema(implementation = FriendResource.class)))
-  @ApiResponse(responseCode = "400", description = "Missing or invalid fields",
+  @ApiResponse(responseCode = "400",
+      description = "Both or none of receiverId and invitationCode, or a code with a wrong format",
       content = @Content(schema = @Schema(implementation = ErrorResource.class)))
-  @ApiResponse(responseCode = "404", description = "The receiver does not exist",
-      content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+  @ApiResponse(responseCode = "404",
+      description = "The receiver does not exist or no user has the invitation code",
+      content = @Content(schema = @Schema(implementation = ErrorResource.class),
+          examples = @ExampleObject("""
+              {"code": "INVITATION_CODE_NOT_FOUND",
+               "message": "No user has this invitation code."}""")))
   @ApiResponse(responseCode = "409", description = "A request already exists between the users",
       content = @Content(schema = @Schema(implementation = ErrorResource.class),
           examples = @ExampleObject("""
               {"code": "FRIENDSHIP_CONFLICT",
                "message": "There is already a friend request between you and this user."}""")))
   @ApiResponse(responseCode = "422",
-      description = "The request is to oneself or was rejected less than 7 days ago",
+      description = "The request is to oneself, or the waiting time after a rejection or an "
+          + "expired request has not passed",
       content = @Content(schema = @Schema(implementation = ErrorResource.class)))
   public ResponseEntity<?> sendFriendRequest(
       @Valid @RequestBody SendFriendRequestResource resource,
@@ -113,7 +132,8 @@ public class FriendController {
   @PutMapping("/{id}")
   @Operation(
       summary = "Answer a friend request",
-      description = "Accepts or rejects a pending friend request. Only the user who received "
+      description = "Accepts or rejects a pending friend request within 48 hours of being "
+          + "sent. Only the user who received "
           + "it can answer.")
   @ApiResponse(responseCode = "200", description = "Friend request answered",
       content = @Content(schema = @Schema(implementation = FriendResource.class)))
@@ -126,7 +146,8 @@ public class FriendController {
                "message": "Only the user who received the friend request can answer it."}""")))
   @ApiResponse(responseCode = "404", description = "The friend request does not exist",
       content = @Content(schema = @Schema(implementation = ErrorResource.class)))
-  @ApiResponse(responseCode = "422", description = "The request was already answered",
+  @ApiResponse(responseCode = "422",
+      description = "The request was already answered or expired after 48 hours",
       content = @Content(schema = @Schema(implementation = ErrorResource.class)))
   public ResponseEntity<?> respondFriendRequest(
       @PathVariable Long id,
@@ -140,5 +161,38 @@ public class FriendController {
         (Friendship friendship) ->
             FriendResourceFromEntityAssembler.toResourceFromEntity(friendship),
         HttpStatus.OK);
+  }
+
+  @DeleteMapping("/{id}")
+  @Operation(
+      summary = "Remove a friendship",
+      description = "Removes a friendship or a pending friend request. Only one of the two users "
+          + "can do it. A rejected or expired request can only be removed once its 7-day waiting "
+          + "period ends, so it cannot be used to skip that wait.")
+  @ApiResponse(responseCode = "204", description = "Friendship removed", content = @Content)
+  @ApiResponse(responseCode = "403", description = "The requester is not part of the friendship",
+      content = @Content(schema = @Schema(implementation = ErrorResource.class),
+          examples = @ExampleObject("""
+              {"code": "FRIENDSHIP_ACCESS_FORBIDDEN",
+               "message": "Only the two users of a friendship can remove it."}""")))
+  @ApiResponse(responseCode = "404", description = "The friendship does not exist",
+      content = @Content(schema = @Schema(implementation = ErrorResource.class),
+          examples = @ExampleObject("""
+              {"code": "FRIENDSHIP_NOT_FOUND",
+               "message": "The friend request was not found."}""")))
+  @ApiResponse(responseCode = "422",
+      description = "A rejected or expired request is still in its waiting period",
+      content = @Content(schema = @Schema(implementation = ErrorResource.class),
+          examples = @ExampleObject("""
+              {"code": "FRIENDSHIP_IN_WAITING_PERIOD",
+               "message": "This request cannot be removed until its 7-day waiting period ends."}
+              """)))
+  public ResponseEntity<?> removeFriendship(
+      @PathVariable Long id, @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+    var command = new RemoveFriendshipCommand(new UserId(principal.accountId()), id);
+    return responseEntityAssembler.toResponseEntityFromResult(
+        friendshipCommandService.handle(command),
+        (Friendship friendship) -> null,
+        HttpStatus.NO_CONTENT);
   }
 }

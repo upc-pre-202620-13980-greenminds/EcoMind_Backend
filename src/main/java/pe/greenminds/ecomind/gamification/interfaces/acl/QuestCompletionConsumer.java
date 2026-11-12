@@ -8,11 +8,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import pe.greenminds.ecomind.gamification.application.commandservices.FamilyRewardCommandService;
 import pe.greenminds.ecomind.gamification.application.commandservices.RewardCommandService;
+import pe.greenminds.ecomind.gamification.application.commandservices.UserProgressCommandService;
 import pe.greenminds.ecomind.gamification.application.outboundservices.QuestServiceClient;
 import pe.greenminds.ecomind.gamification.domain.model.commands.GrantCollaborativeQuestRewardCommand;
 import pe.greenminds.ecomind.gamification.domain.model.commands.GrantFamilyPlanRewardCommand;
 import pe.greenminds.ecomind.gamification.domain.model.commands.GrantMinigameRewardCommand;
 import pe.greenminds.ecomind.gamification.domain.model.commands.GrantQuestRewardCommand;
+import pe.greenminds.ecomind.gamification.domain.model.commands.UpdateUserStreakCommand;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.FamilyId;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.Reward;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.UserId;
@@ -23,9 +25,11 @@ import pe.greenminds.ecomind.quests.interfaces.acl.events.QuestCompletedIntegrat
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 @Component
 @Transactional(propagation = Propagation.MANDATORY)
@@ -34,16 +38,19 @@ public class QuestCompletionConsumer {
     private final FamilyRewardCommandService families;
     private final ZoneId zone;
     private final QuestServiceClient quests;
+    private final UserProgressCommandService userProgress;
 
     public QuestCompletionConsumer(
             RewardCommandService rewards,
             FamilyRewardCommandService families,
             QuestServiceClient quests,
+            UserProgressCommandService userProgress,
             @Value("${gamification.activity-zone:America/Lima}") String zone) {
         this.rewards = rewards;
         this.families = families;
         this.zone = ZoneId.of(zone);
         this.quests = quests;
+        this.userProgress = userProgress;
     }
 
     @EventListener
@@ -54,7 +61,7 @@ public class QuestCompletionConsumer {
                 new UserId(event.userId()),
                 completedAt,
                 completedAt.atZone(zone).toLocalDate(),
-                "DAILY_QUEST".equals(event.questType().name()),
+                true,
                 base(event.baseEcopoints(), event.baseGems())));
     }
 
@@ -67,22 +74,25 @@ public class QuestCompletionConsumer {
                 .stream()
                 .filter(attempt -> !attempt.attemptId().equals(event.attemptId()))
                 .count();
-        rewards.handle(new GrantMinigameRewardCommand(
+        var grant = rewards.handle(new GrantMinigameRewardCommand(
                 execution("minigame-attempt", event.attemptId()),
                 execution("minigame", event.minigameId()),
                 new UserId(event.userId()),
                 completedAt,
                 base(event.baseEcopoints(), event.baseGems()),
                 priorAttempts));
+        recordQuestActivity(grant.beneficiary(), grant.sourceExecutionId(), grant.occurredAt());
     }
 
     @EventListener
     public void on(CollaborativeQuestCompletedIntegrationEvent event) {
-        rewards.handle(new GrantCollaborativeQuestRewardCommand(
+        var grants = rewards.handle(new GrantCollaborativeQuestRewardCommand(
                 execution("collaborative-session", event.sessionId()),
                 event.participantUserIds().stream().map(UserId::new).toList(),
                 event.completedAt().toInstant(),
                 base(event.baseEcopoints(), event.baseGems())));
+        grants.forEach(grant ->
+                recordQuestActivity(grant.beneficiary(), grant.sourceExecutionId(), grant.occurredAt()));
     }
 
     @EventListener
@@ -95,6 +105,17 @@ public class QuestCompletionConsumer {
         if (result.isFailure()) {
             throw new IllegalStateException("Unknown family for completed plan");
         }
+        var grant = result.toOptional().orElseThrow();
+        Stream.concat(Stream.of(event.ownerUserId()), event.participantUserIds().stream())
+                .distinct()
+                .sorted()
+                .forEach(userId ->
+                        recordQuestActivity(new UserId(userId), grant.sourceExecutionId(), grant.occurredAt()));
+    }
+
+    private void recordQuestActivity(UserId userId, UUID executionId, Instant occurredAt) {
+        userProgress.handle(new UpdateUserStreakCommand(
+                userId, occurredAt.atZone(zone).toLocalDate(), executionId, occurredAt));
     }
 
     private Reward base(Integer ecopoints, Integer gems) {

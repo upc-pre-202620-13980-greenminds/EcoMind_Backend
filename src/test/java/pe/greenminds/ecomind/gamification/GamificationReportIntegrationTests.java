@@ -65,6 +65,7 @@ import pe.greenminds.ecomind.iam.domain.model.valueobjects.AuthenticatedUser;
 import pe.greenminds.ecomind.iam.domain.model.valueobjects.EmailAddress;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.MinigameAttempt;
 import pe.greenminds.ecomind.quests.domain.repositories.MinigameAttemptRepository;
+import pe.greenminds.ecomind.quests.interfaces.acl.events.CollaborativeQuestCompletedIntegrationEvent;
 import pe.greenminds.ecomind.quests.interfaces.acl.events.MinigameCompletedIntegrationEvent;
 import pe.greenminds.ecomind.quests.interfaces.acl.events.QuestCompletedIntegrationEvent;
 import pe.greenminds.ecomind.users.domain.model.aggregates.UserProfile;
@@ -660,6 +661,23 @@ class GamificationReportIntegrationTests {
                 1, jdbc.queryForObject("SELECT COUNT(*) FROM reward_transactions", Integer.class));
         assertEquals(13, progress.getUserProgress(USER).getTotalEcopoints());
         assertEquals(new Reward(13, 2), progress.getRecentRewards(USER).getFirst().grantedReward());
+        assertEquals(1, progress.getUserProgress(USER).getCurrentStreak());
+
+        var sameDay = new CollaborativeQuestCompletedIntegrationEvent(
+                UUID.randomUUID(), 76L, 42L, 42L, 1, List.of(USER.value(), OTHER.value()),
+                0, 8, AT.plusSeconds(60).atOffset(ZoneOffset.UTC));
+        tx(() -> events.publishEvent(sameDay));
+
+        assertEquals(1, progress.getUserProgress(USER).getCurrentStreak());
+        assertEquals(1, progress.getUserProgress(OTHER).getCurrentStreak());
+
+        var nextDay = new CollaborativeQuestCompletedIntegrationEvent(
+                UUID.randomUUID(), 77L, 42L, 42L, 1, List.of(USER.value(), OTHER.value()),
+                0, 8, AT.atOffset(ZoneOffset.UTC).plusDays(1));
+        tx(() -> events.publishEvent(nextDay));
+
+        assertEquals(2, progress.getUserProgress(USER).getCurrentStreak());
+        assertEquals(2, progress.getUserProgress(OTHER).getCurrentStreak());
     }
 
     @Test
@@ -1013,7 +1031,7 @@ class GamificationReportIntegrationTests {
                                             100,
                                             AT.atOffset(ZoneOffset.UTC))));
         assertEquals(80, progress.getUserProgress(USER).getTotalEcopoints());
-        assertEquals(0, progress.getUserProgress(USER).getCurrentStreak());
+        assertEquals(1, progress.getUserProgress(USER).getCurrentStreak());
     }
 
     @Autowired MinigameAttemptRepository actualAttempts;
@@ -1247,7 +1265,7 @@ class GamificationReportIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("COMPLETED"));
         assertEquals(19, progress.getUserProgress(USER).getTotalEcopoints());
-        assertEquals(0, progress.getUserProgress(USER).getCurrentStreak());
+        assertEquals(1, progress.getUserProgress(USER).getCurrentStreak());
         for (var message : outbox.findAll())
             if (message.getMessageType().equals("GEMS")) delivery.deliver(message.getId());
         assertEquals(
