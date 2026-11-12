@@ -23,6 +23,10 @@ An initial poll retains the provider operation ID for later status diagnosis if 
 HTTP operations have 5-second connect and 10-second response/read timeouts, with no
 automatic retries. Polling waits up to 60 seconds; an in-flight HTTP request can extend
 the total request duration. Do not describe this as a strict 60-second end-to-end bound.
+The adapter uses a 30-second polling interval instead of the SDK's short default.
+This reduces status traffic, but does not enforce subscription-wide quotas when
+several users send concurrently. Successful acceptance logs a validated operation
+UUID for correlation; it never claims delivery or logs recipients or message content.
 
 ## Reproducible setup
 
@@ -50,6 +54,62 @@ Deploy a tested immutable application image using `infra/azure/application.bicep
 required root parameter so maintenance cannot silently revert to Resend. The nested
 module resolves the mail secret through Key Vault into an ACA native secret reference.
 No sender address or connection string is accepted as evidence of real delivery.
+
+## Delivery diagnostics
+
+`infra/azure/email-diagnostics.bicep` routes only `EmailSendMailOperational` and
+`EmailStatusUpdateOperational` from the existing communication resource to the
+existing Log Analytics workspace. It creates no provider keys or access grants and
+does not enable engagement tracking. Validate and preview it before applying:
+
+```bash
+bash scripts/azure.sh deployment group validate -g rg-ecomind-prod \
+  --template-file infra/azure/email-diagnostics.bicep
+bash scripts/azure.sh deployment group what-if -g rg-ecomind-prod \
+  --template-file infra/azure/email-diagnostics.bicep
+bash scripts/azure.sh deployment group create -g rg-ecomind-prod \
+  --template-file infra/azure/email-diagnostics.bicep
+```
+
+The workspace currently retains logs for 30 days and has a 0.1 GB daily ingestion
+cap. Azure status logs can contain recipient email addresses. Keep workspace read
+access restricted and omit recipient fields from shared evidence. These Azure logs
+have a different privacy boundary from the redacted application logs. Existing
+workspace retention, access and cap are not changed by the template.
+
+Logs start after the setting is enabled and can take time to appear. Correlate a
+fresh operation with these resource-specific tables; a `GetMessageStatus` row alone
+is not a recipient delivery event:
+
+```kusto
+ACSEmailSendMailOperational
+| where TimeGenerated > ago(1h)
+| project TimeGenerated, OperationName, CorrelationId
+
+ACSEmailStatusUpdateOperational
+| where TimeGenerated > ago(1h)
+| project TimeGenerated, OperationName, CorrelationId, DeliveryStatus,
+          FailureReason, SmtpStatusCode
+```
+
+On November 12, fresh recovery and verification calls reproduced an unresolved
+provider operation: send accepted with 202, subsequent status reads 200/`Running`,
+and no confirmed new mailbox receipt. Independent signed REST requests with plain
+text, no attachments and API versions 2023-03-31 and 2025-09-01 reproduced the pending
+state. Following `Operation-Location` did not change it. Domain authentication was
+verified. The original resource's measured API series contained 202/200 responses
+and no 429; this does not establish the health of every subscription-level quota.
+
+These observations supersede any assumption that earlier successful messages prove
+current delivery. The cause is still under investigation. Reducing polling or
+enabling logs must not be reported as a delivery fix. No automatic resend is enabled.
+
+An Azure support case was opened with the owner's authorization. The contemporaneous
+[Microsoft service-health notice](https://status.cloud.microsoft/) lists a Microsoft
+365 multi-service incident; [Azure public status](https://azure.status.microsoft/en-us/status)
+showed no active event, and this subscription's Resource Health event list was empty.
+The incident's relationship to ACS is unconfirmed. Private case details and operation
+identifiers remain outside the repositories.
 
 For key rotation, redeploy `email.bicep`, then the application template and restart or
 revise running replicas. Secret updates alone do not refresh a running process. Keep

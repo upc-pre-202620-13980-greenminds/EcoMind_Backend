@@ -33,6 +33,7 @@ import pe.greenminds.ecomind.iam.infrastructure.email.IamEmailContentFactory;
 public class AzureEmailService implements EmailService {
   private static final Logger LOGGER = LoggerFactory.getLogger(AzureEmailService.class);
   private static final Duration SEND_TIMEOUT = Duration.ofSeconds(60);
+  private static final Duration POLL_INTERVAL = Duration.ofSeconds(30);
   private final EmailClient client;
   private final String sender;
   private final IamEmailContentFactory content;
@@ -83,6 +84,7 @@ public class AzureEmailService implements EmailService {
     String operationId = "unavailable";
     try {
       var poller = client.beginSend(message);
+      poller.setPollInterval(POLL_INTERVAL);
       var initial = poller.poll();
       if (initial != null && initial.getValue() != null) {
         operationId = safeOperationId(initial.getValue().getId());
@@ -103,6 +105,7 @@ public class AzureEmailService implements EmailService {
         throw new EmailDeliveryException(
             new IllegalStateException("The email provider did not confirm acceptance."));
       }
+      LOGGER.info("email_accepted provider=azure operation_id={}", safeOperationId(result.getId()));
     } catch (EmailDeliveryException exception) {
       throw exception;
     } catch (RuntimeException exception) {
