@@ -220,8 +220,18 @@ variables. Use secret references for passwords, signing keys and API keys. Assig
 | `AZURE_EMAIL_CONNECTION_STRING` | Native secret reference resolved from Key Vault |
 | `AZURE_EMAIL_FROM_EMAIL` | Verified managed-domain sender |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Only required when selecting Resend |
-| `PASSWORD_RECOVERY_URL` | Public HTTPS `/authentication/reset-password` helper; its button opens the existing Android URI |
+| `PASSWORD_RECOVERY_URL` | Public HTTPS `/authentication/reset-password` helper; its button opens the EcoMind app URI |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Native secret references resolved from the project Key Vault for Community images |
 | `CULQI_SECRET_KEY`, `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET` | Only the team's approved sandbox configuration, when required |
+
+The Community configuration on current `develop` requires all three Cloudinary values
+at startup. `infra/azure/community-secrets.bicep` stores the team's existing configuration
+as secure Key Vault secrets without outputs. Populate it through private secure parameters;
+never copy development credentials into a build context, command argument or report.
+`application.bicep` resolves `cloudinary-cloud-name`, `cloudinary-api-key` and
+`cloudinary-api-secret` through ARM into native Container Apps secrets. No additional
+runtime Key Vault role is needed. This preserves the team's existing image provider;
+it does not create a new Cloudinary account or migrate stored images.
 
 The `azure` profile is used together with `prod`; it limits the database pool to five
 connections per replica and applies graceful shutdown. Never enable `dev` in Azure.

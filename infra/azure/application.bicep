@@ -41,6 +41,9 @@ module runtime './application-resources.bicep' = {
     azureEmailConnectionString: emailProvider == 'azure' ? vault.getSecret('azure-email-connection-string') : ''
     azureEmailFromEmail: azureEmailFromEmail
     passwordRecoveryUrl: passwordRecoveryUrl
+    cloudinaryCloudName: vault.getSecret('cloudinary-cloud-name')
+    cloudinaryApiKey: vault.getSecret('cloudinary-api-key')
+    cloudinaryApiSecret: vault.getSecret('cloudinary-api-secret')
   }
 }
 

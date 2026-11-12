@@ -31,6 +31,13 @@ param azureEmailConnectionString string = ''
 param azureEmailFromEmail string = ''
 param passwordRecoveryUrl string
 
+@secure()
+param cloudinaryCloudName string
+@secure()
+param cloudinaryApiKey string
+@secure()
+param cloudinaryApiSecret string
+
 var tags = {
   project: 'EcoMind'
   environment: 'production'
@@ -90,6 +97,9 @@ resource app 'Microsoft.App/containerApps@2025-07-01' = {
       secrets: concat([
         { name: 'db-password', value: applicationDatabasePassword }
         { name: 'jwt-secret', value: jwtSigningKey }
+        { name: 'cloudinary-cloud-name', value: cloudinaryCloudName }
+        { name: 'cloudinary-api-key', value: cloudinaryApiKey }
+        { name: 'cloudinary-api-secret', value: cloudinaryApiSecret }
       ], empty(resendApiKey) ? [] : [{ name: 'resend-api-key', value: resendApiKey }],
         empty(azureEmailConnectionString) ? [] : [{ name: 'azure-email-connection-string', value: azureEmailConnectionString }])
     }
@@ -115,6 +125,9 @@ resource app 'Microsoft.App/containerApps@2025-07-01' = {
             { name: 'EMAIL_PROVIDER', value: emailProvider }
             { name: 'AZURE_EMAIL_FROM_EMAIL', value: azureEmailFromEmail }
             { name: 'PASSWORD_RECOVERY_URL', value: passwordRecoveryUrl }
+            { name: 'CLOUDINARY_CLOUD_NAME', secretRef: 'cloudinary-cloud-name' }
+            { name: 'CLOUDINARY_API_KEY', secretRef: 'cloudinary-api-key' }
+            { name: 'CLOUDINARY_API_SECRET', secretRef: 'cloudinary-api-secret' }
           ], empty(resendApiKey) ? [{ name: 'RESEND_API_KEY', value: '' }] : [{ name: 'RESEND_API_KEY', secretRef: 'resend-api-key' }],
             empty(azureEmailConnectionString) ? [] : [{ name: 'AZURE_EMAIL_CONNECTION_STRING', secretRef: 'azure-email-connection-string' }])
           probes: [
