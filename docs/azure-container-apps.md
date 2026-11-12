@@ -27,8 +27,8 @@ Resource inventory and templates document the deployed configuration without sec
 Current validation URL:
 `https://ca-ecomind-api.icybush-bd135296.westus2.azurecontainerapps.io`
 with Swagger at `/swagger-ui.html`. The running image is
-`sha256:5de17b9c2efadbcda57fe997ec6c0a192450d6b87b754666a3901186f45b342d`
-(application source commit `632111c`; before the branded-template rollout). Previous Aiven accounts and progress were not copied. This database contains new,
+`sha256:9cda70edabf84f4cd3ad7acb2b22a608f571bac0b40044a603635f9012dfa46b`
+(application source commit `930cdcd`; branded templates and HTTPS handoff). Previous Aiven accounts and progress were not copied. This database contains new,
 explicitly labeled demonstration data; see [email and fixture operations](azure-email.md). The Android and Flutter feature branches now default to Azure; their draft PRs still require
 team integration through the existing release process.
 
@@ -216,8 +216,10 @@ variables. Use secret references for passwords, signing keys and API keys. Assig
 | `DATABASE_PASSWORD` | Secret reference |
 | `JWT_SECRET` | Secret reference; strong newly generated signing key |
 | `JWT_EXPIRATION_MINUTES` | `60` |
-| `RESEND_API_KEY` | Secret reference from the team's Resend account |
-| `RESEND_FROM_EMAIL` | Address on the verified sender domain |
+| `EMAIL_PROVIDER` | `azure` for this deployment; `resend` remains available |
+| `AZURE_EMAIL_CONNECTION_STRING` | Native secret reference resolved from Key Vault |
+| `AZURE_EMAIL_FROM_EMAIL` | Verified managed-domain sender |
+| `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Only required when selecting Resend |
 | `PASSWORD_RECOVERY_URL` | Public HTTPS `/authentication/reset-password` helper; its button opens the existing Android URI |
 | `CULQI_SECRET_KEY`, `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET` | Only the team's approved sandbox configuration, when required |
 
