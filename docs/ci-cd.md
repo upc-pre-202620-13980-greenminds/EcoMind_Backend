@@ -15,8 +15,8 @@ the PostgreSQL job also retains the executable JAR.
 After both jobs pass, the container job builds `Dockerfile.azure` for Linux AMD64. It
 rejects packaged development/local configuration, scans OS/Java dependencies with a
 pinned Trivy release and fails on fixable HIGH/CRITICAL vulnerabilities. The JSON scan
-report is retained for 14 days, including failed scans. Unfixed vulnerabilities remain
-visible in the report but are not this gate's threshold. Dependabot proposes weekly
+report is retained for 14 days, including failed scans. The retained report is filtered to fixable HIGH/CRITICAL findings;
+it is not a complete inventory of unfixed or lower-severity findings. Dependabot proposes weekly
 Maven, action and Docker updates into `develop`; updates use the same checks.
 The initial scan found fixable runtime dependency findings. Spring Boot was updated
 within 4.0.x to 4.0.9, and HttpCore to the fixed 5.4.3 release; the gate was retained.
