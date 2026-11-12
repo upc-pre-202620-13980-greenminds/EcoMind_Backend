@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.0.7</version>
+		<version>4.0.9</version>
 		<relativePath/>
 	</parent>
 	<groupId>pe.greenminds</groupId>
@@ -16,6 +16,8 @@
 
 	<properties>
 		<java.version>21</java.version>
+		<!-- Security fixes pending the next managed dependency update. -->
+		<httpcore5.version>5.4.3</httpcore5.version>
         <argLine></argLine>
 		<pluralize.version>1.0.0</pluralize.version>
 		<springdoc.version>3.0.3</springdoc.version>

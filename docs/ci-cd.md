@@ -18,6 +18,8 @@ pinned Trivy release and fails on fixable HIGH/CRITICAL vulnerabilities. The JSO
 report is retained for 14 days, including failed scans. Unfixed vulnerabilities remain
 visible in the report but are not this gate's threshold. Dependabot proposes weekly
 Maven, action and Docker updates into `develop`; updates use the same checks.
+The initial scan found fixable runtime dependency findings. Spring Boot was updated
+within 4.0.x to 4.0.9, and HttpCore to the fixed 5.4.3 release; the gate was retained.
 
 ## Automatic Azure deployment
 
