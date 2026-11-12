@@ -116,7 +116,18 @@ A repository administrator should require `Pull request conventions`, `Tests (h2
 `Tests (postgresql)` and `Build deployment image`, require an up-to-date PR, resolve
 conversations and disallow force pushes/deletions on `develop` and `main`. The deployment
 job is not a PR check: it runs after merging. Configuration of the workflow alone does
-not prove these repository protection settings are enabled.
+not prove these repository protection settings are enabled. The current personal
+account has repository write access, not administration; its protection update request
+was rejected. `infra/github/branch-protection.json` is the prepared administrator
+payload. An administrator can apply it to both branches:
+
+```bash
+gh api --method PUT repos/upc-pre-202620-13980-greenminds/EcoMind_Backend/branches/develop/protection --input infra/github/branch-protection.json
+gh api --method PUT repos/upc-pre-202620-13980-greenminds/EcoMind_Backend/branches/main/protection --input infra/github/branch-protection.json
+```
+
+The payload requires a PR and successful current checks, disallows forced updates and
+deletion, and resolves conversations. It does not add a mandatory approval count.
 
 Release tags use `vMAJOR.MINOR.PATCH` and must match `pom.xml`. Tags and `main` run the
 same verification and retain artifacts, without replacing the `develop` Azure image.

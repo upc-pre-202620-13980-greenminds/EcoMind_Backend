@@ -249,7 +249,7 @@ jobs:
         env:
           SOURCE_COMMIT: ${{ github.sha }}
         run: |
-          az acr login --name "$AZURE_REGISTRY_NAME" --only-show-errors --output none
+          az acr login --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_REGISTRY_NAME" --only-show-errors --output none
           repository="$AZURE_REGISTRY_SERVER/ecomind-backend"
           tag="$repository:$SOURCE_COMMIT-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           docker tag "ecomind-backend:azure-$SOURCE_COMMIT" "$tag"
