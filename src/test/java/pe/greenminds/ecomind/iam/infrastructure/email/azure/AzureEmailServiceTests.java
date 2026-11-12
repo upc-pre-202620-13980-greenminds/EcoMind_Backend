@@ -84,6 +84,28 @@ class AzureEmailServiceTests {
   }
 
   @Test
+  void acceptedOperationsCanBeCorrelatedWithoutClaimingDeliveryOrLoggingPrivateValues() {
+    var logs = captureLogs();
+    var operationId = "f47ac10b-58cc-4372-a567-0e02b2c3d479";
+    when(poller.waitForCompletion(Duration.ofSeconds(60))).thenReturn(
+        new PollResponse<>(LongRunningOperationStatus.SUCCESSFULLY_COMPLETED,
+            new EmailSendResult(operationId, EmailSendStatus.SUCCEEDED, null)));
+    service.sendPasswordRecoveryLink(new EmailAddress("private-recipient@example.invalid"), "private-token");
+
+    assertThat(formattedLogs(logs)).containsExactly(
+        "email_accepted provider=azure operation_id=" + operationId);
+
+    when(poller.waitForCompletion(Duration.ofSeconds(60))).thenReturn(
+        new PollResponse<>(LongRunningOperationStatus.SUCCESSFULLY_COMPLETED,
+            new EmailSendResult("private-token", EmailSendStatus.SUCCEEDED, null)));
+    service.sendPasswordRecoveryLink(new EmailAddress("private-recipient@example.invalid"), "private-token");
+
+    assertThat(formattedLogs(logs)).containsExactly(
+        "email_accepted provider=azure operation_id=" + operationId,
+        "email_accepted provider=azure operation_id=unavailable");
+  }
+
+  @Test
   void recoveryPreservesTheRequestLanguageAndReplacesTheTokenSafely() {
     completed(EmailSendStatus.SUCCEEDED);
     LocaleContextHolder.setLocale(Locale.forLanguageTag("es-419"));

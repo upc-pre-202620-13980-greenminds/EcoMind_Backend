@@ -103,6 +103,7 @@ public class AzureEmailService implements EmailService {
         throw new EmailDeliveryException(
             new IllegalStateException("The email provider did not confirm acceptance."));
       }
+      LOGGER.info("email_accepted provider=azure operation_id={}", safeOperationId(result.getId()));
     } catch (EmailDeliveryException exception) {
       throw exception;
     } catch (RuntimeException exception) {
