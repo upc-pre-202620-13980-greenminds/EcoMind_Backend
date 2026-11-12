@@ -61,6 +61,12 @@ class AzureEmailServiceTests {
     assertThat(message.getBodyHtml()).contains("&lt;b&gt;Demo&lt;/b&gt;", "123456");
     assertThat(message.getBodyPlainText()).contains("20 minutes", "123456");
     assertThat(message.isUserEngagementTrackingDisabled()).isTrue();
+    assertThat(message.getBodyHtml()).contains("cid:ecomind-logo", "alt=\"EcoMind\"");
+    assertThat(message.getAttachments()).hasSize(1);
+    var logo = message.getAttachments().get(0);
+    assertThat(logo.getContentId()).isEqualTo("ecomind-logo");
+    assertThat(logo.getContentType()).isEqualTo("image/png");
+    assertThat(logo.getContent().toBytes()).startsWith((byte) 0x89, (byte) 0x50, (byte) 0x4e, (byte) 0x47);
   }
 
   @Test

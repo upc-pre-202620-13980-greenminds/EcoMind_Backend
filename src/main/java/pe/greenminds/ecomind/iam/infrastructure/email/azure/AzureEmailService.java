@@ -3,6 +3,9 @@ package pe.greenminds.ecomind.iam.infrastructure.email.azure;
 import com.azure.communication.email.EmailClient;
 import com.azure.communication.email.EmailClientBuilder;
 import com.azure.communication.email.models.EmailMessage;
+import com.azure.communication.email.models.EmailAttachment;
+import com.azure.core.util.BinaryData;
+import pe.greenminds.ecomind.iam.infrastructure.email.EmailBranding;
 import com.azure.communication.email.models.EmailSendStatus;
 import com.azure.core.http.HttpClient;
 import com.azure.core.util.HttpClientOptions;
@@ -46,6 +49,7 @@ public class AzureEmailService implements EmailService {
 
   AzureEmailService(MessageSource messages, String sender, String recoveryUrl, EmailClient client) {
     Assert.hasText(sender, "Azure email sender is required.");
+    org.springframework.util.Assert.isTrue(EmailBranding.logoBytes().length > 0, "EcoMind email logo is empty.");
     this.client = client;
     this.sender = sender;
     this.content = new IamEmailContentFactory(messages, recoveryUrl);
@@ -69,7 +73,9 @@ public class AzureEmailService implements EmailService {
   private void send(EmailAddress recipient, IamEmailContentFactory.Content content) {
     var message = new EmailMessage().setSenderAddress(sender).setToRecipients(recipient.value())
         .setSubject(content.subject()).setBodyHtml(content.html()).setBodyPlainText(content.text())
-        .setUserEngagementTrackingDisabled(true);
+        .setUserEngagementTrackingDisabled(true)
+        .setAttachments(new EmailAttachment(EmailBranding.LOGO_FILENAME, "image/png",
+            BinaryData.fromBytes(EmailBranding.logoBytes())).setContentId(EmailBranding.LOGO_CONTENT_ID));
     try {
       var result = client.beginSend(message).waitForCompletion(SEND_TIMEOUT).getValue();
       if (result == null || !EmailSendStatus.SUCCEEDED.equals(result.getStatus())) {

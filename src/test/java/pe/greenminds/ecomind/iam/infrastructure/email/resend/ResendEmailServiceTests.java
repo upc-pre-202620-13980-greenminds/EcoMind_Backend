@@ -87,6 +87,10 @@ class ResendEmailServiceTests {
         .andExpect(jsonPath("$.html", containsString("&lt;b&gt;Camila&lt;/b&gt;")))
         .andExpect(jsonPath("$.text", containsString("123456")))
         .andExpect(jsonPath("$.text", containsString("20 minutes")))
+        .andExpect(jsonPath("$.html", containsString("cid:ecomind-logo")))
+        .andExpect(jsonPath("$.attachments[0].content_id").value("ecomind-logo"))
+        .andExpect(jsonPath("$.attachments[0].filename").value("ecomind-logo.png"))
+        .andExpect(jsonPath("$.attachments[0].content", org.hamcrest.Matchers.startsWith("iVBORw0KGgo")))
         .andRespond(withSuccess("{\"id\":\"test-message\"}", MediaType.APPLICATION_JSON));
 
     service.sendVerificationCode(new EmailAddress("camila@example.invalid"), "<b>Camila</b>", "123456");

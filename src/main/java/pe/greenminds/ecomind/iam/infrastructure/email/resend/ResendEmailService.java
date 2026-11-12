@@ -13,6 +13,7 @@ import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import pe.greenminds.ecomind.iam.infrastructure.email.IamEmailContentFactory;
+import pe.greenminds.ecomind.iam.infrastructure.email.EmailBranding;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import pe.greenminds.ecomind.iam.application.outboundservices.EmailService;
@@ -47,6 +48,7 @@ public class ResendEmailService implements EmailService {
       RestClient.Builder builder) {
     org.springframework.util.Assert.hasText(apiKey, "Resend API key is required.");
     org.springframework.util.Assert.hasText(fromEmail, "Resend sender is required.");
+    org.springframework.util.Assert.isTrue(EmailBranding.logoBytes().length > 0, "EcoMind email logo is empty.");
     this.restClient =
         builder
             .baseUrl(RESEND_API_URL)
@@ -85,7 +87,11 @@ public class ResendEmailService implements EmailService {
                 "to", List.of(recipient.value()),
                 "subject", content.subject(),
                 "html", content.html(),
-                "text", content.text()))
+                "text", content.text(),
+                "attachments", List.of(Map.of(
+                    "filename", EmailBranding.LOGO_FILENAME,
+                    "content", EmailBranding.logoBase64(),
+                    "content_id", EmailBranding.LOGO_CONTENT_ID))))
         .retrieve()
         .toBodilessEntity();
     } catch (RestClientException exception) {

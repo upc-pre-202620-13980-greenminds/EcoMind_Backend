@@ -13,24 +13,27 @@ connected as `ecomind_app` to `ecomind` using TLS 1.3 with `verify-full`. The AP
 OpenAPI over HTTPS. The public smoke checks and a database-backed invalid-credentials
 request passed. The email service and managed domain are now provisioned. Four synthetic
 accounts and sample family, community and quest data were created and read through the API.
-Real email receipt and the full account lifecycle still require validation with the new adapter.
+The first real English verification and Spanish recovery emails reached Gmail; verification,
+password reset, rejection of the old password and single-use token reuse checks passed.
+The subsequent branded layout and HTTPS handoff have separate rollout validation.
 The owner chose new demonstration data instead of migration from the unavailable previous database.
 Use the Azure portal for the first resource creation and capture the actual steps for
 the course report. The 202620 V4.0 assignment, page 29, requires deployment screenshots
 and explanations; page 25 requires reproducible configuration and a C4 deployment view.
 CLI validation and later maintenance complement those screenshots.
-The C4 deployment update and sanitized resource configuration export are pending until
-the actual Azure environment has been created and verified.
+Current Azure architecture diagrams supplement the historical Sprint 1 views in the report.
+Resource inventory and templates document the deployed configuration without secret values.
 
 Current validation URL:
 `https://ca-ecomind-api.icybush-bd135296.westus2.azurecontainerapps.io`
 with Swagger at `/swagger-ui.html`. The running image is
-`sha256:d7c7bab91a21bb204c84a787d84f3051e8f52c30c9f4f06bc5f9ee401fa86a94`
-(application source commit `ac2941b`). Previous Aiven accounts and progress were not copied. This database contains new,
-explicitly labeled demonstration data; see [email and fixture operations](azure-email.md). Existing mobile release URLs still point to Render.
+`sha256:5de17b9c2efadbcda57fe997ec6c0a192450d6b87b754666a3901186f45b342d`
+(application source commit `632111c`; before the branded-template rollout). Previous Aiven accounts and progress were not copied. This database contains new,
+explicitly labeled demonstration data; see [email and fixture operations](azure-email.md). The Android and Flutter feature branches now default to Azure; their draft PRs still require
+team integration through the existing release process.
 
-This feature starts from `develop` at `f0f5051`. The IAM email improvements in backend
-PR #30 must also be integrated before validating the final recovery email experience.
+This feature starts from `develop` at `f0f5051`. The IAM email improvements from backend PR #30
+are merged into this feature branch, followed by Azure delivery and shared branded templates.
 Keep feature work on `feature/*`, integrate through `develop`, and release through the
 team's existing `release/*` / `main` flow. Resource creation does not authorize a release.
 
@@ -215,7 +218,7 @@ variables. Use secret references for passwords, signing keys and API keys. Assig
 | `JWT_EXPIRATION_MINUTES` | `60` |
 | `RESEND_API_KEY` | Secret reference from the team's Resend account |
 | `RESEND_FROM_EMAIL` | Address on the verified sender domain |
-| `PASSWORD_RECOVERY_URL` | `ecomind://authentication/reset-password` for the current Android implementation |
+| `PASSWORD_RECOVERY_URL` | Public HTTPS `/authentication/reset-password` helper; its button opens the existing Android URI |
 | `CULQI_SECRET_KEY`, `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET` | Only the team's approved sandbox configuration, when required |
 
 The `azure` profile is used together with `prod`; it limits the database pool to five

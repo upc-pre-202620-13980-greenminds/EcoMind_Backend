@@ -18,6 +18,9 @@ param resendFromEmail string = ''
 param emailProvider string
 param azureEmailFromEmail string = ''
 
+@description('Public HTTPS recovery handoff, for example https://<app-host>/authentication/reset-password.')
+param passwordRecoveryUrl string
+
 resource vault 'Microsoft.KeyVault/vaults@2024-11-01' existing = {
   name: 'kv-ecomind-${resourceSuffix}'
 }
@@ -37,6 +40,7 @@ module runtime './application-resources.bicep' = {
     emailProvider: emailProvider
     azureEmailConnectionString: emailProvider == 'azure' ? vault.getSecret('azure-email-connection-string') : ''
     azureEmailFromEmail: azureEmailFromEmail
+    passwordRecoveryUrl: passwordRecoveryUrl
   }
 }
 

@@ -29,6 +29,7 @@ param emailProvider string = 'resend'
 @secure()
 param azureEmailConnectionString string = ''
 param azureEmailFromEmail string = ''
+param passwordRecoveryUrl string
 
 var tags = {
   project: 'EcoMind'
@@ -113,7 +114,7 @@ resource app 'Microsoft.App/containerApps@2025-07-01' = {
             { name: 'RESEND_FROM_EMAIL', value: resendFromEmail }
             { name: 'EMAIL_PROVIDER', value: emailProvider }
             { name: 'AZURE_EMAIL_FROM_EMAIL', value: azureEmailFromEmail }
-            { name: 'PASSWORD_RECOVERY_URL', value: 'ecomind://authentication/reset-password' }
+            { name: 'PASSWORD_RECOVERY_URL', value: passwordRecoveryUrl }
           ], empty(resendApiKey) ? [{ name: 'RESEND_API_KEY', value: '' }] : [{ name: 'RESEND_API_KEY', secretRef: 'resend-api-key' }],
             empty(azureEmailConnectionString) ? [] : [{ name: 'AZURE_EMAIL_CONNECTION_STRING', secretRef: 'azure-email-connection-string' }])
           probes: [
