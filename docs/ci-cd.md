@@ -9,8 +9,9 @@ Pull requests targeting either branch run all checks without Azure credentials.
 Java 21 and the Maven Wrapper run `clean verify` against H2 and PostgreSQL 17. Unit,
 integration and Cucumber suites must pass, with at least 85% line and 65% branch
 coverage. The deployment helper's isolated tests run before Maven. Existing thresholds
-and tests remain mandatory. Both database jobs retain test/coverage reports for 14 days;
-the PostgreSQL job also retains the executable JAR.
+and tests remain mandatory. Both database jobs retain test/coverage reports for 14 days. The general Maven JAR
+is not uploaded: it may contain development resources. Deployment uses only the
+separately checked Azure image, which excludes those resources.
 
 After both jobs pass, the container job builds `Dockerfile.azure` for Linux AMD64. It
 rejects packaged development/local configuration, scans OS/Java dependencies with a
@@ -49,8 +50,10 @@ passing compilation alone is not recorded as a completed deployment.
 
 `infra/azure/github-deploy.bicep` creates the separate user-assigned identity
 `id-ecomind-github-deploy`. Its federated credential trusts exactly
-`repo:upc-pre-202620-13980-greenminds/EcoMind_Backend:ref:refs/heads/develop`, issued by
+`repo:upc-pre-202620-13980-greenminds@323838917/EcoMind_Backend@1391221057:ref:refs/heads/develop`, issued by
 `https://token.actions.githubusercontent.com` for `api://AzureADTokenExchange`.
+The immutable owner/repository IDs match the subject observed in the real GitHub
+OIDC assertion; a display-name-only subject does not match this repository.
 There is no Azure client secret. Only the deployment job receives `id-token: write`.
 
 GitHub repository secrets `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and

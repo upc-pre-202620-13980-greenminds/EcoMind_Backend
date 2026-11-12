@@ -4,7 +4,8 @@ param location string = 'westus2'
 param identityName string = 'id-ecomind-github-deploy'
 param containerAppName string = 'ca-ecomind-api'
 param registryName string = 'acrecomind2c297d64'
-param repository string = 'upc-pre-202620-13980-greenminds/EcoMind_Backend'
+@description('Exact GitHub OIDC repository segment, including immutable owner/repository IDs.')
+param repositorySubject string = 'upc-pre-202620-13980-greenminds@323838917/EcoMind_Backend@1391221057'
 
 resource app 'Microsoft.App/containerApps@2025-07-01' existing = {
   name: containerAppName
@@ -28,7 +29,7 @@ resource federation 'Microsoft.ManagedIdentity/userAssignedIdentities/federatedI
   name: 'github-develop'
   properties: {
     issuer: 'https://token.actions.githubusercontent.com'
-    subject: 'repo:${repository}:ref:refs/heads/develop'
+    subject: 'repo:${repositorySubject}:ref:refs/heads/develop'
     audiences: ['api://AzureADTokenExchange']
   }
 }
