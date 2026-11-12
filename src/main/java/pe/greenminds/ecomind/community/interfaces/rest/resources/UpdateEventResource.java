@@ -25,6 +25,7 @@ public record UpdateEventResource(
 
         Double longitude,
 
+        @Schema(description = "New total participant limit, including active registrations; omitted to keep the current limit")
         @Positive
         Integer capacity,
 

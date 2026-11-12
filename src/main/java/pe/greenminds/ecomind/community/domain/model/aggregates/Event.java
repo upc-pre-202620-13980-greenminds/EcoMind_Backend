@@ -16,7 +16,7 @@ public class Event {
             LocalTime startTime, String location, Double latitude, Double longitude, Integer capacity,
             String imageUrl) {
         if (communityId == null || authorId == null || name == null || name.isBlank() || date == null
-                || startTime == null || capacity == null || capacity < 1)
+                || startTime == null || capacity == null || capacity < 0)
             throw new IllegalArgumentException("Event fields are invalid");
         this.id = id;
         this.communityId = communityId;
@@ -30,6 +30,23 @@ public class Event {
         this.longitude = longitude;
         this.capacity = capacity;
         this.imageUrl = imageUrl;
+    }
+
+    public Event reservePlaces(int count) {
+        if (count < 1 || count > capacity)
+            throw new IllegalArgumentException("Insufficient available event places");
+        return withCapacity(capacity - count);
+    }
+
+    public Event releasePlaces(int count) {
+        if (count < 1)
+            throw new IllegalArgumentException("Participant count must be positive");
+        return withCapacity(Math.addExact(capacity, count));
+    }
+
+    private Event withCapacity(int availablePlaces) {
+        return new Event(id, communityId, authorId, name, description, date, startTime,
+                location, latitude, longitude, availablePlaces, imageUrl);
     }
 
     public Event updateDetails(UpdateEventCommand command) {

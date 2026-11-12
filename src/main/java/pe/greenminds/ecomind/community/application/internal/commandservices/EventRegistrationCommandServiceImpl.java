@@ -53,22 +53,21 @@ public class EventRegistrationCommandServiceImpl implements EventRegistrationCom
             return Result.failure(ApplicationError.validationError("Event registration",
                     "Registration type must be INDIVIDUAL or FAMILY"));
         }
-        int occupied = registrations.findByEventId(command.eventId()).stream()
-                .filter(existingRegistration -> existingRegistration.status() == EventRegistrationStatus.REGISTERED)
-                .mapToInt(EventRegistration::participantCount).sum();
-        if (occupied + count > event.get().getCapacity())
+        if (count > event.get().getCapacity())
             return Result.failure(ApplicationError.conflict("Event capacity", "Event capacity exceeded"));
-        try {
-            return Result.success(registrations.save(new EventRegistration(previousRegistration.map(EventRegistration::id).orElse(null), command.eventId(), command.userId(),
-                    command.registrationType(), command.familyId(), count, EventRegistrationStatus.REGISTERED)));
-        } catch (Exception exception) {
-            return Result.failure(ApplicationError.unexpected("Event registration", exception.getMessage()));
-        }
+
+        var registration = registrations.save(new EventRegistration(previousRegistration.map(EventRegistration::id).orElse(null), command.eventId(), command.userId(),
+                command.registrationType(), command.familyId(), count, EventRegistrationStatus.REGISTERED));
+        events.save(event.get().reservePlaces(count));
+        return Result.success(registration);
     }
 
     @Transactional
     @Override
     public Result<Void, ApplicationError> handle(CancelEventRegistrationCommand command) {
+        var event = events.findByIdForUpdate(command.eventId());
+        if (event.isEmpty())
+            return Result.failure(ApplicationError.notFound("Event", String.valueOf(command.eventId())));
         var registration = registrations.findById(command.registrationId()).filter(existingRegistration -> existingRegistration.eventId().equals(command.eventId()));
         if (registration.isEmpty())
             return Result.failure(ApplicationError.notFound("Event registration", String.valueOf(command.registrationId())));
@@ -81,6 +80,7 @@ public class EventRegistrationCommandServiceImpl implements EventRegistrationCom
         var eventRegistration = registration.get();
         registrations.save(new EventRegistration(eventRegistration.id(), eventRegistration.eventId(), eventRegistration.userId(), eventRegistration.registrationType(), eventRegistration.familyId(),
                 eventRegistration.participantCount(), EventRegistrationStatus.CANCELLED));
+        events.save(event.get().releasePlaces(eventRegistration.participantCount()));
         return Result.success(null);
     }
 }

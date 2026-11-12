@@ -42,7 +42,7 @@ public class EventCommandServiceImpl implements EventCommandService {
         try {
             actors.requireParent(command.authorId());
             var event = events.save(new Event(null, command.communityId(), command.authorId(), command.name(), command.description(), command.date(),
-                    command.startTime(), command.location(), command.latitude(), command.longitude(), command.capacity(), command.imageUrl()));
+                    command.startTime(), command.location(), command.latitude(), command.longitude(), command.capacity(), command.imageUrl()).reservePlaces(1));
             registrations.save(
                     new EventRegistration(null, event.getId(), command.authorId(), EventRegistrationType.INDIVIDUAL, null, 1,
                             EventRegistrationStatus.REGISTERED));
@@ -115,6 +115,9 @@ public class EventCommandServiceImpl implements EventCommandService {
                 return Result.failure(ApplicationError.conflict(
                         "Event capacity",
                         "Capacity cannot be lower than the number of registered participants"));
+            }
+            if (occupied > 0) {
+                updated = updated.reservePlaces(Math.toIntExact(occupied));
             }
         }
 

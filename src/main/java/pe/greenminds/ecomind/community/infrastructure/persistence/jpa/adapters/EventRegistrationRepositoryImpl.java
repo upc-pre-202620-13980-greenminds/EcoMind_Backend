@@ -23,6 +23,8 @@ public class EventRegistrationRepositoryImpl implements EventRegistrationReposit
                 : repository.findById(eventRegistration.id()).orElseThrow();
         if (eventRegistration.status() == EventRegistrationStatus.CANCELLED)
             entity.cancel();
+        else if (eventRegistration.id() != null)
+            entity.reactivate(eventRegistration.registrationType(), eventRegistration.familyId(), eventRegistration.participantCount());
         return EventRegistrationPersistenceAssembler.toDomain(repository.save(entity));
     }
 
