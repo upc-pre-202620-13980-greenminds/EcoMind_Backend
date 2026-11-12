@@ -12,7 +12,7 @@ import urllib.request
 
 def check(base_url, timeout):
     results = []
-    for route, expected in [("/v3/api-docs", 200), ("/api/v1/users/me", 401)]:
+    for route, expected in [("/v3/api-docs", 200), ("/api/v1/authentication/me", 401)]:
         started = time.monotonic()
         result = {"path": route, "expected_status": expected}
         try:
@@ -32,6 +32,9 @@ def check(base_url, timeout):
                     )
         except urllib.error.HTTPError as error:
             result["status"] = error.code
+        except urllib.error.URLError as error:
+            result["error"] = type(error).__name__
+            result["cause"] = type(error.reason).__name__
         except (OSError, http.client.HTTPException, ValueError, TypeError) as error:
             result["error"] = type(error).__name__
         result["elapsed_seconds"] = round(time.monotonic() - started, 3)

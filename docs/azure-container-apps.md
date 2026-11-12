@@ -9,15 +9,23 @@ administrator account disabled. PostgreSQL B1ms allocation in East US 2 failed w
 The foundation template prepares a retry in West US 2 at the same B1ms reference
 compute/storage price. The West US 2 foundation deployment completed on November 12. PostgreSQL is Ready
 and private, the Consumption environment is provisioned, and the bootstrap job
-connected as `ecomind_app` to `ecomind` using TLS 1.3 with `verify-full`. The API
-deployment is prepared in the portal but is not yet submitted. API runtime and real
-email validation remain pending.
+connected as `ecomind_app` to `ecomind` using TLS 1.3 with `verify-full`. The API deployment completed after owner approval, and its ready revision serves
+OpenAPI over HTTPS. The public smoke checks and a database-backed invalid-credentials
+request passed. Real email delivery, successful account lifecycle checks and migration
+of the previous database remain pending.
 Use the Azure portal for the first resource creation and capture the actual steps for
 the course report. The 202620 V4.0 assignment, page 29, requires deployment screenshots
 and explanations; page 25 requires reproducible configuration and a C4 deployment view.
 CLI validation and later maintenance complement those screenshots.
 The C4 deployment update and sanitized resource configuration export are pending until
 the actual Azure environment has been created and verified.
+
+Current validation URL:
+`https://ca-ecomind-api.icybush-bd135296.westus2.azurecontainerapps.io`
+with Swagger at `/swagger-ui.html`. The running image is
+`sha256:d7c7bab91a21bb204c84a787d84f3051e8f52c30c9f4f06bc5f9ee401fa86a94`
+(application source commit `ac2941b`). The database is new; previous Aiven accounts and
+progress have not yet been copied. Existing mobile release URLs still point to Render.
 
 This feature starts from `develop` at `f0f5051`. The IAM email improvements in backend
 PR #30 must also be integrated before validating the final recovery email experience.
@@ -257,8 +265,9 @@ server only after accounting for its extra charge, and test recovery email with 
 inbox before calling the IAM flow validated. Validate Android and Flutter base URLs
 against the same API. Do not replace the existing Render URL until Azure passes these
 checks and the team is ready to switch.
-The verification script checks OpenAPI exposure, one expected path and rejection of
-an unauthenticated request. It does not prove that all business endpoints work or that
+The verification script checks OpenAPI exposure, the sign-in contract and rejection of
+an unauthenticated request at `/api/v1/authentication/me`. Use a Python installation
+with a current CA truststore; do not bypass certificate verification to make it pass. It does not prove that all business endpoints work or that
 the protected test route exists; a security filter may reject it before routing.
 
 ## Cost and operations
