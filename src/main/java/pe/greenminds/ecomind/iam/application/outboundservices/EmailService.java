@@ -7,7 +7,9 @@ import pe.greenminds.ecomind.iam.domain.model.valueobjects.EmailAddress;
  */
 public interface EmailService {
 
+  /** @throws EmailDeliveryException when provider acceptance cannot be confirmed */
   void sendVerificationCode(EmailAddress recipient, String name, String verificationCode);
 
+  /** @throws EmailDeliveryException when provider acceptance cannot be confirmed */
   void sendPasswordRecoveryLink(EmailAddress recipient, String recoveryToken);
 }

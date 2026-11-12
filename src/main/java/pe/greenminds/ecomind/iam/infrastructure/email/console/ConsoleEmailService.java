@@ -9,10 +9,10 @@ import pe.greenminds.ecomind.iam.domain.model.valueobjects.EmailAddress;
 
 /**
  * Development replacement for the email provider: writes the code or token to the console so the
- * flows can be tried without sending real emails. It only exists in the dev profile.
+ * flows can be tried without sending real emails. It is selected for dev unless real email is explicitly enabled.
  */
 @Service
-@Profile("dev")
+@Profile("dev & !email")
 public class ConsoleEmailService implements EmailService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ConsoleEmailService.class);

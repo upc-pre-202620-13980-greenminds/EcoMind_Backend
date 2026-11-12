@@ -21,7 +21,7 @@ depend on the internal classes or tables of the others.
 
 ## Environment variables
 
-Credentials are never stored in the repository. Set these variables before running the application.
+Set the following variables in the environment before running the application. Keep mail credentials out of source control and screenshots.
 
 | Variable | Profile | Description |
 |---|---|---|
@@ -33,14 +33,15 @@ Credentials are never stored in the repository. Set these variables before runni
 | `CULQI_SECRET_KEY` | optional | Enables CARD and YAPE gem-package payments |
 | `PAYPAL_CLIENT_ID` | optional | Enables PayPal gem-package payments |
 | `PAYPAL_SECRET` | optional | Enables PayPal gem-package payments |
-| `RESEND_API_KEY` | prod | API key of the Resend email service |
-| `RESEND_FROM_EMAIL` | prod | Sender address of the emails, verified in Resend |
-| `PASSWORD_RECOVERY_URL` | prod | URL of the screen that sets a new password. The recovery token is appended as the `token` query parameter |
+| `RESEND_API_KEY` | prod, email | API key of the Resend email service |
+| `RESEND_FROM_EMAIL` | prod, email | Sender address of the emails, verified in Resend |
+| `PASSWORD_RECOVERY_URL` | prod, email | Optional recovery screen URL; defaults to `ecomind://authentication/reset-password`. The recovery token is appended as the `token` query parameter |
 | `PORT` | prod | HTTP port the application listens on |
 | `SPRING_PROFILES_ACTIVE` | prod | Use `prod`; on Azure Container Apps use `prod,azure` |
 
-None of these variables has a default value: the application does not start if one required by
-the active profile is missing.
+Real email requires `RESEND_API_KEY` and `RESEND_FROM_EMAIL`; there are no defaults for these
+credentials. Missing required settings fail startup. The recovery URL has the Android default
+shown above and can be overridden explicitly.
 
 ### Database URL
 
@@ -66,8 +67,9 @@ the tables are created and read; it must exist before the application starts (Po
 | Profile | Use | Notes |
 |---|---|---|
 | `dev` | Local development (default) | Port 8092, SQL statements are logged. Emails are not sent: verification codes and recovery tokens are written to the console |
-| `prod` | Production | Every setting comes from environment variables |
+| `prod` | Production | Mail credentials come from environment variables |
 | `azure` | Azure Container Apps, together with `prod` | Small database pool, proxy headers and graceful shutdown |
+| `email` | Real email during local development | Combine with `dev`: selects the configured provider instead of console delivery. Never enabled by automated tests |
 | `test` | Automated tests | In-memory H2 database in PostgreSQL compatibility mode, activated by the tests themselves. It needs no environment variables |
 
 For Azure Container Apps resource configuration, runtime secrets, CLI access and deployment
@@ -172,3 +174,30 @@ This runs the unit tests and the acceptance tests written with Cucumber. Feature
 ## Continuous integration and delivery
 
 The [backend workflow](.github/workflows/backend.yml) verifies pull requests with H2 and PostgreSQL, exports test and coverage reports, and builds the deployment image. See [CI/CD configuration](docs/ci-cd.md) for local commands, merge checks and the production deployment configuration.
+
+## Verifying real IAM email
+
+For local development with real delivery, use `SPRING_PROFILES_ACTIVE=dev,email` and configure
+`RESEND_API_KEY` and `RESEND_FROM_EMAIL` in the private environment of the backend process.
+Keep the existing database and JWT environment settings. Production must use `prod`.
+The `test` profile never selects the real mail adapter.
+
+The sender must be permitted by the Resend account. The Resend sandbox sender only delivers
+testing mail to the account owner; arbitrary recipients require a verified sending domain.
+Do not create a new account or change DNS as part of a code-only test.
+
+The request sends both HTML and plain text, in the request language. Recovery includes the
+Android link, its 30-minute expiry, one-use guidance and an ignore-if-not-requested notice.
+Open it on a device with EcoMind installed. A new link replaces any configured `token` query
+parameter and encodes the issued token. Provider connection and response waits are bounded;
+provider rejection raises a delivery error. Password recovery records a warning without recipient
+or token data and keeps the same generic acknowledgement for registered and unknown accounts.
+The acknowledgement confirms receipt of the request, not successful email delivery.
+
+Before claiming real delivery, the service administrator must verify the deployed profile,
+mail settings, public API and sender, then request recovery for a controlled registered inbox.
+Verify reception and the app link, reset the password, sign in with the new password and reject
+the used link. A mocked provider response or console token is not evidence of inbox delivery.
+
+References: [Resend send API](https://resend.com/docs/api-reference/emails/send-email) and
+[Resend errors and testing-recipient restrictions](https://resend.com/docs/api-reference/errors).
