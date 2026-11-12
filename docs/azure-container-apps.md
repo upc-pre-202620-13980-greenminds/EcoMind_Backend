@@ -2,7 +2,11 @@
 
 ## Status and scope
 
-Prepared configuration. No Azure deployment is implied by the presence of this guide.
+As of November 12, 2026, the EcoMind subscription, resource group and virtual network
+have been created and verified. PostgreSQL is prepared in the portal and awaits the
+owner's credential entry and submission. The registry, Container Apps environment and
+application have not been deployed. Local image and CI checks passed; cloud runtime,
+TLS and real email validation remain pending.
 Use the Azure portal for the first resource creation and capture the actual steps for
 the course report. The 202620 V4.0 assignment, page 29, requires deployment screenshots
 and explanations; page 25 requires reproducible configuration and a C4 deployment view.
@@ -33,9 +37,10 @@ and any subscription activation remain owner actions.
 
 ## Resource configuration
 
-Use a single resource group, `rg-ecomind-prod`, tagged `project=EcoMind` and
-`environment=production`. Prefer East US for the initial cost estimate; confirm SKU
-availability in the selected subscription before creation. Do not silently switch to a
+Use the existing resource group, `rg-ecomind-prod`, in East US 2, tagged `project=EcoMind`
+and `environment=production`. PostgreSQL provisioning is restricted in East US for this
+subscription; East US 2 lists B1ms without that restriction. Confirm SKU
+availability before creation. Do not silently switch to a
 larger tier if B1ms or Consumption is unavailable.
 
 | Resource | Initial configuration |
@@ -62,6 +67,18 @@ profile and paid support are outside this small deployment estimate.
 B1ms and one application replica are starting sizes, not a performance guarantee.
 Validate memory, database connections and startup duration with the deployed app.
 Keep the database on a currently supported PostgreSQL version.
+
+The network created in the portal is reproduced by `infra/azure/network.bicep`.
+Both subnets have `defaultOutboundAccess=false`. Validate managed environment egress
+to the registry and mail provider before accepting the deployment. This file covers
+only the network; it is not a complete application deployment template. Before any
+future network update, export the current configuration and review the change preview
+so that attached services and later subnet changes are preserved:
+
+```bash
+bash scripts/azure.sh deployment group what-if -g rg-ecomind-prod \
+  --template-file infra/azure/network.bicep
+```
 
 ## Image
 
@@ -166,8 +183,10 @@ the protected test route exists; a security filter may reject it before routing.
 Initial planning range: USD 22–30/month before taxes for very light usage, assuming
 the Container Apps monthly free grant covers most API execution, PostgreSQL B1ms
 running for 730 hours, 32 GiB storage and ACR Basic. Private DNS and logs may add
-charges. A budget alert is a notification, not a spending cap. Confirm a USD 30 monthly
-resource-group budget with alerts at 50%, 80% and 100%; do not promise an absolute cap.
+charges. The subscription budget `ecomind-monthly-30` is configured for USD 30 per month
+with actual-cost alerts at 50%, 80% and 100%. A budget alert is a notification, not a
+spending cap. The prepared PostgreSQL B1ms / 32 GiB configuration shows USD 16.09 per
+month in the portal; the remaining resources and taxes are additional.
 
 There is no high availability in this budget. Size upgrades, excess traffic/logs,
 additional backup storage, email/domain charges and demo time with minimum 1 can
