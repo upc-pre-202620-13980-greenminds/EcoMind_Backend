@@ -17,6 +17,8 @@ import pe.greenminds.ecomind.community.domain.repositories.CommunityMembershipRe
 import pe.greenminds.ecomind.community.domain.repositories.CommunityRepository;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 import pe.greenminds.ecomind.shared.application.result.Result;
+import pe.greenminds.ecomind.community.domain.model.aggregates.Post;
+import pe.greenminds.ecomind.community.domain.repositories.PostRepository;
 
 @Service
 public class CommunityGoalCommandServiceImpl implements CommunityGoalCommandService {
@@ -25,17 +27,16 @@ public class CommunityGoalCommandServiceImpl implements CommunityGoalCommandServ
     private final CommunityMembershipRepository memberships;
     private final CommunityAchievementRepository achievements;
     private final ApplicationEventPublisher publisher;
+    private final PostRepository posts;
 
-    public CommunityGoalCommandServiceImpl(CommunityGoalRepository goals, CommunityRepository communities,
-            CommunityMembershipRepository memberships, CommunityAchievementRepository achievements,
-            ApplicationEventPublisher publisher) {
+    public CommunityGoalCommandServiceImpl(CommunityGoalRepository goals, CommunityRepository communities, CommunityMembershipRepository memberships, CommunityAchievementRepository achievements, ApplicationEventPublisher publisher, PostRepository posts) {
         this.goals = goals;
         this.communities = communities;
         this.memberships = memberships;
         this.achievements = achievements;
         this.publisher = publisher;
+        this.posts = posts;
     }
-
     @Override
     @Transactional
     public Result<CommunityGoal, ApplicationError> handle(CreateCommunityGoalCommand command) {
@@ -65,17 +66,27 @@ public class CommunityGoalCommandServiceImpl implements CommunityGoalCommandServ
     @Override
     @Transactional
     public Result<CommunityGoal, ApplicationError> handle(IncrementCommunityGoalCommand command) {
-        var found = goals.findById(command.communityGoalId());
+        var found = goals.findByIdForUpdate(command.communityGoalId());
+
         if (found.isEmpty()) {
-            return Result.failure(ApplicationError.notFound("Community goal", String.valueOf(command.communityGoalId())));
+            return Result.failure(ApplicationError.notFound(
+                    "Community goal",
+                    String.valueOf(command.communityGoalId())));
         }
+
         CommunityGoal current = found.get();
-        if (memberships.findByCommunityIdAndUserId(current.communityId(), command.requestedBy()).isEmpty()) {
-            return Result.failure(ApplicationError.forbidden("COMMUNITY_MEMBERSHIP_REQUIRED",
+
+        if (memberships.findByCommunityIdAndUserId(
+                current.communityId(),
+                command.requestedBy()).isEmpty()) {
+            return Result.failure(ApplicationError.forbidden(
+                    "COMMUNITY_MEMBERSHIP_REQUIRED",
                     "Community membership is required"));
         }
+
         if (current.status() == CommunityGoalStatus.COMPLETED) {
-            return Result.failure(ApplicationError.businessRuleViolation("COMMUNITY_GOAL_COMPLETED",
+            return Result.failure(ApplicationError.businessRuleViolation(
+                    "COMMUNITY_GOAL_COMPLETED",
                     "Community goal is already completed"));
         }
 
@@ -83,13 +94,40 @@ public class CommunityGoalCommandServiceImpl implements CommunityGoalCommandServ
         CommunityGoalStatus status = progress >= current.target()
                 ? CommunityGoalStatus.COMPLETED
                 : CommunityGoalStatus.ACTIVE;
-        CommunityGoal updated = goals.save(new CommunityGoal(current.id(), current.communityId(), current.topic(),
-                current.target(), progress, current.participants() + 1, status));
+
+        CommunityGoal updated = goals.save(new CommunityGoal(
+                current.id(),
+                current.communityId(),
+                current.topic(),
+                current.target(),
+                progress,
+                current.participants() + 1,
+                status));
+
         if (status == CommunityGoalStatus.COMPLETED) {
-            achievements.save(new CommunityAchievement(null, updated.communityId(), "Community goal completed",
-                    updated.title(), updated.id()));
-            publisher.publishEvent(new CommunityGoalCompletedEvent(updated.id(), updated.communityId(), updated.title()));
+            achievements.save(new CommunityAchievement(
+                    null,
+                    updated.communityId(),
+                    "Community goal completed",
+                    updated.title(),
+                    updated.id()));
+
+            posts.save(new Post(
+                    null,
+                    updated.communityId(),
+                    null,
+                    "We completed our community goal: " + updated.title()
+                            + ". Achievement earned: Community goal completed.",
+                    "COMMUNITY_GOAL_COMPLETED",
+                    null,
+                    null));
+
+            publisher.publishEvent(new CommunityGoalCompletedEvent(
+                    updated.id(),
+                    updated.communityId(),
+                    updated.title()));
         }
+
         return Result.success(updated);
     }
 }

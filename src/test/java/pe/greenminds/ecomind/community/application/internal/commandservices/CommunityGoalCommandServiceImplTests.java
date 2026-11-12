@@ -24,22 +24,26 @@ class CommunityGoalCommandServiceImplTests {
   @Mock CommunityMembershipRepository memberships;
   @Mock CommunityAchievementRepository achievements;
   @Mock ApplicationEventPublisher publisher;
+  @Mock PostRepository posts;
   CommunityGoalCommandServiceImpl service;
 
   @BeforeEach
   void setup() {
-    service =
-        new CommunityGoalCommandServiceImpl(
-            goals, communities, memberships, achievements, publisher);
+    service = new CommunityGoalCommandServiceImpl(
+            goals,
+            communities,
+            memberships,
+            achievements,
+            publisher,
+            posts);
   }
-
   void membership(CommunityRole role) {
     when(memberships.findByCommunityIdAndUserId(1L, 20L))
         .thenReturn(Optional.of(new CommunityMembership(1L, 1L, 20L, role)));
   }
 
   void goal(int progress, CommunityGoalStatus status) {
-    when(goals.findById(3L))
+    when(goals.findByIdForUpdate(3L))
         .thenReturn(
             Optional.of(
                 new CommunityGoal(
