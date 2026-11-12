@@ -38,6 +38,9 @@ Credentials are never stored in the repository. Set these variables before runni
 | `PASSWORD_RECOVERY_URL` | prod | URL of the screen that sets a new password. The recovery token is appended as the `token` query parameter |
 | `PORT` | prod | HTTP port the application listens on |
 | `SPRING_PROFILES_ACTIVE` | prod | Must be `prod` in the production environment |
+| `CLOUDINARY_CLOUD_NAME` | dev, prod | Cloudinary cloud name for Community event images |
+| `CLOUDINARY_API_KEY` | dev, prod | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | dev, prod | Cloudinary API secret |
 
 None of these variables has a default value: the application does not start if one required by
 the active profile is missing.
@@ -79,6 +82,9 @@ export DATABASE_USERNAME=<your-user>
 export DATABASE_PASSWORD=<your-password>
 export JWT_SECRET=<a-random-secret-of-at-least-32-characters>
 export JWT_EXPIRATION_MINUTES=60
+export CLOUDINARY_CLOUD_NAME="<your-cloud-name>"
+export CLOUDINARY_API_KEY="<your-api-key>"
+export CLOUDINARY_API_SECRET="<your-api-secret>"
 ./mvnw spring-boot:run
 ```
 
@@ -93,6 +99,9 @@ $env:JWT_EXPIRATION_MINUTES = "60"
 $env:CULQI_SECRET_KEY = "<your-culqi-secret-key>" # optional
 $env:PAYPAL_CLIENT_ID = "<your-paypal-client-id>" # optional
 $env:PAYPAL_SECRET = "<your-paypal-secret>" # optional
+$env:CLOUDINARY_CLOUD_NAME = "<your-cloud-name>" # optional
+$env:CLOUDINARY_API_KEY = "<your-api-key>" # optional
+$env:CLOUDINARY_API_SECRET = "<your-api-secret>" # optional
 .\mvnw.cmd spring-boot:run
 ```
 

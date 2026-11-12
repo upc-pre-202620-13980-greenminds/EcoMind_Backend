@@ -69,4 +69,11 @@ public class EventRegistrationPersistenceEntity extends AuditableAbstractPersist
     public void cancel() {
         status = EventRegistrationStatus.CANCELLED;
     }
+
+    public void reactivate(EventRegistrationType registrationType, Long familyId, Integer participantCount) {
+        this.registrationType = registrationType;
+        this.familyId = familyId;
+        this.participantCount = participantCount;
+        status = EventRegistrationStatus.REGISTERED;
+    }
 }
