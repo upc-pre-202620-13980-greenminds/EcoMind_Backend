@@ -103,7 +103,7 @@ image has an EcoMind alternative label and the message remains readable without 
 
 Gmail strips custom-scheme email links. Azure therefore uses the public HTTPS helper
 `https://ca-ecomind-api.icybush-bd135296.westus2.azurecontainerapps.io/authentication/reset-password`.
-Its explicit button opens the existing Android custom URI. GET only renders the handoff;
+Its explicit button opens the shared EcoMind custom URI handled by the Android and Flutter clients. GET only renders the handoff;
 it never validates, consumes or resets the token. The page rejects malformed tokens,
 uses no scripts or external assets, and sets no-store, no-referrer, noindex and a
 restrictive CSP. Only this GET route is public. The existing reset API remains the
