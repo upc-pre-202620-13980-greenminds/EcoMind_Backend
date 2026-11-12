@@ -216,6 +216,7 @@ class FamilyGamificationTests {
                     .executeWithoutResult(s -> events.publishEvent(event));
         }
         assertEquals(12, individualQueries.getUserProgress(new UserId(MEMBER)).getTotalEcopoints());
+        assertEquals(1, individualQueries.getUserProgress(new UserId(MEMBER)).getCurrentStreak());
         assertEquals(0, scores.findById(familyId.value()).orElseThrow().getTotalEcopoints());
         assertEquals(2, rewardRows.count());
         assertEquals(
