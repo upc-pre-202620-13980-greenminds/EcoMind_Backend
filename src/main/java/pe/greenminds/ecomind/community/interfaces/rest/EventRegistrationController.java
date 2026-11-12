@@ -17,6 +17,7 @@ import pe.greenminds.ecomind.community.interfaces.rest.transform.RegisterForEven
 import pe.greenminds.ecomind.shared.interfaces.rest.transform.ResponseEntityAssembler;
 import pe.greenminds.ecomind.shared.infrastructure.documentation.openapi.configuration.OpenApiConfiguration;
 import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
+import pe.greenminds.ecomind.community.domain.model.commands.LeaveEventCommand;
 
 @RestController
 @Tag(name = "Event Registration", description = "Individual and family event participation")
@@ -56,6 +57,16 @@ public class EventRegistrationController {
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         return responses.toResponseEntityFromResult(
                 commands.handle(new CancelEventRegistrationCommand(eventId, registrationId, principal.accountId())), result -> null,
+                HttpStatus.NO_CONTENT);
+    }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<?> leave(
+            @PathVariable Long eventId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return responses.toResponseEntityFromResult(
+                commands.handle(new LeaveEventCommand(eventId, principal.accountId())),
+                result -> null,
                 HttpStatus.NO_CONTENT);
     }
 }

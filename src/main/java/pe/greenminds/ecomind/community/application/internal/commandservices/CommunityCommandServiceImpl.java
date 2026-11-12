@@ -7,7 +7,6 @@ import pe.greenminds.ecomind.community.application.outboundservices.CommunityAct
 import pe.greenminds.ecomind.community.domain.model.aggregates.Community;
 import pe.greenminds.ecomind.community.domain.model.aggregates.CommunityAchievement;
 import pe.greenminds.ecomind.community.domain.model.aggregates.CommunityMembership;
-import pe.greenminds.ecomind.community.domain.model.aggregates.EventRegistration;
 import pe.greenminds.ecomind.community.domain.model.commands.CreateLocalCommunityCommand;
 import pe.greenminds.ecomind.community.domain.model.commands.CreateTopicCommunityCommand;
 import pe.greenminds.ecomind.community.domain.model.commands.JoinCommunityCommand;
@@ -22,6 +21,7 @@ import pe.greenminds.ecomind.community.domain.repositories.EventRegistrationRepo
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 import pe.greenminds.ecomind.shared.application.result.Result;
 import pe.greenminds.ecomind.community.domain.model.commands.LeaveCommunityCommand;
+import pe.greenminds.ecomind.community.application.commandservices.EventLifecycleService;
 
 @Service
 public class CommunityCommandServiceImpl implements CommunityCommandService {
@@ -31,18 +31,17 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
     private final CommunityActorGateway actors;
     private final EventRepository events;
     private final EventRegistrationRepository registrations;
+    private final EventLifecycleService lifecycle;
 
-    public CommunityCommandServiceImpl(CommunityRepository communities,
-            CommunityMembershipRepository memberships, CommunityAchievementRepository achievements,
-            CommunityActorGateway actors, EventRepository events, EventRegistrationRepository registrations) {
+    public CommunityCommandServiceImpl(CommunityRepository communities, CommunityMembershipRepository memberships, CommunityAchievementRepository achievements, CommunityActorGateway actors, EventRepository events, EventRegistrationRepository registrations, EventLifecycleService lifecycle) {
         this.communities = communities;
         this.memberships = memberships;
         this.achievements = achievements;
         this.actors = actors;
         this.events = events;
         this.registrations = registrations;
+        this.lifecycle = lifecycle;
     }
-
     @Override
     @Transactional
     public Result<Community, ApplicationError> handle(CreateLocalCommunityCommand command) {
@@ -132,16 +131,30 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
         }
 
         for (var event : events.findByCommunityIdForUpdate(command.communityId())) {
-            var registration = registrations.findByEventIdAndUserId(event.getId(), command.userId())
-                    .filter(existingRegistration -> existingRegistration.status() == EventRegistrationStatus.REGISTERED);
-            if (registration.isEmpty()) {
+            if (event.getAuthorId().equals(command.userId())) {
+                lifecycle.delete(event.getId());
                 continue;
             }
-            var eventRegistration = registration.get();
-            registrations.save(new EventRegistration(eventRegistration.id(), eventRegistration.eventId(),
-                    eventRegistration.userId(), eventRegistration.registrationType(), eventRegistration.familyId(),
-                    eventRegistration.participantCount(), EventRegistrationStatus.CANCELLED));
-            events.save(event.releasePlaces(eventRegistration.participantCount()));
+
+            int releasedPlaces = 0;
+
+            for (var registration : registrations.findByEventId(event.getId())) {
+                if (registration.status() != EventRegistrationStatus.REGISTERED) {
+                    continue;
+                }
+
+                if (registration.userId().equals(command.userId())) {
+                    releasedPlaces += registration.activeParticipantCount();
+                    registrations.save(registration.cancel());
+                } else if (registration.includes(command.userId())) {
+                    releasedPlaces++;
+                    registrations.save(registration.removeParticipant(command.userId()));
+                }
+            }
+
+            if (releasedPlaces > 0) {
+                events.save(event.releasePlaces(releasedPlaces));
+            }
         }
 
         memberships.delete(membership.get());

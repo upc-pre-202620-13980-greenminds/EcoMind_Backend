@@ -16,6 +16,7 @@ import pe.greenminds.ecomind.community.domain.model.aggregates.*;
 import pe.greenminds.ecomind.community.domain.model.commands.*;
 import pe.greenminds.ecomind.community.domain.model.valueobjects.*;
 import pe.greenminds.ecomind.community.domain.repositories.*;
+import pe.greenminds.ecomind.community.application.commandservices.EventLifecycleService;
 
 @ExtendWith(MockitoExtension.class)
 class CommunityCommandServiceImplTests {
@@ -25,11 +26,19 @@ class CommunityCommandServiceImplTests {
   @Mock CommunityActorGateway actors;
   @Mock EventRepository events;
   @Mock EventRegistrationRepository registrations;
+  @Mock EventLifecycleService lifecycle;
   CommunityCommandServiceImpl service;
 
   @BeforeEach
   void setUp() {
-    service = new CommunityCommandServiceImpl(communities, memberships, achievements, actors, events, registrations);
+    service = new CommunityCommandServiceImpl(
+            communities,
+            memberships,
+            achievements,
+            actors,
+            events,
+            registrations,
+            lifecycle);
   }
 
   Community topic(int capacity) {
