@@ -7,14 +7,18 @@ import pe.greenminds.ecomind.community.application.outboundservices.CommunityAct
 import pe.greenminds.ecomind.community.domain.model.aggregates.Community;
 import pe.greenminds.ecomind.community.domain.model.aggregates.CommunityAchievement;
 import pe.greenminds.ecomind.community.domain.model.aggregates.CommunityMembership;
+import pe.greenminds.ecomind.community.domain.model.aggregates.EventRegistration;
 import pe.greenminds.ecomind.community.domain.model.commands.CreateLocalCommunityCommand;
 import pe.greenminds.ecomind.community.domain.model.commands.CreateTopicCommunityCommand;
 import pe.greenminds.ecomind.community.domain.model.commands.JoinCommunityCommand;
 import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityRole;
 import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityType;
+import pe.greenminds.ecomind.community.domain.model.valueobjects.EventRegistrationStatus;
 import pe.greenminds.ecomind.community.domain.repositories.CommunityAchievementRepository;
 import pe.greenminds.ecomind.community.domain.repositories.CommunityMembershipRepository;
 import pe.greenminds.ecomind.community.domain.repositories.CommunityRepository;
+import pe.greenminds.ecomind.community.domain.repositories.EventRepository;
+import pe.greenminds.ecomind.community.domain.repositories.EventRegistrationRepository;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 import pe.greenminds.ecomind.shared.application.result.Result;
 import pe.greenminds.ecomind.community.domain.model.commands.LeaveCommunityCommand;
@@ -25,14 +29,18 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
     private final CommunityMembershipRepository memberships;
     private final CommunityAchievementRepository achievements;
     private final CommunityActorGateway actors;
+    private final EventRepository events;
+    private final EventRegistrationRepository registrations;
 
     public CommunityCommandServiceImpl(CommunityRepository communities,
             CommunityMembershipRepository memberships, CommunityAchievementRepository achievements,
-            CommunityActorGateway actors) {
+            CommunityActorGateway actors, EventRepository events, EventRegistrationRepository registrations) {
         this.communities = communities;
         this.memberships = memberships;
         this.achievements = achievements;
         this.actors = actors;
+        this.events = events;
+        this.registrations = registrations;
     }
 
     @Override
@@ -121,6 +129,19 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
                             command.communityId() + ":" + command.userId()
                     )
             );
+        }
+
+        for (var event : events.findByCommunityIdForUpdate(command.communityId())) {
+            var registration = registrations.findByEventIdAndUserId(event.getId(), command.userId())
+                    .filter(existingRegistration -> existingRegistration.status() == EventRegistrationStatus.REGISTERED);
+            if (registration.isEmpty()) {
+                continue;
+            }
+            var eventRegistration = registration.get();
+            registrations.save(new EventRegistration(eventRegistration.id(), eventRegistration.eventId(),
+                    eventRegistration.userId(), eventRegistration.registrationType(), eventRegistration.familyId(),
+                    eventRegistration.participantCount(), EventRegistrationStatus.CANCELLED));
+            events.save(event.releasePlaces(eventRegistration.participantCount()));
         }
 
         memberships.delete(membership.get());

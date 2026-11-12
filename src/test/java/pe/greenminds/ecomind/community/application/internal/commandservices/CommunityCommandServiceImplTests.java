@@ -23,11 +23,13 @@ class CommunityCommandServiceImplTests {
   @Mock CommunityMembershipRepository memberships;
   @Mock CommunityAchievementRepository achievements;
   @Mock CommunityActorGateway actors;
+  @Mock EventRepository events;
+  @Mock EventRegistrationRepository registrations;
   CommunityCommandServiceImpl service;
 
   @BeforeEach
   void setUp() {
-    service = new CommunityCommandServiceImpl(communities, memberships, achievements, actors);
+    service = new CommunityCommandServiceImpl(communities, memberships, achievements, actors, events, registrations);
   }
 
   Community topic(int capacity) {

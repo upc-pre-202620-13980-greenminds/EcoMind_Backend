@@ -42,4 +42,10 @@ public class EventRepositoryImpl implements EventRepository {
         return repository.findByIdForUpdate(id)
                 .map(EventPersistenceAssembler::toDomain);
     }
+
+    @Override
+    public List<Event> findByCommunityIdForUpdate(Long communityId) {
+        return repository.findByCommunityIdForUpdate(communityId).stream()
+                .map(EventPersistenceAssembler::toDomain).toList();
+    }
 }

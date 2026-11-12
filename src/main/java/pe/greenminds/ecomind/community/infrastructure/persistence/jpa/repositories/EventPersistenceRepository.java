@@ -16,4 +16,8 @@ public interface EventPersistenceRepository extends JpaRepository<EventPersisten
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select event from EventPersistenceEntity event where event.id = :id")
     Optional<EventPersistenceEntity> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select event from EventPersistenceEntity event where event.communityId = :communityId order by event.id")
+    List<EventPersistenceEntity> findByCommunityIdForUpdate(@Param("communityId") Long communityId);
 }
