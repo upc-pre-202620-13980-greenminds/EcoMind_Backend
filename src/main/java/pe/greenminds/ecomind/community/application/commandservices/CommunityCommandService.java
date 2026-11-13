@@ -7,6 +7,7 @@ import pe.greenminds.ecomind.community.domain.model.commands.CreateTopicCommunit
 import pe.greenminds.ecomind.community.domain.model.commands.JoinCommunityCommand;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 import pe.greenminds.ecomind.shared.application.result.Result;
+import pe.greenminds.ecomind.community.domain.model.commands.LeaveCommunityCommand;
 
 public interface CommunityCommandService {
     Result<Community, ApplicationError> handle(CreateLocalCommunityCommand command);
@@ -14,4 +15,5 @@ public interface CommunityCommandService {
     Result<Community, ApplicationError> handle(CreateTopicCommunityCommand command);
 
     Result<CommunityMembership, ApplicationError> handle(JoinCommunityCommand command);
+    Result<Void, ApplicationError> handle(LeaveCommunityCommand command);
 }

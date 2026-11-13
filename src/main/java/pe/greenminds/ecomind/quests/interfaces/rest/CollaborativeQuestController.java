@@ -25,6 +25,7 @@ import pe.greenminds.ecomind.quests.domain.model.aggregates.CollabQuestSession;
 import pe.greenminds.ecomind.quests.domain.model.commands.DeletePendingCollabQuestSessionCommand;
 import pe.greenminds.ecomind.quests.domain.model.commands.StartCollabQuestSessionCommand;
 import pe.greenminds.ecomind.quests.domain.model.queries.GetCollabQuestSessionStateQuery;
+import pe.greenminds.ecomind.quests.domain.model.queries.GetCollabQuestSessionStateBySessionIdQuery;
 import pe.greenminds.ecomind.quests.interfaces.rest.resources.CollabQuestSessionResource;
 import pe.greenminds.ecomind.quests.interfaces.rest.resources.CollabQuestSessionStateResource;
 import pe.greenminds.ecomind.quests.interfaces.rest.resources.CreateCollabQuestSessionResource;
@@ -136,6 +137,15 @@ public class CollaborativeQuestController {
             case Result.Failure<CollabQuestSession, ApplicationError> failure ->
                     ErrorResponseAssembler.toErrorResponseFromApplicationError(failure.error());
         };
+    }
+
+    @GetMapping("/{sessionId}/state")
+    public ResponseEntity<?> getSessionState(@PathVariable Long sessionId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        var result = collabQuestSessionQueryService.handle(
+                new GetCollabQuestSessionStateBySessionIdQuery(sessionId, principal.accountId()));
+        return ResponseEntityAssembler.toResponseEntityFromResult(
+                result, CollabQuestSessionStateResourceAssembler::toResource, HttpStatus.OK);
     }
 
     @GetMapping("/state")

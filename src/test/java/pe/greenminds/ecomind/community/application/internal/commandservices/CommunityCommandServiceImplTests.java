@@ -16,6 +16,8 @@ import pe.greenminds.ecomind.community.domain.model.aggregates.*;
 import pe.greenminds.ecomind.community.domain.model.commands.*;
 import pe.greenminds.ecomind.community.domain.model.valueobjects.*;
 import pe.greenminds.ecomind.community.domain.repositories.*;
+import pe.greenminds.ecomind.community.application.commandservices.EventLifecycleService;
+import pe.greenminds.ecomind.community.application.commandservices.CommunityGoalCommandService;
 
 @ExtendWith(MockitoExtension.class)
 class CommunityCommandServiceImplTests {
@@ -23,11 +25,26 @@ class CommunityCommandServiceImplTests {
   @Mock CommunityMembershipRepository memberships;
   @Mock CommunityAchievementRepository achievements;
   @Mock CommunityActorGateway actors;
+  @Mock EventRepository events;
+  @Mock EventRegistrationRepository registrations;
+  @Mock EventLifecycleService lifecycle;
+  @Mock PostRepository posts;
+  @Mock CommunityGoalCommandService goalCommands;
   CommunityCommandServiceImpl service;
 
   @BeforeEach
   void setUp() {
-    service = new CommunityCommandServiceImpl(communities, memberships, achievements, actors);
+    service = new CommunityCommandServiceImpl(
+            communities,
+            memberships,
+            achievements,
+            actors,
+            events,
+            registrations,
+            lifecycle,
+            posts,
+            goalCommands
+    );
   }
 
   Community topic(int capacity) {
@@ -51,7 +68,7 @@ class CommunityCommandServiceImplTests {
 
   @Test
   void duplicateMembershipIsRejected() {
-    when(communities.findById(1L)).thenReturn(Optional.of(topic(10)));
+    when(communities.findByIdForUpdate(1L)).thenReturn(Optional.of(topic(10)));
     when(memberships.findByCommunityIdAndUserId(1L, 20L))
         .thenReturn(Optional.of(new CommunityMembership(2L, 1L, 20L, CommunityRole.MEMBER)));
     assertTrue(service.handle(new JoinCommunityCommand(1L, 20L)).isFailure());
@@ -60,7 +77,7 @@ class CommunityCommandServiceImplTests {
 
   @Test
   void fullCommunityRejectsAnotherMember() {
-    when(communities.findById(1L)).thenReturn(Optional.of(topic(2)));
+    when(communities.findByIdForUpdate(1L)).thenReturn(Optional.of(topic(2)));
     when(memberships.countByCommunityId(1L)).thenReturn(2L);
     assertTrue(service.handle(new JoinCommunityCommand(1L, 20L)).isFailure());
     verify(memberships, never()).save(any());
@@ -68,7 +85,7 @@ class CommunityCommandServiceImplTests {
 
   @Test
   void memberCanJoinAtLastAvailablePlace() {
-    when(communities.findById(1L)).thenReturn(Optional.of(topic(2)));
+    when(communities.findByIdForUpdate(1L)).thenReturn(Optional.of(topic(2)));
     when(memberships.countByCommunityId(1L)).thenReturn(1L, 2L);
     when(memberships.save(any())).thenAnswer(call -> call.getArgument(0));
     var member = service.handle(new JoinCommunityCommand(1L, 20L)).toOptional().orElseThrow();
@@ -81,7 +98,7 @@ class CommunityCommandServiceImplTests {
   void secondLocalCommunityIsRejected() {
     var local =
         new Community(1L, "Neighbors", null, CommunityType.LOCAL, null, "Lima", null, null, 10L);
-    when(communities.findById(1L)).thenReturn(Optional.of(local));
+    when(communities.findByIdForUpdate(1L)).thenReturn(Optional.of(local));
     when(communities.findById(2L)).thenReturn(Optional.of(local));
     when(memberships.findByUserId(20L))
         .thenReturn(List.of(new CommunityMembership(3L, 2L, 20L, CommunityRole.MEMBER)));
@@ -89,14 +106,27 @@ class CommunityCommandServiceImplTests {
     verify(memberships, never()).save(any());
   }
 
-  @Test
-  void thousandthMemberUnlocksOneCommunityAchievement() {
-    when(communities.findById(1L)).thenReturn(Optional.of(topic(2000)));
-    when(memberships.countByCommunityId(1L)).thenReturn(999L, 1000L);
-    when(memberships.save(any())).thenAnswer(call -> call.getArgument(0));
-    assertTrue(service.handle(new JoinCommunityCommand(1L, 20L)).isSuccess());
-    verify(achievements).save(argThat(a -> a.communityId().equals(1L)));
-  }
+    @Test
+    void thousandthMemberUnlocksOneCommunityAchievement() {
+        when(communities.findByIdForUpdate(1L))
+                .thenReturn(Optional.of(topic(2000)));
+        when(memberships.countByCommunityId(1L))
+                .thenReturn(999L, 1000L);
+        when(memberships.save(any()))
+                .thenAnswer(call -> call.getArgument(0));
+        when(achievements.findAll(1L))
+                .thenReturn(List.of());
+
+        assertTrue(service.handle(new JoinCommunityCommand(1L, 20L)).isSuccess());
+
+        verify(achievements).save(argThat(achievement ->
+                achievement.communityId().equals(1L)
+                        && "1,000 members".equals(achievement.title())));
+
+        verify(posts).save(argThat(post ->
+                post.communityId().equals(1L)
+                        && "COMMUNITY_ACHIEVEMENT_EARNED".equals(post.postType())));
+    }
 
   @Test
   void studentCannotCreateTopicCommunity() {

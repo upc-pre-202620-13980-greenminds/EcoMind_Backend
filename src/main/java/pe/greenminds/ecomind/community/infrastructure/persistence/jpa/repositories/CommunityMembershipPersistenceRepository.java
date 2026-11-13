@@ -12,4 +12,5 @@ public interface CommunityMembershipPersistenceRepository extends JpaRepository<
   Optional<CommunityMembershipPersistenceEntity> findByCommunityIdAndUserId(Long communityId,Long userId);
   boolean existsByUserIdAndCommunityIdNotAndRole(Long userId,Long communityId,CommunityRole role);
   long countByCommunityId(Long communityId);
+  void deleteByCommunityIdAndUserId(Long communityId, Long userId);
 }

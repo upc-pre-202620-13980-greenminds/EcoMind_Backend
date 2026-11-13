@@ -8,7 +8,15 @@ public final class PostResourceFromEntityAssembler {
     }
 
     public static PostResource toResourceFromEntity(Post post, long likes) {
-        return new PostResource(post.id(), post.communityId(), post.authorId(), post.content(), post.postType(),
-                post.imageUrl(), post.relatedEventId(), likes);
+        return new PostResource(
+                post.id(),
+                post.communityId(),
+                post.authorId(),
+                post.content(),
+                post.postType(),
+                post.imageUrl(),
+                post.relatedEventId(),
+                likes,
+                post.createdAt());
     }
 }

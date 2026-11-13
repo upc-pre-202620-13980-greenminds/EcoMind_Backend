@@ -4,11 +4,15 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 
 import com.jayway.jsonpath.JsonPath;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.*;
@@ -19,6 +23,13 @@ import org.springframework.test.web.servlet.*;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import pe.greenminds.ecomind.iam.application.outboundservices.TokenService;
 import pe.greenminds.ecomind.iam.domain.model.valueobjects.*;
+import pe.greenminds.ecomind.quests.application.internal.services.DailyQuestLifecycleService;
+import pe.greenminds.ecomind.quests.application.internal.services.QuestCatalogSeed;
+import pe.greenminds.ecomind.quests.domain.model.aggregates.Quest;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.Category;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestPublicationStatus;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestType;
+import pe.greenminds.ecomind.quests.domain.repositories.QuestRepository;
 import pe.greenminds.ecomind.users.domain.model.aggregates.UserProfile;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.*;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.SocialRole;
@@ -34,6 +45,9 @@ class QuestLifecycleIntegrationTests {
   @Autowired TokenService tokens;
   @Autowired UserProfileRepository profiles;
   @Autowired pe.greenminds.ecomind.quests.domain.repositories.CollabQuestSessionRepository sessions;
+  @Autowired QuestCatalogSeed questCatalogSeed;
+  @Autowired QuestRepository quests;
+  @Autowired DailyQuestLifecycleService dailyQuests;
   long owner, participant, outsider, family;
 
   @BeforeEach
@@ -124,6 +138,40 @@ class QuestLifecycleIntegrationTests {
     return id(call(get("/api/v1/quest-users/me/quest/" + quest), actor, null, 200));
   }
 
+  @Test
+  void startupCatalogHasThreeDailyQuestsAndAutomaticallyAssignsOne() throws Exception {
+    var published = quests.findByPublicationStatus(QuestPublicationStatus.PUBLISHED);
+    for (var category : Category.values()) {
+      assertTrue(published.stream().filter(quest -> quest.getCategory() == category)
+          .filter(quest -> quest.getType() == QuestType.ACTIVITIES || quest.getType() == QuestType.COLLABORATIVE)
+          .count() >= 4);
+      assertTrue(published.stream().anyMatch(quest -> quest.getCategory() == category
+          && quest.getType() == QuestType.COLLABORATIVE));
+    }
+    assertTrue(published.stream().filter(quest -> quest.getType() == QuestType.FAMILY).count() >= 4);
+    assertTrue(published.stream().anyMatch(quest -> quest.getType() == QuestType.MINIGAME
+        && quest.getMinigameId() != null));
+
+    var questCount = quests.findAll().size();
+    questCatalogSeed.run(new DefaultApplicationArguments());
+    assertEquals(questCount, quests.findAll().size());
+
+    var today = dailyQuests.today();
+    var dailies = published.stream()
+        .filter(quest -> quest.getType() == QuestType.DAILY_QUEST && today.equals(quest.getAssignedDate()))
+        .toList();
+    assertEquals(3, dailies.size());
+    assertEquals(Set.of(Category.values()), dailies.stream().map(Quest::getCategory).collect(Collectors.toSet()));
+
+    var status = "/api/v1/quest-users/me/status/IN_PROGRESS";
+    List<Integer> assignedIds = JsonPath.read(call(get(status), participant, null, 200), "$[*].questId");
+    assertEquals(1, assignedIds.size());
+    var assignedId = assignedIds.getFirst().longValue();
+    assertTrue(dailies.stream().anyMatch(quest -> quest.getId() == assignedId));
+    List<Integer> repeated = JsonPath.read(call(get(status), participant, null, 200), "$[*].questId");
+    assertEquals(assignedIds, repeated);
+  }
+
   void submit(long assignment, long actor) throws Exception {
     String list = call(get("/api/v1/activity-users/quest-user/" + assignment), actor, null, 200);
     long activity = ((Number) JsonPath.read(list, "$[0].id")).longValue();
@@ -140,6 +188,107 @@ class QuestLifecycleIntegrationTests {
     call(patch("/api/v1/collaborative-quest-members/" + m + "/accept"), participant, null, 200);
     call(post("/api/v1/collaborative-quests/" + s + "/start"), owner, null, 200);
     return s;
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {17, 24})
+  void guidedQuestSavesWrittenResponseAndCountsItOnceAlongsideCheckbox(int minCharacters)
+      throws Exception {
+    String answer = "Apagaré la luz al salir.".substring(0, minCharacters);
+    String questJson = questBody("ACTIVITIES", "Ahorra energía").replace("CHECKBOX", "WRITE");
+    long questId = id(call(post("/api/v1/quests"), owner, questJson, 201));
+    long writeActivityId = id(call(post("/api/v1/activities"), owner, """
+        {"questId":%d,"description":"¿Qué harás para ahorrar energía?","order":1,"type":"WRITE",
+         "activityConfiguration":{"minCharacters":12}}
+        """.formatted(questId), 201));
+    long checkboxActivityId = id(call(post("/api/v1/activities"), owner, """
+        {"questId":%d,"description":"Apaga la luz de un cuarto vacío.","order":2,"type":"CHECKBOX"}
+        """.formatted(questId), 201));
+    for (String config : new String[] {"{}", "{\"minCharacters\":0}", "{\"minCharacters\":1.5}",
+        "{\"minCharacters\":\"24\"}"}) {
+      call(post("/api/v1/activities"), owner, """
+          {"questId":%d,"description":"Respuesta inválida","order":1,"type":"WRITE",
+           "activityConfiguration":%s}
+          """.formatted(questId, config), 400);
+    }
+    String activityUrl = "/api/v1/activities/" + writeActivityId;
+    call(put(activityUrl), owner, """
+        {"description":"¿Qué harás para ahorrar energía?","order":2,"type":"WRITE",
+         "activityConfiguration":{"minCharacters":-1}}
+        """, 400);
+    assertEquals(2, (int) JsonPath.read(call(get("/api/v1/activities/" + checkboxActivityId),
+        owner, null, 200), "$.order"));
+    call(put(activityUrl), owner, """
+        {"description":"¿Qué harás para ahorrar energía?","order":1,"type":"WRITE",
+         "activityConfiguration":{"minCharacters":%d}}
+        """.formatted(minCharacters), 200);
+    call(patch("/api/v1/quests/" + questId + "/publish"), owner, null, 200);
+    assertEquals("WRITE", JsonPath.read(call(get("/api/v1/quests/" + questId), participant,
+        null, 200), "$.theme"));
+    assertEquals(java.util.List.of("WRITE"), JsonPath.read(call(get("/api/v1/quests"),
+        participant, null, 200), "$[?(@.id == " + questId + ")].theme"));
+
+    long assignment = id(call(post("/api/v1/quest-users"), participant,
+        "{\"questId\":" + questId + "}", 201));
+    String questUserUrl = "/api/v1/quest-users/" + assignment;
+    String activitiesUrl = "/api/v1/activity-users/quest-user/" + assignment;
+    String writeLookup = activitiesUrl + "/activity/" + writeActivityId;
+    String beforeSubmit = call(get(writeLookup), participant, null, 200);
+    assertFalse(beforeSubmit.contains("\"responseText\""));
+    assertEquals(minCharacters,
+        (int) JsonPath.read(beforeSubmit, "$.activityConfiguration.minCharacters"));
+    String writeUrl = "/api/v1/activity-users/" + id(beforeSubmit);
+    String checkbox = call(get(activitiesUrl + "/activity/" + checkboxActivityId), participant,
+        null, 200);
+    String checkboxSubmitUrl = "/api/v1/activity-users/" + id(checkbox) + "/submit";
+
+    for (String data : new String[] {"{}", "{\"text\":null}", "{\"text\":123}", "{\"text\":\" \\t \"}"}) {
+      call(post(writeUrl + "/submit"), participant, "{\"data\":" + data + "}", 400);
+    }
+    call(post(writeUrl + "/submit"), participant,
+        """
+        {"data":{"text":"  %s  "}}
+        """.formatted(answer.substring(0, minCharacters - 1)), 400);
+    String pending = call(get(writeUrl), participant, null, 200);
+    assertEquals(0.0, ((Number) JsonPath.read(pending, "$.progress")).doubleValue());
+    assertFalse(pending.contains("\"responseText\""));
+
+    String submitted = call(post(writeUrl + "/submit"), participant,
+        """
+        {"data":{"text":"  %s  "}}
+        """.formatted(answer), 200);
+    assertEquals(answer, JsonPath.read(submitted, "$.responseText"));
+    assertEquals(100.0, ((Number) JsonPath.read(submitted, "$.progress")).doubleValue());
+    String retried = call(post(writeUrl + "/submit"), participant,
+        """
+        {"data":{"text":"%s"}}
+        """.formatted(answer), 200);
+    assertEquals(JsonPath.<String>read(submitted, "$.endDate"),
+        JsonPath.<String>read(retried, "$.endDate"));
+    for (String url : new String[] {writeUrl, writeLookup}) {
+      assertEquals(answer,
+          JsonPath.read(call(get(url), participant, null, 200), "$.responseText"));
+    }
+    assertEquals(java.util.List.of(answer),
+        JsonPath.read(call(get(activitiesUrl), participant, null, 200), "$[*].responseText"));
+    call(get(writeUrl), outsider, null, 403);
+
+    String partial = call(get(questUserUrl), participant, null, 200);
+    assertEquals(50.0, ((Number) JsonPath.read(partial, "$.progress")).doubleValue());
+    assertEquals("IN_PROGRESS", JsonPath.read(partial, "$.status"));
+    call(post(questUserUrl + "/complete"), participant, null, 422);
+    call(post(checkboxSubmitUrl), participant, "{\"data\":{\"checked\":false}}", 200);
+    String checked = call(post(checkboxSubmitUrl), participant,
+        "{\"data\":{\"checked\":true}}", 200);
+    assertEquals(100.0, ((Number) JsonPath.read(checked, "$.progress")).doubleValue());
+    assertFalse(checked.contains("\"responseText\""));
+    assertEquals("READY_TO_COMPLETE",
+        JsonPath.read(call(get(questUserUrl), participant, null, 200), "$.status"));
+    assertEquals("COMPLETED",
+        JsonPath.read(call(post(questUserUrl + "/complete"), participant, null, 200), "$.status"));
+    call(post(writeUrl + "/submit"), participant, "{\"data\":{\"text\":\"Otro texto\"}}", 422);
+    assertEquals(answer,
+        JsonPath.read(call(get(writeUrl), participant, null, 200), "$.responseText"));
   }
 
   @Test
@@ -196,7 +345,7 @@ class QuestLifecycleIntegrationTests {
   @Test
   void ownerCanRevokeInvitationAndDeletePendingSession() throws Exception {
     long q = quest("COLLABORATIVE"), s = session(q), m = invite(s);
-    call(patch("/api/v1/collaborative-quest-members/" + m + "/remove"), outsider, null, 422);
+    call(patch("/api/v1/collaborative-quest-members/" + m + "/remove"), outsider, null, 403);
     call(patch("/api/v1/collaborative-quest-members/" + m + "/remove"), owner, null, 200);
     call(delete("/api/v1/collaborative-quests/" + s), owner, null, 204);
     assertNull(JsonPath.read(state(q, owner), "$.session"));

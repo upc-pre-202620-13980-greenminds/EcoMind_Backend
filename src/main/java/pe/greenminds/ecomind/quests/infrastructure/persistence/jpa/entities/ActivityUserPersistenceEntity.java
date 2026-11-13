@@ -51,6 +51,17 @@ public class ActivityUserPersistenceEntity extends AuditableAbstractPersistenceE
     @Column(name="collaborativeSession_id")
     private Long collaborativeSessionId;
 
+    @Column(name = "response_text", columnDefinition = "text")
+    private String responseText;
+
+    public String getResponseText() {
+        return responseText;
+    }
+
+    public void setResponseText(String responseText) {
+        this.responseText = responseText;
+    }
+
     public Long getQuestUserId() {
         return questUserId;
     }

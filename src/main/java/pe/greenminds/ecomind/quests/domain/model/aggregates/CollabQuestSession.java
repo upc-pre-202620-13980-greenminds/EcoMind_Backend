@@ -9,6 +9,8 @@ import java.util.Date;
 import java.util.Objects;
 
 public class CollabQuestSession {
+    public static final int MAX_MEMBERS = 5;
+    public static final int MIN_ACCEPTED_MEMBERS = 2;
     @Getter
     @Setter
     private Long id;

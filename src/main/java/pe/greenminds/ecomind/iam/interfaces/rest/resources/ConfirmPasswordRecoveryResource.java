@@ -2,6 +2,7 @@ package pe.greenminds.ecomind.iam.interfaces.rest.resources;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 @Schema(description = "Recovery token received by email and the new password")
@@ -13,5 +14,12 @@ public record ConfirmPasswordRecoveryResource(
     @Schema(description = "8 to 72 characters with at least one letter and one digit",
         example = "NewGreenPlanet2026")
     @NotBlank @Size(max = 72)
-    String newPassword) {
+    String newPassword,
+    @Schema(description = "Optional random identifier retained when retrying the same confirmation")
+    @Pattern(regexp = "[A-Za-z0-9_-]{43}")
+    String confirmationId) {
+
+  public ConfirmPasswordRecoveryResource(String token, String newPassword) {
+    this(token, newPassword, null);
+  }
 }

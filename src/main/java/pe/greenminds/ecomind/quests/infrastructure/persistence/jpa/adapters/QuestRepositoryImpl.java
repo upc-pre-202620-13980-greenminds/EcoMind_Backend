@@ -1,4 +1,6 @@
 package pe.greenminds.ecomind.quests.infrastructure.persistence.jpa.adapters;
+import jakarta.persistence.EntityManager;
+import org.hibernate.Session;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.Quest;
@@ -17,9 +19,11 @@ import java.util.Optional;
 @Repository
 public class QuestRepositoryImpl implements QuestRepository {
     private final QuestPersistenceRepository questPersistenceRepository;
+    private final EntityManager entityManager;
 
-    public QuestRepositoryImpl(QuestPersistenceRepository questPersistenceRepository) {
+    public QuestRepositoryImpl(QuestPersistenceRepository questPersistenceRepository, EntityManager entityManager) {
         this.questPersistenceRepository = questPersistenceRepository;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -69,9 +73,26 @@ public class QuestRepositoryImpl implements QuestRepository {
 
     @Override
     public Optional<Quest> findByTypeAndAssignedDate(QuestType questType, LocalDate assignedDate) {
-        return questPersistenceRepository.findByQuestTypeAndAssignedDateAndPublicationStatus(
+        return questPersistenceRepository.findFirstByQuestTypeAndAssignedDateAndPublicationStatusOrderByIdAsc(
                         questType, assignedDate, QuestPublicationStatus.PUBLISHED)
                 .map(QuestPersistenceAssembler::toDomainFromPersistence);
+    }
+
+    @Override
+    public boolean existsByTitleAndTypeAndCategory(String title, QuestType type, Category category) {
+        return questPersistenceRepository.existsByTitleAndQuestTypeAndCategory(title, type, category);
+    }
+
+    @Override
+    public void lockCatalog() {
+        // Coordinate startup and daily generation across backend instances using the same database.
+        entityManager.unwrap(Session.class).doWork(connection -> {
+            if ("PostgreSQL".equals(connection.getMetaData().getDatabaseProductName())) {
+                try (var statement = connection.createStatement()) {
+                    statement.execute("select pg_advisory_xact_lock(1938236102, 1)");
+                }
+            }
+        });
     }
 
     @Override
@@ -99,5 +120,11 @@ public class QuestRepositoryImpl implements QuestRepository {
     @Override
     public boolean existsByMinigameId(Long minigameId) {
         return questPersistenceRepository.existsByMinigameId(minigameId);
+    }
+
+    @Override
+    public boolean existsPublishedMinigameQuest(Long minigameId) {
+        return questPersistenceRepository.existsByMinigameIdAndQuestTypeAndPublicationStatus(
+                minigameId, QuestType.MINIGAME, QuestPublicationStatus.PUBLISHED);
     }
 }

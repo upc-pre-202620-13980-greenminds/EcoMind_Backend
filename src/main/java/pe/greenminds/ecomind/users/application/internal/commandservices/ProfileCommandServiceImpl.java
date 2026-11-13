@@ -13,16 +13,21 @@ import pe.greenminds.ecomind.users.domain.model.commands.CreateProfileCommand;
 import pe.greenminds.ecomind.users.domain.model.commands.UpdateProfileCommand;
 import pe.greenminds.ecomind.users.domain.model.events.ProfileCreatedEvent;
 import pe.greenminds.ecomind.users.domain.repositories.UserProfileRepository;
+import pe.greenminds.ecomind.users.domain.services.InvitationCodeGenerator;
 
 @Service
 public class ProfileCommandServiceImpl implements ProfileCommandService {
 
   private final UserProfileRepository userProfileRepository;
+  private final InvitationCodeGenerator invitationCodeGenerator;
   private final ApplicationEventPublisher eventPublisher;
 
   public ProfileCommandServiceImpl(
-      UserProfileRepository userProfileRepository, ApplicationEventPublisher eventPublisher) {
+      UserProfileRepository userProfileRepository,
+      InvitationCodeGenerator invitationCodeGenerator,
+      ApplicationEventPublisher eventPublisher) {
     this.userProfileRepository = userProfileRepository;
+    this.invitationCodeGenerator = invitationCodeGenerator;
     this.eventPublisher = eventPublisher;
   }
 
@@ -32,9 +37,10 @@ public class ProfileCommandServiceImpl implements ProfileCommandService {
     if (userProfileRepository.existsById(command.userId())) {
       return Result.failure(UsersErrors.userProfileAlreadyExists());
     }
-    UserProfile profile =
-        userProfileRepository.save(
-            UserProfile.create(command.userId(), command.name(), command.socialRole()));
+    UserProfile newProfile =
+        UserProfile.create(command.userId(), command.name(), command.socialRole());
+    newProfile.assignInvitationCode(invitationCodeGenerator.newUniqueCode());
+    UserProfile profile = userProfileRepository.save(newProfile);
     eventPublisher.publishEvent(new ProfileCreatedEvent(profile.getUserId(), Instant.now()));
     return Result.success(profile);
   }
@@ -49,6 +55,8 @@ public class ProfileCommandServiceImpl implements ProfileCommandService {
     if (profile.isEmpty()) {
       return Result.failure(UsersErrors.userProfileNotFound(command.userId().value()));
     }
+    // Both changes happen in memory; the profile is saved once at the end
+    profile.get().rename(command.name());
     profile
         .get()
         .updateProgress(

@@ -23,6 +23,8 @@ import pe.greenminds.ecomind.community.interfaces.rest.transform.CommunityMember
 import pe.greenminds.ecomind.shared.infrastructure.documentation.openapi.configuration.OpenApiConfiguration;
 import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
 import pe.greenminds.ecomind.shared.interfaces.rest.transform.ResponseEntityAssembler;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import pe.greenminds.ecomind.community.domain.model.commands.LeaveCommunityCommand;
 
 @RestController
 @Tag(name = "Community Membership", description = "Community membership and member listings")
@@ -73,5 +75,18 @@ public class CommunityMembershipController {
         return queryService.handle(new GetCommunityMembershipsByCommunityQuery(communityId)).stream()
                 .map(CommunityMembershipResourceFromEntityAssembler::toResourceFromEntity)
                 .toList();
+    }
+
+    @DeleteMapping("/Communities/{communityId}/Memberships")
+    public ResponseEntity<?> leave(
+            @PathVariable Long communityId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return responseEntityAssembler.toResponseEntityFromResult(
+                commandService.handle(
+                        new LeaveCommunityCommand(communityId, principal.accountId())
+                ),
+                result -> null,
+                HttpStatus.NO_CONTENT
+        );
     }
 }

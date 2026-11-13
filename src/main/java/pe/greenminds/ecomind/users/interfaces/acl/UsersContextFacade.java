@@ -45,6 +45,11 @@ public class UsersContextFacade {
         return userProfileRepository.existsById(new UserId(userId));
     }
 
+    /** Name shown in the profile of the user; empty when the user has no profile. */
+    public Optional<String> getUserName(Long userId) {
+        return userProfileRepository.findById(new UserId(userId)).map(profile -> profile.getName());
+    }
+
     /** Public social role check for Community; never exposes the Users persistence schema. */
     public boolean isParent(Long userId) {
         return userProfileRepository

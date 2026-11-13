@@ -3,6 +3,7 @@ package pe.greenminds.ecomind.community.infrastructure.acl;
 import org.springframework.stereotype.Component;
 import pe.greenminds.ecomind.community.application.outboundservices.CommunityActorGateway;
 import pe.greenminds.ecomind.users.interfaces.acl.UsersContextFacade;
+import java.util.Set;
 
 @Component
 public class CommunityActorGatewayImpl implements CommunityActorGateway {
@@ -26,10 +27,37 @@ public class CommunityActorGatewayImpl implements CommunityActorGateway {
 
     @Override
     public int requireFamilyParentAndCount(Long userId, Long familyId) {
-        int count = users.getFamilyMemberIds(familyId).size();
-        if (count == 0 || !users.getFamilyRole(familyId, userId).filter("PARENT"::equals).isPresent()) {
+        return requireFamilyParentAndGetMembers(userId, familyId).size();
+    }
+
+    @Override
+    public Set<Long> requireFamilyParentAndGetMembers(Long userId, Long familyId) {
+        var participants = Set.copyOf(users.getFamilyMemberIds(familyId));
+
+        if (participants.isEmpty()
+                || !participants.contains(userId)
+                || users.getFamilyRole(familyId, userId).filter("PARENT"::equals).isEmpty()) {
             throw new SecurityException("Only a parent member of the selected family may register it");
         }
-        return count;
+
+        return participants;
+    }
+
+    @Override
+    public String getUserName(Long userId) {
+        return users.getUserName(userId).orElse("User " + userId);
+    }
+
+    @Override
+    public Long getRegistrableFamilyId(Long userId) {
+        if (!users.isParent(userId)) {
+            return null;
+        }
+
+        return users.getFamilyIdOfUser(userId)
+                .filter(familyId -> users.getFamilyRole(familyId, userId)
+                        .filter("PARENT"::equals)
+                        .isPresent())
+                .orElse(null);
     }
 }

@@ -90,6 +90,8 @@ jobs:
           echo 'TEST_DATABASE_DRIVER=org.postgresql.Driver' >> "$GITHUB_ENV"
           echo 'TEST_DATABASE_USERNAME=ecomind_test' >> "$GITHUB_ENV"
           echo 'TEST_DATABASE_PASSWORD=test-only-password' >> "$GITHUB_ENV"
+      - name: Verify deployment helpers
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Compile, test and package
         run: bash ./mvnw --batch-mode --no-transfer-progress clean verify
       - name: Upload test results and coverage
@@ -103,14 +105,6 @@ jobs:
             target/site/jacoco/
           retention-days: 14
           if-no-files-found: error
-      - name: Upload verified application
-        if: matrix.database == 'postgresql'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: backend-${{ github.sha }}
-          path: target/ecomind-backend-*.jar
-          retention-days: 14
-          if-no-files-found: error
 
   container:
     name: Build deployment image
@@ -122,44 +116,141 @@ jobs:
         with:
           persist-credentials: false
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      - name: Build Azure deployment image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
+          file: Dockerfile.azure
+          platforms: linux/amd64
+          build-args: GIT_COMMIT=${{ github.sha }}
+          load: true
           push: false
-          tags: ecomind-backend:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ecomind-backend:azure-${{ github.sha }}
+          cache-from: type=gha,scope=azure
+          cache-to: type=gha,scope=azure,mode=max
+      - name: Reject development configuration in the runtime image
+        env:
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          container=$(docker create "ecomind-backend:azure-$SOURCE_COMMIT")
+          trap 'docker rm -f "$container" >/dev/null' EXIT
+          docker cp "$container:/app/app.jar" "$RUNNER_TEMP/runtime.jar"
+          python3 - <<'PYIMAGE'
+          import os, zipfile
+          with zipfile.ZipFile(os.path.join(os.environ['RUNNER_TEMP'], 'runtime.jar')) as jar:
+              forbidden = ('application-dev.properties', 'application-local.properties')
+              if any(name.rsplit('/', 1)[-1] in forbidden for name in jar.namelist()):
+                  raise SystemExit('Development configuration must not be packaged in the runtime image.')
+          PYIMAGE
+      - name: Scan the deployment image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.76.2
+          image-ref: ecomind-backend:azure-${{ github.sha }}
+          scanners: vuln
+          format: json
+          output: trivy-image.json
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+      - name: Retain image vulnerability results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: image-security-${{ github.sha }}
+          path: trivy-image.json
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Export the verified image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        env:
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: docker save "ecomind-backend:azure-$SOURCE_COMMIT" | gzip -1 > "$RUNNER_TEMP/azure-image.tar.gz"
+      - name: Retain the deployment image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: azure-image-${{ github.sha }}
+          path: ${{ runner.temp }}/azure-image.tar.gz
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
 
   deploy:
-    name: Request Render deployment
+    name: Deploy Azure develop
     needs: [verify, container]
-    if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
-      vars.RENDER_DEPLOY_ENABLED == 'true'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && vars.AZURE_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 3
-    environment: production
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: azure-ecomind-develop
+      cancel-in-progress: false
+    env:
+      AZURE_RESOURCE_GROUP: rg-ecomind-prod
+      AZURE_CONTAINER_APP: ca-ecomind-api
+      AZURE_REGISTRY_NAME: acrecomind2c297d64
+      AZURE_REGISTRY_SERVER: acrecomind2c297d64-g7g5aaf5b7evc2gc.azurecr.io
     steps:
-      - name: Deploy the verified commit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check the latest develop commit
+        id: current
         env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-          DEPLOY_COMMIT: ${{ github.sha }}
-        shell: bash
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_COMMIT: ${{ github.sha }}
         run: |
-          if [[ -z "$RENDER_DEPLOY_HOOK_URL" ]]; then
-            echo 'Configure the production secret RENDER_DEPLOY_HOOK_URL before enabling CD.'
-            exit 1
+          latest=$(gh api "repos/$REPOSITORY/git/ref/heads/develop" --jq '.object.sha')
+          if [[ "$latest" == "$SOURCE_COMMIT" ]]; then
+            echo 'deploy=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'deploy=false' >> "$GITHUB_OUTPUT"
+            echo 'A newer develop commit supersedes this run; no deployment requested.' >> "$GITHUB_STEP_SUMMARY"
           fi
-          case "$RENDER_DEPLOY_HOOK_URL" in
-            https://api.render.com/deploy/*) ;;
-            *) echo 'Expected a Render HTTPS deploy hook.'; exit 1 ;;
-          esac
-          # Render accepts ref to pin the request to the commit that passed CI.
-          code=$(curl --silent --output render-response.json --write-out '%{http_code}' \
-            --connect-timeout 10 --max-time 90 --request POST \
-            --get --data-urlencode "ref=$DEPLOY_COMMIT" "$RENDER_DEPLOY_HOOK_URL")
-          if [[ "$code" != 200 && "$code" != 202 ]]; then
-            echo "Render rejected the deployment request (HTTP $code)."
-            exit 1
-          fi
-          echo "Render accepted deployment request for $DEPLOY_COMMIT (HTTP $code)." >> "$GITHUB_STEP_SUMMARY"
+      - name: Download the CI-built image
+        if: steps.current.outputs.deploy == 'true'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: azure-image-${{ github.sha }}
+          path: ${{ runner.temp }}/azure-image
+      - name: Verify image source and runtime
+        if: steps.current.outputs.deploy == 'true'
+        env:
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          docker load --input "$RUNNER_TEMP/azure-image/azure-image.tar.gz"
+          image="ecomind-backend:azure-$SOURCE_COMMIT"
+          revision=$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
+          user=$(docker image inspect "$image" --format '{{ .Config.User }}')
+          platform=$(docker image inspect "$image" --format '{{ .Os }}/{{ .Architecture }}')
+          [[ "$revision" == "$SOURCE_COMMIT" && "$user" == '10001:10001' && "$platform" == 'linux/amd64' ]]
+      - name: Sign in to Azure with OIDC
+        if: steps.current.outputs.deploy == 'true'
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Publish the verified image
+        if: steps.current.outputs.deploy == 'true'
+        id: image
+        env:
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          az acr login --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_REGISTRY_NAME" --only-show-errors --output none
+          repository="$AZURE_REGISTRY_SERVER/ecomind-backend"
+          tag="$repository:$SOURCE_COMMIT-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          docker tag "ecomind-backend:azure-$SOURCE_COMMIT" "$tag"
+          docker push "$tag"
+          digest=$(docker image inspect "$tag" --format '{{ index .RepoDigests 0 }}')
+          [[ "$digest" =~ ^$repository@sha256:[a-f0-9]{64}$ ]]
+          echo "reference=$digest" >> "$GITHUB_OUTPUT"
+      - name: Update and verify the API revision
+        if: steps.current.outputs.deploy == 'true'
+        env:
+          IMAGE_REFERENCE: ${{ steps.image.outputs.reference }}
+        run: python3 scripts/deploy-azure.py --image "$IMAGE_REFERENCE" --revision-suffix "gh-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"

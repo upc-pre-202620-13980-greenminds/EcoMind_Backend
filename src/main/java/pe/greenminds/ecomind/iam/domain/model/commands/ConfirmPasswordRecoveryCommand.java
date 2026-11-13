@@ -1,7 +1,10 @@
 package pe.greenminds.ecomind.iam.domain.model.commands;
 
-/**
- * Consumes a recovery token and sets the new password of its account.
- */
-public record ConfirmPasswordRecoveryCommand(String token, String newPassword) {
+/** Consumes a recovery token and sets the new password of its account. */
+public record ConfirmPasswordRecoveryCommand(
+    String token, String newPassword, String confirmationId) {
+
+  public ConfirmPasswordRecoveryCommand(String token, String newPassword) {
+    this(token, newPassword, null);
+  }
 }

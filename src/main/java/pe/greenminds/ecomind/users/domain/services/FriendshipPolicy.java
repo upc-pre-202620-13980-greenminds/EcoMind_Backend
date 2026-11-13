@@ -9,7 +9,8 @@ import pe.greenminds.ecomind.users.domain.model.valueobjects.UserId;
 import pe.greenminds.ecomind.users.domain.repositories.FriendshipRepository;
 
 /**
- * Prevents friend requests to oneself and duplicated requests between the same two users.
+ * Prevents friend requests to oneself and duplicated requests between the same two users, and
+ * makes the requester wait after a rejected or an unanswered request.
  */
 @Service
 public class FriendshipPolicy {
@@ -18,7 +19,8 @@ public class FriendshipPolicy {
   public enum Violation {
     SELF_REQUEST,
     ALREADY_EXISTS,
-    REJECTED_RECENTLY
+    REJECTED_RECENTLY,
+    UNANSWERED_RECENTLY
   }
 
   private final FriendshipRepository friendshipRepository;
@@ -36,7 +38,14 @@ public class FriendshipPolicy {
     if (existing.isEmpty() || existing.get().canBeRequestedAgain(now)) {
       return Optional.empty();
     }
-    boolean rejected = existing.get().getStatus() == FriendshipStatus.REJECTED;
-    return Optional.of(rejected ? Violation.REJECTED_RECENTLY : Violation.ALREADY_EXISTS);
+    Friendship friendship = existing.get();
+    if (friendship.getStatus() == FriendshipStatus.REJECTED) {
+      return Optional.of(Violation.REJECTED_RECENTLY);
+    }
+    // Expired without an answer, but the 7 days counted from the end of the 48 hours did not pass
+    if (friendship.isExpired(now)) {
+      return Optional.of(Violation.UNANSWERED_RECENTLY);
+    }
+    return Optional.of(Violation.ALREADY_EXISTS);
   }
 }

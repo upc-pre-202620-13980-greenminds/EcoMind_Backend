@@ -23,8 +23,8 @@ public record UpdateActivityResource(
         ActivityType type,
 
         @Schema(
-                description = "Configuration for the activity type",
-                example = "{}",
+                description = "Activity rules. WRITE requires minCharacters as a positive integer.",
+                example = "{\"minCharacters\":20}",
                 nullable = true
         )
         Map<String, Object> activityConfiguration,

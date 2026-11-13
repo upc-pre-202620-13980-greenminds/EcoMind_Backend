@@ -1,8 +1,10 @@
 package pe.greenminds.ecomind.quests.application.internal.commandservices;
 
 import jakarta.transaction.Transactional;
+import pe.greenminds.ecomind.quests.domain.model.aggregates.CollabQuestSession;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import pe.greenminds.ecomind.quests.application.commandservices.CollabQuestMemberCommandService;
 import pe.greenminds.ecomind.quests.application.internal.outboundservices.acl.UsersServiceClient;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.CollabQuestMember;
@@ -29,6 +31,7 @@ import pe.greenminds.ecomind.shared.application.result.Result;
 import java.util.Objects;
 
 @Service
+@Transactional
 public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCommandService {
     private static final java.util.List<CollabQuestStatus> ACTIVE_SESSION_STATUSES =
             java.util.List.of(CollabQuestStatus.PENDING, CollabQuestStatus.STARTED);
@@ -38,6 +41,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
     private final CollabQuestMemberRepository collabQuestMemberRepository;
     private final CollabQuestSessionRepository collabQuestSessionRepository;
     private final QuestUserRepository questUserRepository;
+    private final pe.greenminds.ecomind.quests.domain.repositories.QuestRepository questRepository;
     private final ActivityUserRepository activityUserRepository;
     private final FamilyPlanItemRepository familyPlanItemRepository;
     private final UsersServiceClient usersServiceClient;
@@ -47,6 +51,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
             CollabQuestMemberRepository collabQuestMemberRepository,
             CollabQuestSessionRepository collabQuestSessionRepository,
             QuestUserRepository questUserRepository,
+            pe.greenminds.ecomind.quests.domain.repositories.QuestRepository questRepository,
             ActivityUserRepository activityUserRepository,
             FamilyPlanItemRepository familyPlanItemRepository,
             UsersServiceClient usersServiceClient,
@@ -55,6 +60,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
         this.collabQuestMemberRepository = collabQuestMemberRepository;
         this.collabQuestSessionRepository = collabQuestSessionRepository;
         this.questUserRepository = questUserRepository;
+        this.questRepository = questRepository;
         this.activityUserRepository = activityUserRepository;
         this.familyPlanItemRepository = familyPlanItemRepository;
         this.usersServiceClient = usersServiceClient;
@@ -65,16 +71,20 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
     public Result<CollabQuestMember, ApplicationError> handle(
             InviteCollabQuestMemberCommand command
     ) {
+        collabQuestSessionRepository.lockQuestForSession(command.sessionId());
         var session = collabQuestSessionRepository.findById(command.sessionId());
         if (session.isEmpty()) {
             return Result.failure(
                     ApplicationError.notFound("CollabQuestSession", command.sessionId().toString())
             );
         }
+        if (!Objects.equals(session.get().getOwnerId(), command.invitedByUserId())) {
+            return Result.failure(ApplicationError.forbidden("COLLAB_OWNER_REQUIRED", "Only the organizer can invite"));
+        }
         if (isFamilyPlanSession(command.sessionId())) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Family plan sessions do not accept manual invitations",
+                            "COLLAB_FAMILY_PLAN_MANAGED",
                             "Session %d belongs to a family plan".formatted(command.sessionId())
                     )
             );
@@ -83,7 +93,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
         if (session.get().getStatus() != CollabQuestStatus.PENDING) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Only pending sessions can receive invitations",
+                            "COLLAB_SESSION_NOT_PENDING",
                             "Session %d is %s".formatted(
                                     command.sessionId(),
                                     session.get().getStatus()
@@ -92,31 +102,29 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
             );
         }
 
+        var quest = questRepository.findById(session.get().getQuestId());
+        if (quest.isEmpty() || !quest.get().acceptsNewAssignments()) {
+            return Result.failure(ApplicationError.businessRuleViolation("COLLAB_QUEST_UNAVAILABLE", "Quest must be published"));
+        }
+        if (questUserRepository.existsByUserIdAndQuestIdAndStatusIn(command.invitedByUserId(), session.get().getQuestId(), ACTIVE_QUEST_USER_STATUSES)
+                || questUserRepository.existsByUserIdAndQuestIdAndStatusIn(command.invitedUserId(), session.get().getQuestId(), ACTIVE_QUEST_USER_STATUSES)) {
+            return Result.failure(ApplicationError.conflict("QuestUser", "User already has this quest assigned"));
+        }
+
         if (Objects.equals(command.invitedByUserId(), command.invitedUserId())) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "A user cannot invite themselves",
+                            "COLLAB_SELF_INVITATION",
                             "invitedByUserId and invitedUserId must be different"
                     )
             );
         }
 
-        if (!Objects.equals(session.get().getOwnerId(), command.invitedByUserId())) {
-            return Result.failure(
-                    ApplicationError.businessRuleViolation(
-                            "Only the session owner can invite users",
-                            "User %d is not the owner of session %d".formatted(
-                                    command.invitedByUserId(),
-                                    command.sessionId()
-                            )
-                    )
-            );
-        }
 
         if (collabQuestMemberRepository.findBySessionIdAndStatusIn(command.sessionId(),
-                java.util.List.of(CollabMemberStatus.PENDING, CollabMemberStatus.ACCEPTED)).size() >= 5) {
+                java.util.List.of(CollabMemberStatus.PENDING, CollabMemberStatus.ACCEPTED)).size() >= CollabQuestSession.MAX_MEMBERS) {
             return Result.failure(ApplicationError.businessRuleViolation(
-                    "Collaborative session is full", "At most five active members are allowed"));
+                    "COLLAB_SESSION_FULL", "At most five active members are allowed"));
         }
 
         if (!usersServiceClient.existsUser(command.invitedUserId())) {
@@ -125,7 +133,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
         if (!usersServiceClient.areFriends(command.invitedByUserId(), command.invitedUserId())
                 && !usersServiceClient.belongToSameFamily(command.invitedByUserId(), command.invitedUserId())) {
             return Result.failure(ApplicationError.businessRuleViolation(
-                    "Invited user must be a friend or family member",
+                    "COLLAB_RELATIONSHIP_REQUIRED",
                     "Users %d and %d have no accepted social relationship".formatted(
                             command.invitedByUserId(), command.invitedUserId())));
         }
@@ -175,10 +183,12 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
                     savedMember.getOwnerId(), java.time.OffsetDateTime.now()));
             return Result.success(savedMember);
         } catch (IllegalArgumentException | NullPointerException exception) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.failure(
                     ApplicationError.validationError("CollabQuestMember", exception.getMessage())
             );
         } catch (Exception exception) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.failure(
                     ApplicationError.unexpected(
                             "CollabQuestMember invitation",
@@ -192,17 +202,22 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
     public Result<CollabQuestMember, ApplicationError> handle(
             AcceptCollabQuestMemberCommand command
     ) {
+        collabQuestSessionRepository.lockQuestForMember(command.memberId());
         var member = collabQuestMemberRepository.findById(command.memberId());
         if (member == null) {
             return Result.failure(
                     ApplicationError.notFound("CollabQuestMember", command.memberId().toString())
             );
         }
+        if (!Objects.equals(member.getUserId(), command.actorUserId())) {
+            return Result.failure(ApplicationError.forbidden("COLLAB_MEMBER_FORBIDDEN", "Only the recipient can answer or leave"));
+        }
+
 
         if (member.getRole() == MemberRole.OWNER) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Owner cannot accept invitations",
+                            "COLLAB_OWNER_INVITATION",
                             "Member %d is the session owner".formatted(command.memberId())
                     )
             );
@@ -211,7 +226,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
         if (member.getStatus() != CollabMemberStatus.PENDING) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Only pending invitations can be accepted",
+                            "COLLAB_INVITATION_NOT_PENDING",
                             "Member %d is %s".formatted(command.memberId(), member.getStatus())
                     )
             );
@@ -229,7 +244,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
         if (isFamilyPlanSession(session.get().getId())) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Family plan invitations cannot be accepted manually",
+                            "COLLAB_FAMILY_PLAN_MANAGED",
                             "Session %d belongs to a family plan".formatted(session.get().getId())
                     )
             );
@@ -238,7 +253,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
         if (session.get().getStatus() != CollabQuestStatus.PENDING) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Only pending sessions can accept invitations",
+                            "COLLAB_INVITATION_INVALID",
                             "Session %d is %s".formatted(
                                     session.get().getId(),
                                     session.get().getStatus()
@@ -290,10 +305,12 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
                     savedMember.getOwnerId(), java.time.OffsetDateTime.now()));
             return Result.success(savedMember);
         } catch (IllegalArgumentException | NullPointerException exception) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.failure(
                     ApplicationError.validationError("CollabQuestMember", exception.getMessage())
             );
         } catch (Exception exception) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.failure(
                     ApplicationError.unexpected(
                             "CollabQuestMember accept",
@@ -307,17 +324,27 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
     public Result<CollabQuestMember, ApplicationError> handle(
             DeclineCollabQuestMemberCommand command
     ) {
+        collabQuestSessionRepository.lockQuestForMember(command.memberId());
         var member = collabQuestMemberRepository.findById(command.memberId());
         if (member == null) {
             return Result.failure(
                     ApplicationError.notFound("CollabQuestMember", command.memberId().toString())
             );
         }
+        if (!Objects.equals(member.getUserId(), command.actorUserId())) {
+            return Result.failure(ApplicationError.forbidden("COLLAB_MEMBER_FORBIDDEN", "Only the recipient can answer or leave"));
+        }
+
+
+        var session = collabQuestSessionRepository.findById(member.getSessionId());
+        if (session.isEmpty() || session.get().getStatus() != CollabQuestStatus.PENDING) {
+            return Result.failure(ApplicationError.businessRuleViolation("COLLAB_INVITATION_INVALID", "Invitation session is no longer pending"));
+        }
 
         if (member.getRole() == MemberRole.OWNER) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Owner cannot decline invitations",
+                            "COLLAB_OWNER_INVITATION",
                             "Member %d is the session owner".formatted(command.memberId())
                     )
             );
@@ -325,7 +352,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
         if (isFamilyPlanSession(member.getSessionId())) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Family plan invitations cannot be declined manually",
+                            "COLLAB_FAMILY_PLAN_MANAGED",
                             "Session %d belongs to a family plan".formatted(member.getSessionId())
                     )
             );
@@ -334,7 +361,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
         if (member.getStatus() != CollabMemberStatus.PENDING) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Only pending invitations can be declined",
+                            "COLLAB_INVITATION_NOT_PENDING",
                             "Member %d is %s".formatted(command.memberId(), member.getStatus())
                     )
             );
@@ -346,10 +373,12 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
             publishInvitationRejected(savedMember);
             return Result.success(savedMember);
         } catch (IllegalArgumentException | NullPointerException exception) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.failure(
                     ApplicationError.validationError("CollabQuestMember", exception.getMessage())
             );
         } catch (Exception exception) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.failure(
                     ApplicationError.unexpected(
                             "CollabQuestMember decline",
@@ -364,12 +393,17 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
     public Result<CollabQuestMember, ApplicationError> handle(
             LeaveCollabQuestMemberCommand command
     ) {
+        collabQuestSessionRepository.lockQuestForMember(command.memberId());
         var member = collabQuestMemberRepository.findById(command.memberId());
         if (member == null) {
             return Result.failure(
                     ApplicationError.notFound("CollabQuestMember", command.memberId().toString())
             );
         }
+        if (!Objects.equals(member.getUserId(), command.actorUserId())) {
+            return Result.failure(ApplicationError.forbidden("COLLAB_MEMBER_FORBIDDEN", "Only the recipient can answer or leave"));
+        }
+
 
         var session = collabQuestSessionRepository.findById(member.getSessionId());
         if (session.isEmpty()) {
@@ -383,17 +417,20 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
         if (isFamilyPlanSession(session.get().getId())) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Family plan members cannot leave individually",
+                            "COLLAB_FAMILY_PLAN_MANAGED",
                             "Session %d belongs to a family plan".formatted(session.get().getId())
                     )
             );
         }
 
+        if (member.getStatus() != CollabMemberStatus.PENDING && member.getStatus() != CollabMemberStatus.ACCEPTED) {
+            return Result.failure(ApplicationError.businessRuleViolation("COLLAB_MEMBERSHIP_INVALID", "Only pending or accepted members can leave"));
+        }
         if (session.get().getStatus() == CollabQuestStatus.PENDING) {
             if (member.getRole() == MemberRole.OWNER) {
                 return Result.failure(
                         ApplicationError.businessRuleViolation(
-                                "Owner cannot leave a pending session",
+                                "COLLAB_OWNER_CANNOT_LEAVE",
                                 "The owner must delete the pending session instead"
                         )
                 );
@@ -408,7 +445,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
         if (session.get().getStatus() != CollabQuestStatus.STARTED) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Only pending or started session members can leave",
+                            "COLLAB_SESSION_CLOSED",
                             "Session %d is %s".formatted(
                                     session.get().getId(),
                                     session.get().getStatus()
@@ -420,7 +457,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
         if (member.getStatus() != CollabMemberStatus.ACCEPTED) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Only accepted members can leave started sessions",
+                            "COLLAB_MEMBERSHIP_INVALID",
                             "Member %d is %s".formatted(member.getId(), member.getStatus())
                     )
             );
@@ -428,7 +465,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
 
         member.leaveQuest();
         var savedMember = collabQuestMemberRepository.save(member);
-        deleteMemberProgress(member.getUserId(), session.get().getQuestId());
+        deleteMemberProgress(member.getUserId(), session.get().getQuestId(), session.get().getId());
         cancelIfNoAcceptedMembersRemain(session.get().getId());
 
         return Result.success(savedMember);
@@ -439,6 +476,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
     public Result<CollabQuestMember, ApplicationError> handle(
             RemoveCollabQuestMemberCommand command
     ) {
+        collabQuestSessionRepository.lockQuestForMember(command.memberId());
         var member = collabQuestMemberRepository.findById(command.memberId());
         if (member == null) {
             return Result.failure(
@@ -458,7 +496,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
         if (isFamilyPlanSession(session.get().getId())) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Family plan members cannot be removed individually",
+                            "COLLAB_FAMILY_PLAN_MANAGED",
                             "Session %d belongs to a family plan".formatted(session.get().getId())
                     )
             );
@@ -466,12 +504,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
 
         if (!Objects.equals(session.get().getOwnerId(), command.ownerUserId())) {
             return Result.failure(
-                    ApplicationError.businessRuleViolation(
-                            "Only the session owner can remove members",
-                            "User %d is not the owner of session %d".formatted(
-                                    command.ownerUserId(),
-                                    session.get().getId()
-                            )
+                    ApplicationError.forbidden("COLLAB_OWNER_REQUIRED", "Only the organizer can perform this action"
                     )
             );
         }
@@ -479,7 +512,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
         if (member.getRole() == MemberRole.OWNER) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Owner cannot remove themselves",
+                            "COLLAB_OWNER_CANNOT_REMOVE_SELF",
                             "Delete the pending session instead"
                     )
             );
@@ -488,7 +521,7 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
         if (session.get().getStatus() != CollabQuestStatus.PENDING) {
             return Result.failure(
                     ApplicationError.businessRuleViolation(
-                            "Only pending sessions can remove invited members",
+                            "COLLAB_SESSION_NOT_PENDING",
                             "Session %d is %s".formatted(
                                     session.get().getId(),
                                     session.get().getStatus()
@@ -501,13 +534,13 @@ public class CollabQuestMemberCommandServiceImpl implements CollabQuestMemberCom
         return Result.success(collabQuestMemberRepository.save(member));
     }
 
-    private void deleteMemberProgress(Long userId, Long questId) {
+    private void deleteMemberProgress(Long userId, Long questId, Long sessionId) {
         var questUser = questUserRepository.findFirstByUserIdAndQuestIdAndStatusIn(
                 userId,
                 questId,
                 ACTIVE_QUEST_USER_STATUSES
         );
-        if (questUser.isEmpty()) {
+        if (questUser.isEmpty() || !Objects.equals(questUser.get().getCollaborativeSessionId(), sessionId)) {
             return;
         }
 

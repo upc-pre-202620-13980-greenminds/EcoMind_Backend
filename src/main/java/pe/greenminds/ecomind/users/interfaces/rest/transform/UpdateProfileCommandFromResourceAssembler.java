@@ -14,6 +14,7 @@ public final class UpdateProfileCommandFromResourceAssembler {
     return new UpdateProfileCommand(
         new UserId(requestedBy),
         new UserId(userId),
+        resource.name(),
         resource.streak(),
         resource.lastStreakDate(),
         resource.ecopoints(),

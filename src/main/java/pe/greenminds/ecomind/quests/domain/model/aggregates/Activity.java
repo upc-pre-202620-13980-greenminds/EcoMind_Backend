@@ -3,6 +3,7 @@ package pe.greenminds.ecomind.quests.domain.model.aggregates;
 import lombok.Getter;
 import lombok.Setter;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.ActivityType;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.WriteActivityRules;
 
 import java.util.Map;
 import java.util.Objects;
@@ -58,6 +59,9 @@ public class Activity {
             String image
     ) {
         this(null, questId, description, order, type, activityConfiguration, image);
+        if (type == ActivityType.WRITE) {
+            WriteActivityRules.requireMinCharacters(activityConfiguration);
+        }
     }
 
 
@@ -68,6 +72,9 @@ public class Activity {
             Map<String, Object> activityConfiguration,
             String image
     ) {
+        if (activityType == ActivityType.WRITE) {
+            WriteActivityRules.requireMinCharacters(activityConfiguration);
+        }
         this.description = description;
         this.order = Objects.requireNonNull(order, "Order is required");
         this.activityType = Objects.requireNonNull(activityType, "ActivityType is required");

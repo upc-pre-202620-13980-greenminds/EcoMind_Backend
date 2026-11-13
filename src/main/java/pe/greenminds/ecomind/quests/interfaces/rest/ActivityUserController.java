@@ -85,7 +85,11 @@ public class ActivityUserController {
     @PostMapping("/{activityUserId}/submit")
     @Operation(
             summary = "Submit progress for an activity",
-            description = "For CHECKBOX activities, send {\"data\":{\"checked\":true}}"
+            description = """
+                    For CHECKBOX, send {"data":{"checked":true}}.
+                    For WRITE, send {"data":{"text":"My answer"}}. The trimmed text must meet the assigned
+                    activityConfiguration.minCharacters. The response includes the saved text.
+                    """
     )
     @ApiResponses({
             @ApiResponse(

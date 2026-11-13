@@ -195,8 +195,9 @@ class UsersContextFacadeTests {
   }
 
   private static Friendship friendship(Long requesterId, Long receiverId, FriendshipStatus status) {
+    Instant now = Instant.now();
     return new Friendship(
-        50L, new UserId(requesterId), new UserId(receiverId), status, Instant.now());
+        50L, new UserId(requesterId), new UserId(receiverId), status, now, now);
   }
 
   private static Family familyWithParentAndChild() {

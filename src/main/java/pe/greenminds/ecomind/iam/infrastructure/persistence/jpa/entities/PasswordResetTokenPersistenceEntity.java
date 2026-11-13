@@ -43,4 +43,7 @@ public class PasswordResetTokenPersistenceEntity {
   private Instant expiresAt;
 
   private Instant usedAt;
+
+  @Column(length = 64)
+  private String confirmationIdHash;
 }

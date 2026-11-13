@@ -1,25 +1,54 @@
 package pe.greenminds.ecomind.community.infrastructure.persistence.jpa.assemblers;
 
 import pe.greenminds.ecomind.community.domain.model.aggregates.EventRegistration;
-import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.entities.EventRegistrationPersistenceEntity;
 import pe.greenminds.ecomind.community.domain.model.valueobjects.EventRegistrationStatus;
+import pe.greenminds.ecomind.community.domain.model.valueobjects.EventRegistrationType;
+import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.entities.EventRegistrationPersistenceEntity;
 
 public final class EventRegistrationPersistenceAssembler {
+
     private EventRegistrationPersistenceAssembler() {
     }
 
-    public static EventRegistration toDomain(EventRegistrationPersistenceEntity persistenceEntity) {
-        return new EventRegistration(persistenceEntity.getId(), persistenceEntity.getEventId(),
-                persistenceEntity.getUserId(), persistenceEntity.getRegistrationType(), persistenceEntity.getFamilyId(),
-                persistenceEntity.getParticipantCount(), persistenceEntity.getStatus());
+    public static EventRegistration toDomain(EventRegistrationPersistenceEntity entity) {
+        if (entity.getParticipantIds().isEmpty()
+                && entity.getRegistrationType() == EventRegistrationType.INDIVIDUAL
+                && entity.getStatus() == EventRegistrationStatus.REGISTERED) {
+            return new EventRegistration(
+                    entity.getId(),
+                    entity.getEventId(),
+                    entity.getUserId(),
+                    entity.getRegistrationType(),
+                    entity.getFamilyId(),
+                    entity.getParticipantCount(),
+                    entity.getStatus());
+        }
+
+        return new EventRegistration(
+                entity.getId(),
+                entity.getEventId(),
+                entity.getUserId(),
+                entity.getRegistrationType(),
+                entity.getFamilyId(),
+                entity.getParticipantCount(),
+                entity.getStatus(),
+                entity.getParticipantIds());
     }
 
-    public static EventRegistrationPersistenceEntity toEntity(EventRegistration eventRegistration) {
-        var persistenceEntity = new EventRegistrationPersistenceEntity(eventRegistration.eventId(),
-                eventRegistration.userId(), eventRegistration.registrationType(), eventRegistration.familyId(),
-                eventRegistration.participantCount());
-        if (eventRegistration.status() == EventRegistrationStatus.CANCELLED)
-            persistenceEntity.cancel();
-        return persistenceEntity;
+    public static EventRegistrationPersistenceEntity toEntity(EventRegistration registration) {
+        var entity = new EventRegistrationPersistenceEntity(
+                registration.eventId(),
+                registration.userId(),
+                registration.registrationType(),
+                registration.familyId(),
+                registration.participantCount());
+
+        entity.replaceParticipants(registration.participantIds());
+
+        if (registration.status() == EventRegistrationStatus.CANCELLED) {
+            entity.cancel();
+        }
+
+        return entity;
     }
 }

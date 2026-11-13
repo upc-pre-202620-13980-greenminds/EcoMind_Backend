@@ -1,12 +1,15 @@
 package pe.greenminds.ecomind.iam.application.internal.commandservices;
 
 import java.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.greenminds.ecomind.iam.application.commandservices.PasswordRecoveryCommandService;
 import pe.greenminds.ecomind.iam.application.internal.IamErrors;
 import pe.greenminds.ecomind.iam.application.internal.SecureTokenGenerator;
 import pe.greenminds.ecomind.iam.application.outboundservices.EmailService;
+import pe.greenminds.ecomind.iam.application.outboundservices.EmailDeliveryException;
 import pe.greenminds.ecomind.iam.domain.model.aggregates.Account;
 import pe.greenminds.ecomind.iam.domain.model.aggregates.PasswordResetToken;
 import pe.greenminds.ecomind.iam.domain.model.commands.ConfirmPasswordRecoveryCommand;
@@ -24,6 +27,7 @@ import pe.greenminds.ecomind.shared.application.result.Result;
 
 @Service
 public class PasswordRecoveryCommandServiceImpl implements PasswordRecoveryCommandService {
+  private static final Logger LOGGER = LoggerFactory.getLogger(PasswordRecoveryCommandServiceImpl.class);
 
   private final AccountCredentialRepository accountCredentialRepository;
   private final AccountRepository accountRepository;
@@ -51,7 +55,7 @@ public class PasswordRecoveryCommandServiceImpl implements PasswordRecoveryComma
   @Transactional
   public Result<EmailAddress, ApplicationError> handle(RequestPasswordRecoveryCommand command) {
     EmailAddress email = new EmailAddress(command.email());
-    // The result is the same whether or not the email has an account; only the email is sent.
+    // The acknowledgement is the same; delivery is attempted only for an active account.
     accountCredentialRepository
         .findAccountByEmail(email)
         .filter(Account::isActive)
@@ -67,15 +71,30 @@ public class PasswordRecoveryCommandServiceImpl implements PasswordRecoveryComma
     }
 
     var resetToken = passwordResetTokenRepository.findByTokenHash(TokenHash.of(command.token()));
-    if (resetToken.isEmpty() || !resetToken.get().consume(Instant.now())) {
+    if (resetToken.isEmpty()) {
       return Result.failure(IamErrors.passwordResetTokenInvalid());
     }
     PasswordResetToken consumedToken = resetToken.get();
+    Instant now = Instant.now();
+    TokenHash confirmationIdHash = command.confirmationId() == null
+        ? null : TokenHash.of(command.confirmationId());
+    boolean retry = consumedToken.isConfirmationRetry(confirmationIdHash, now);
+    if (!retry && !consumedToken.isValid(now)) {
+      return Result.failure(IamErrors.passwordResetTokenInvalid());
+    }
 
     var account = accountRepository.findById(consumedToken.getAccountId());
     if (account.isEmpty()) {
       return Result.failure(IamErrors.passwordResetTokenInvalid());
     }
+    if (retry) {
+      // A lost response can be acknowledged only for the same change, never a new password.
+      if (!passwordHasher.matches(command.newPassword(), account.get().getCredential().getPasswordHash())) {
+        return Result.failure(IamErrors.passwordResetTokenInvalid());
+      }
+      return Result.success(consumedToken.getAccountId());
+    }
+    consumedToken.consume(now, confirmationIdHash);
 
     account.get().changePassword(passwordHasher.hash(command.newPassword()));
     accountRepository.save(account.get());
@@ -87,6 +106,11 @@ public class PasswordRecoveryCommandServiceImpl implements PasswordRecoveryComma
     String recoveryToken = SecureTokenGenerator.newRecoveryToken();
     passwordResetTokenRepository.save(
         PasswordResetToken.issue(account.getId(), TokenHash.of(recoveryToken), Instant.now()));
-    emailService.sendPasswordRecoveryLink(email, recoveryToken);
+    try {
+      emailService.sendPasswordRecoveryLink(email, recoveryToken);
+    } catch (EmailDeliveryException exception) {
+      // A provider failure must not disclose whether the account exists.
+      LOGGER.warn("Password recovery email delivery was not confirmed; check the email provider.");
+    }
   }
 }

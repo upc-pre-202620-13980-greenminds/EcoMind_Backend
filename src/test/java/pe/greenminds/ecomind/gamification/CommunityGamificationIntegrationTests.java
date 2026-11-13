@@ -24,6 +24,9 @@ import pe.greenminds.ecomind.community.application.commandservices.CommunityComm
 import pe.greenminds.ecomind.community.domain.model.commands.CreateLocalCommunityCommand;
 import pe.greenminds.ecomind.community.domain.model.commands.CreateTopicCommunityCommand;
 import pe.greenminds.ecomind.community.domain.model.commands.JoinCommunityCommand;
+import pe.greenminds.ecomind.community.domain.model.aggregates.CommunityMembership;
+import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityRole;
+import pe.greenminds.ecomind.community.domain.repositories.CommunityMembershipRepository;
 import pe.greenminds.ecomind.community.interfaces.acl.CommunityContextFacade;
 import pe.greenminds.ecomind.community.interfaces.acl.events.PublicationCreatedIntegrationEvent;
 import pe.greenminds.ecomind.gamification.application.commandservices.AchievementCommandService;
@@ -80,6 +83,7 @@ class CommunityGamificationIntegrationTests {
     @Autowired GamificationOutboxDeliveryService delivery;
     @Autowired GamificationOutboxPersistenceRepository outbox;
     @Autowired UserProfileRepository profiles;
+    @Autowired CommunityMembershipRepository memberships;
     @Autowired PlatformTransactionManager transactions;
     @Autowired TokenService tokens;
     @Autowired JdbcTemplate jdbc;
@@ -146,6 +150,10 @@ class CommunityGamificationIntegrationTests {
                         .getId();
         assertTrue(
                 communities
+                        .handle(new JoinCommunityCommand(communityId, USER.value()))
+                        .isSuccess());
+        assertTrue(
+                communities
                         .handle(new JoinCommunityCommand(communityId, OTHER.value()))
                         .isSuccess());
     }
@@ -173,12 +181,20 @@ class CommunityGamificationIntegrationTests {
 
     @Test
     void conflictingLocalMembershipsCannotSilentlyChooseAnotherRankingScope() throws Exception {
-        communities
+        Long secondCommunityId =
+                communities
                 .handle(
                         new CreateLocalCommunityCommand(
                                 "Los Cedros", "Un barrio unido", "San Borja", null, USER.value()))
                 .toOptional()
-                .orElseThrow();
+                .orElseThrow()
+                .getId();
+        // Deliberately model legacy/corrupt data: local creators no longer gain
+        // membership automatically, and the public join flow rejects a second
+        // local scope. Seed that inconsistent state directly to exercise fail-closed reads.
+        memberships.save(
+                new CommunityMembership(
+                        null, secondCommunityId, USER.value(), CommunityRole.MEMBER));
         http.perform(
                         get("/api/v1/gamification/rankings/LOCAL/participants")
                                 .header("Authorization", bearer(USER)))

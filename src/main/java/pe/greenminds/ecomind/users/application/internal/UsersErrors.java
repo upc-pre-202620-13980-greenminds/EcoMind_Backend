@@ -56,6 +56,12 @@ public final class UsersErrors {
     return ApplicationError.notFound("FRIENDSHIP", String.valueOf(friendshipId));
   }
 
+  // The code is not repeated in the message, so it does not end up in the logs
+  public static ApplicationError invitationCodeNotFound() {
+    return new ApplicationError(
+        ErrorType.NOT_FOUND, "INVITATION_CODE_NOT_FOUND", "No user has this invitation code", null);
+  }
+
   public static ApplicationError friendRequestToSelf() {
     return ApplicationError.businessRuleViolation(
         "FRIEND_REQUEST_TO_SELF", "A user cannot send a friend request to themselves");
@@ -71,9 +77,31 @@ public final class UsersErrors {
         "A rejected friend request can be sent again after 7 days");
   }
 
+  public static ApplicationError friendRequestUnansweredRecently() {
+    return ApplicationError.businessRuleViolation(
+        "FRIEND_REQUEST_UNANSWERED_RECENTLY",
+        "An unanswered friend request can be sent again 7 days after it expired");
+  }
+
+  public static ApplicationError friendRequestExpired() {
+    return ApplicationError.businessRuleViolation(
+        "FRIEND_REQUEST_EXPIRED", "The friend request expired after 48 hours without an answer");
+  }
+
   public static ApplicationError friendRequestAlreadyAnswered() {
     return ApplicationError.businessRuleViolation(
         "FRIEND_REQUEST_ALREADY_ANSWERED", "The friend request was already answered");
+  }
+
+  public static ApplicationError friendshipAccessForbidden() {
+    return ApplicationError.forbidden(
+        "FRIENDSHIP_ACCESS_FORBIDDEN", "Only the two users of a friendship can remove it");
+  }
+
+  public static ApplicationError friendshipInWaitingPeriod() {
+    return ApplicationError.businessRuleViolation(
+        "FRIENDSHIP_IN_WAITING_PERIOD",
+        "A rejected or expired request cannot be removed until its waiting time passes");
   }
 
   public static ApplicationError friendRequestAccessForbidden() {

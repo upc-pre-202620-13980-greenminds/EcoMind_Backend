@@ -71,7 +71,9 @@ public class PasswordRecoveryController {
   @Operation(
       summary = "Set a new password",
       description = "Consumes the token of the recovery link, which is valid for 30 minutes and "
-          + "can be used once, and replaces the password of the account.")
+          + "can be used once, and replaces the password of the account. An optional confirmationId "
+          + "allows the same token, identifier and new password to acknowledge a lost response for "
+          + "up to five minutes after the change. It does not extend authorization to change the password.")
   @ApiResponse(responseCode = "204", description = "Password updated", content = @Content)
   @ApiResponse(responseCode = "400", description = "Missing fields or weak password",
       content = @Content(schema = @Schema(implementation = ErrorResource.class),

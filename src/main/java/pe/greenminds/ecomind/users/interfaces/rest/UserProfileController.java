@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import pe.greenminds.ecomind.gamification.interfaces.acl.GamificationContextFacade;
+import pe.greenminds.ecomind.monetization.interfaces.acl.EquippedAvatarReader;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 import pe.greenminds.ecomind.shared.infrastructure.documentation.openapi.configuration.OpenApiConfiguration;
 import pe.greenminds.ecomind.shared.infrastructure.security.AuthenticatedUserPrincipal;
@@ -38,6 +39,7 @@ import pe.greenminds.ecomind.users.domain.model.valueobjects.UserId;
 import pe.greenminds.ecomind.users.interfaces.rest.resources.UpdateUserProfileResource;
 import pe.greenminds.ecomind.users.interfaces.rest.resources.UserProfileResource;
 import pe.greenminds.ecomind.users.interfaces.rest.transform.UpdateProfileCommandFromResourceAssembler;
+import pe.greenminds.ecomind.users.interfaces.rest.transform.UserProfileResourceFromEntityAssembler;
 
 import java.util.List;
 
@@ -49,6 +51,7 @@ public class UserProfileController {
 
     private final ProfileCommandService profileCommandService;
     private final GamificationContextFacade gamification;
+    private final EquippedAvatarReader avatars;
     private final ProfileQueryService profileQueryService;
     private final ResponseEntityAssembler responseEntityAssembler;
     private final ErrorResponseAssembler errorResponseAssembler;
@@ -58,7 +61,9 @@ public class UserProfileController {
             ProfileQueryService profileQueryService,
             ResponseEntityAssembler responseEntityAssembler,
             ErrorResponseAssembler errorResponseAssembler,
-            GamificationContextFacade gamification) {
+            GamificationContextFacade gamification,
+            EquippedAvatarReader avatars) {
+        this.avatars = avatars;
         this.profileCommandService = profileCommandService;
         this.gamification = gamification;
         this.profileQueryService = profileQueryService;
@@ -67,7 +72,11 @@ public class UserProfileController {
     }
 
     @GetMapping
-    @Operation(summary = "List user profiles", description = "Returns every registered profile.")
+    @Operation(
+            summary = "List user profiles",
+            description =
+                    "Returns every registered profile. The invitation code is only filled in "
+                            + "for the profile of the authenticated user.")
     @ApiResponse(
             responseCode = "200",
             description = "Profiles found",
@@ -79,10 +88,12 @@ public class UserProfileController {
                                                     @Schema(
                                                             implementation =
                                                                     UserProfileResource.class))))
-    public ResponseEntity<List<UserProfileResource>> getAllUserProfiles() {
+    public ResponseEntity<List<UserProfileResource>> getAllUserProfiles(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        UserId viewer = viewerOf(principal);
         var resources =
                 profileQueryService.handle(new GetAllUserProfilesQuery()).stream()
-                        .map(this::toProfileResource)
+                        .map(profile -> toProfileResource(profile, viewer, null))
                         .toList();
         return ResponseEntity.ok(resources);
     }
@@ -92,7 +103,8 @@ public class UserProfileController {
             summary = "Get a user profile",
             description =
                     "Returns the name, role, streak, ecopoints, gem balance and equipped "
-                            + "cosmetic of a user.")
+                            + "cosmetic of a user. The invitation code is only returned when the "
+                            + "profile belongs to the authenticated user.")
     @ApiResponse(
             responseCode = "200",
             description = "Profile found",
@@ -106,12 +118,16 @@ public class UserProfileController {
                             examples =
                                     @ExampleObject(
                                             """
-                                            {"code": "USER_PROFILE_NOT_FOUND", "message": "The user profile was not found."}\
+                                            {"code": "USER_PROFILE_NOT_FOUND",
+                                             "message": "The user profile was not found."}\
                                             """)))
-    public ResponseEntity<?> getUserProfile(@PathVariable Long id) {
+    public ResponseEntity<?> getUserProfile(
+            @PathVariable Long id, @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        UserId viewer = viewerOf(principal);
         return profileQueryService
                 .handle(new GetUserProfileQuery(new UserId(id)))
-                .<ResponseEntity<?>>map(profile -> ResponseEntity.ok(toProfileResource(profile)))
+                .<ResponseEntity<?>>map(
+                        profile -> ResponseEntity.ok(toIndividualProfileResource(profile, viewer)))
                 .orElseGet(
                         () ->
                                 errorResponseAssembler.toErrorResponseFromApplicationError(
@@ -121,9 +137,10 @@ public class UserProfileController {
 
     @PutMapping("/{id}")
     @Operation(
-            summary = "Update the progress of a profile",
+            summary = "Update the name and the progress of a profile",
             description =
-                    "Replaces the streak, last streak date, ecopoints and gem balance. A user "
+                    "Replaces the name, streak, last streak date, ecopoints and gem balance. "
+                            + "The name is required and has 2 to 120 characters. A user "
                             + "can only update their own profile.")
     @ApiResponse(
             responseCode = "200",
@@ -131,7 +148,7 @@ public class UserProfileController {
             content = @Content(schema = @Schema(implementation = UserProfileResource.class)))
     @ApiResponse(
             responseCode = "400",
-            description = "Missing or negative values",
+            description = "Missing or negative values, or a name outside 2 to 120 characters",
             content = @Content(schema = @Schema(implementation = ErrorResource.class)))
     @ApiResponse(
             responseCode = "403",
@@ -158,11 +175,21 @@ public class UserProfileController {
                         principal.accountId(), id, resource);
         return responseEntityAssembler.toResponseEntityFromResult(
                 profileCommandService.handle(command),
-                (UserProfile profile) -> toProfileResource(profile),
+                (UserProfile profile) -> toIndividualProfileResource(profile, viewerOf(principal)),
                 HttpStatus.OK);
     }
 
-    private UserProfileResource toProfileResource(UserProfile profile) {
+    private static UserId viewerOf(AuthenticatedUserPrincipal principal) {
+        return principal == null ? null : new UserId(principal.accountId());
+    }
+
+    private UserProfileResource toIndividualProfileResource(UserProfile profile, UserId viewer) {
+        return toProfileResource(
+                profile, viewer, avatars.findImageReference(profile.getUserId().value()).orElse(null));
+    }
+
+    private UserProfileResource toProfileResource(
+            UserProfile profile, UserId viewer, String avatarImageReference) {
         var progress = gamification.getUserProgress(profile.getUserId().value());
         return new UserProfileResource(
                 profile.getUserId().value(),
@@ -172,6 +199,8 @@ public class UserProfileController {
                 progress.lastActivityDate(),
                 progress.ecopoints(),
                 profile.getGemBalance(),
-                profile.getEquippedCosmeticId());
+                profile.getEquippedCosmeticId(),
+                UserProfileResourceFromEntityAssembler.invitationCodeFor(profile, viewer),
+                avatarImageReference);
     }
 }

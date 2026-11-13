@@ -2,6 +2,7 @@ package pe.greenminds.ecomind.quests.domain.model.aggregates;
 
 import lombok.Getter;
 import lombok.Setter;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.WriteActivityRules;
 
 import java.time.LocalDate;
 import java.util.Collections;
@@ -22,6 +23,30 @@ public class ActivityUser {
     private String activityDescription;
     private Map<String, Object> activityConfiguration;
     private Long collaborativeSessionId;
+    @Getter
+    private String responseText;
+
+    public ActivityUser(
+            Long id,
+            Long userId,
+            Long activityId,
+            Double progress,
+            LocalDate endDate,
+            String activityDescription,
+            Map<String, Object> activityConfiguration,
+            Long collaborativeSessionId,
+            String responseText
+    ) {
+        this.id = id;
+        this.questUserId = Objects.requireNonNull(userId, "User ID cannot be null");
+        this.activityId = Objects.requireNonNull(activityId, "Activity ID cannot be null");
+        this.progress = progress;
+        this.endDate = endDate;
+        this.activityDescription = activityDescription;
+        this.activityConfiguration = copyConfiguration(activityConfiguration);
+        this.collaborativeSessionId = collaborativeSessionId;
+        this.responseText = responseText;
+    }
 
     public ActivityUser(
             Long id,
@@ -33,14 +58,8 @@ public class ActivityUser {
             Map<String, Object> activityConfiguration,
             Long collaborativeSessionId
     ) {
-        this.id = id;
-        this.questUserId = Objects.requireNonNull(userId, "User ID cannot be null");
-        this.activityId = Objects.requireNonNull(activityId, "Activity ID cannot be null");
-        this.progress = progress;
-        this.endDate = endDate;
-        this.activityDescription = activityDescription;
-        this.activityConfiguration = copyConfiguration(activityConfiguration);
-        this.collaborativeSessionId = collaborativeSessionId;
+        this(id, userId, activityId, progress, endDate, activityDescription,
+                activityConfiguration, collaborativeSessionId, null);
     }
 
     public ActivityUser(
@@ -51,14 +70,8 @@ public class ActivityUser {
             Map<String, Object> activityConfiguration,
             Long collaborativeSessionId
     ) {
-        this.id = id;
-        this.questUserId = Objects.requireNonNull(userId, "User ID cannot be null");
-        this.activityId = Objects.requireNonNull(activityId, "Activity ID cannot be null");
-        this.progress = 0.0;
-        this.endDate = null;
-        this.activityDescription = activityDescription;
-        this.activityConfiguration = copyConfiguration(activityConfiguration);
-        this.collaborativeSessionId = collaborativeSessionId;
+        this(id, userId, activityId, 0.0, null, activityDescription,
+                activityConfiguration, collaborativeSessionId, null);
     }
 
     public ActivityUser(
@@ -99,6 +112,21 @@ public class ActivityUser {
         );
     }
 
+
+    public void submitWrittenResponse(String text) {
+        var response = text.strip();
+        if (response.isEmpty()) {
+            throw new IllegalArgumentException("'text' must not be blank");
+        }
+        int minimum = WriteActivityRules.minCharactersForAssignment(activityConfiguration);
+        if (response.codePointCount(0, response.length()) < minimum) {
+            throw new IllegalArgumentException("'text' must contain at least %d characters".formatted(minimum));
+        }
+        if (responseText == null) {
+            updateProgress(100.0);
+        }
+        this.responseText = response;
+    }
 
     public void updateProgress(Double progress) {
         if (progress == null || progress < 0 || progress > 100) {
