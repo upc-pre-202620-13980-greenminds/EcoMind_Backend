@@ -1,6 +1,7 @@
 package pe.greenminds.ecomind.gamification.infrastructure.persistence.jpa.adapters;
 
 import jakarta.persistence.EntityManager;
+import org.hibernate.Session;
 
 import org.springframework.stereotype.Repository;
 
@@ -20,6 +21,28 @@ public class AchievementRepositoryImpl implements AchievementRepository {
 
     public AchievementRepositoryImpl(EntityManager entities) {
         this.entities = entities;
+    }
+
+    public void lockCatalog() {
+        entities.unwrap(Session.class).doWork(connection -> {
+            if ("PostgreSQL".equals(connection.getMetaData().getDatabaseProductName())) {
+                try (var statement = connection.createStatement()) {
+                    statement.execute("set local lock_timeout = '30s'");
+                    statement.execute("select pg_advisory_xact_lock(1938236102, 3)");
+                }
+            }
+        });
+    }
+
+    public boolean existsByCodeOrId(String code, UUID id) {
+        return !entities.createQuery(
+                        "select a.id from AchievementPersistenceEntity a where a.code = :code or a.id = :id",
+                        String.class)
+                .setParameter("code", code)
+                .setParameter("id", id.toString())
+                .setMaxResults(1)
+                .getResultList()
+                .isEmpty();
     }
 
     public void add(Achievement achievement) {
