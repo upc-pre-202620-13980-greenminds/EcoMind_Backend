@@ -37,6 +37,8 @@ public class CommunitySteps {
             "community_event_registrations",
             "community_events",
             "community_achievements",
+            "community_goal_completion_receipts",
+            "community_goal_enrollments",
             "community_goals",
             "community_memberships",
             "community_communities")) {
@@ -135,9 +137,17 @@ public class CommunitySteps {
     if (api.status() == 201) goalId = id();
   }
 
-  @When("{string} contributes to the community goal")
-  public void contribute(String actor) {
-    api.patchWithoutBody(BASE + "/Community-goals/" + goalId + "/progress", users.tokenOf(actor));
+  @When("{string} joins the community goal")
+  public void joinGoal(String actor) {
+    api.postWithoutBody(BASE + "/Community-goals/" + goalId + "/Participants", users.tokenOf(actor));
+  }
+
+  @Then("the community goal has {int} participants")
+  public void goalParticipants(int count) {
+    assertThat(api.jsonValue("$.participants")).isEqualTo(String.valueOf(count));
+    assertThat(jdbc.queryForObject(
+        "SELECT COUNT(*) FROM community_goal_enrollments WHERE goal_id=?", Integer.class, goalId))
+        .isEqualTo(count);
   }
 
   @Then("the community goal is completed")
