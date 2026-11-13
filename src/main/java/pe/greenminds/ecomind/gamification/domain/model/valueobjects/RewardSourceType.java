@@ -6,5 +6,6 @@ public enum RewardSourceType {
     COLLABORATIVE_QUEST,
     FAMILY_PLAN,
     COMMUNITY_GOAL,
-    COMMUNITY_EVENT
+    COMMUNITY_EVENT,
+    STREAK_BONUS
 }
