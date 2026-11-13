@@ -122,7 +122,8 @@ To run with the production profile:
 
 ```bash
 ./mvnw clean package
-SPRING_PROFILES_ACTIVE=prod java -jar target/ecomind-backend-0.0.1-SNAPSHOT.jar
+APP_VERSION=$(bash ./mvnw -q help:evaluate -Dexpression=project.version -DforceStdout)
+SPRING_PROFILES_ACTIVE=prod java -jar "target/ecomind-backend-${APP_VERSION}.jar"
 ```
 
 ## API documentation

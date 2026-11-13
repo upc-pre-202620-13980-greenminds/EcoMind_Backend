@@ -156,3 +156,19 @@ The test profile recreates tables with `create-drop`.
 - [Azure Container Apps revisions](https://learn.microsoft.com/azure/container-apps/revisions)
 - [Trivy action](https://github.com/aquasecurity/trivy-action)
 - [GitHub protected branches](https://docs.github.com/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)
+
+### Closing a release
+
+1. Create `release/<version>` from the current `develop` and reconcile `main` into it.
+   Review commits unique to `main` and preserve any required changes.
+2. Set the Maven project version to the release version and update release notes.
+3. Open the release pull request into `main`. Wait for convention checks, both database
+   suites, coverage, runtime-image checks and the vulnerability scan before merging.
+4. Verify the resulting `main` workflow, create the matching annotated `v<version>` tag,
+   and wait for its version check and remaining CI checks before publishing the release.
+5. Merge the release changes back into `develop` by pull request after its checks pass.
+   The existing Azure automation then deploys that verified `develop` image.
+
+`main` and the release tag identify the release. The shared Azure environment continues
+following `develop`; closing a release does not change that deployment policy or grant
+new Azure access. Start a new development version before preparing the next release.
