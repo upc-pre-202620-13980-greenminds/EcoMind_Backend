@@ -27,6 +27,7 @@ import pe.greenminds.ecomind.gamification.domain.model.aggregates.Achievement;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.AchievementMetric;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.AchievementScope;
 import pe.greenminds.ecomind.gamification.domain.repositories.AchievementRepository;
+import pe.greenminds.ecomind.gamification.domain.repositories.RewardTransactionRepository;
 
 @SpringBootTest(properties = "spring.datasource.url=${TEST_DATABASE_URL:jdbc:h2:mem:achievementseedtests;MODE=PostgreSQL;DB_CLOSE_DELAY=-1}")
 @ActiveProfiles("test")
@@ -36,6 +37,7 @@ class AchievementCatalogSeedTests {
 
     @Autowired AchievementRepository catalog;
     @Autowired AchievementCommandService commands;
+    @Autowired RewardTransactionRepository rewards;
     @Autowired JdbcTemplate jdbc;
     @Autowired PlatformTransactionManager transactions;
 
@@ -61,12 +63,12 @@ class AchievementCatalogSeedTests {
                     AchievementMetric.ECOPOINTS, i + 1L, i % 2 == 0));
         }
 
-        var seed = new AchievementCatalogSeed(catalog, commands);
+        var seed = new AchievementCatalogSeed(catalog, commands, rewards);
         var args = new DefaultApplicationArguments(new String[0]);
         runInTransaction(seed, args);
 
         var allAfterFirstRun = catalog.search(null, 0, 200);
-        assertEquals(103, allAfterFirstRun.size());
+        assertEquals(104, allAfterFirstRun.size());
         assertTrue(allAfterFirstRun.stream().anyMatch(a -> a.code().equals("SEVEN_DAY_STREAK")));
         assertTrue(allAfterFirstRun.stream().anyMatch(a -> a.code().equals("FIRST_FAMILY_PLAN")));
         var retained = allAfterFirstRun.stream()
@@ -76,13 +78,13 @@ class AchievementCatalogSeedTests {
         assertFalse(retained.active());
 
         runInTransaction(seed, args);
-        assertEquals(103, catalog.search(null, 0, 200).size(), "restarting the initializer is idempotent");
+        assertEquals(104, catalog.search(null, 0, 200).size(), "restarting the initializer is idempotent");
     }
 
     @Test
     void seedsTheThreeReportBackedCriteriaWithoutChangingTheirTargets() throws Exception {
         runInTransaction(
-                new AchievementCatalogSeed(catalog, commands),
+                new AchievementCatalogSeed(catalog, commands, rewards),
                 new DefaultApplicationArguments(new String[0]));
 
         var definitions = new ArrayList<Achievement>();
@@ -93,9 +95,9 @@ class AchievementCatalogSeedTests {
         }
 
         assertEquals(3, definitions.size());
-        assertEquals(1, definitions.stream().filter(a -> a.code().equals("FIRST_ECOPOINTS")
+        assertEquals(1, definitions.stream().filter(a -> a.code().equals("FIRST_QUEST_COMPLETED")
                 && a.scope() == AchievementScope.INDIVIDUAL
-                && a.metric() == AchievementMetric.ECOPOINTS && a.target() == 1).count());
+                && a.metric() == AchievementMetric.COMPLETED_QUESTS && a.target() == 1).count());
         assertEquals(1, definitions.stream().filter(a -> a.code().equals("SEVEN_DAY_STREAK")
                 && a.scope() == AchievementScope.INDIVIDUAL
                 && a.metric() == AchievementMetric.LONGEST_STREAK && a.target() == 7).count());
@@ -106,7 +108,7 @@ class AchievementCatalogSeedTests {
 
     @Test
     void concurrentInitializersAreIdempotent() throws Exception {
-        var seed = new AchievementCatalogSeed(catalog, commands);
+        var seed = new AchievementCatalogSeed(catalog, commands, rewards);
         var args = new DefaultApplicationArguments(new String[0]);
         boolean postgres;
         try (var connection = jdbc.getDataSource().getConnection()) {

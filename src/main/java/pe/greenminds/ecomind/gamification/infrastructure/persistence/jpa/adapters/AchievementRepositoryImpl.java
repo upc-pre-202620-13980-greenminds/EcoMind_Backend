@@ -60,6 +60,14 @@ public class AchievementRepositoryImpl implements AchievementRepository {
         entities.persist(row);
     }
 
+    public void deactivate(String code, UUID id) {
+        entities.createQuery("update AchievementPersistenceEntity set active = false"
+                        + " where id = :id and code = :code")
+                .setParameter("id", id.toString())
+                .setParameter("code", code)
+                .executeUpdate();
+    }
+
     public Optional<Achievement> findById(UUID id) {
         return Optional.ofNullable(entities.find(AchievementPersistenceEntity.class, id.toString()))
                 .map(AchievementRepositoryImpl::toDomain);
