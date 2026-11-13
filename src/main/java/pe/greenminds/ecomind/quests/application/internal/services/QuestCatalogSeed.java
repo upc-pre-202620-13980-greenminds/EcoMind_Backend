@@ -31,9 +31,14 @@ import static pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestType.M
 
 @Component
 public class QuestCatalogSeed implements ApplicationRunner {
-    private static final String MINIGAME_PATH = "/quests/minigames/simple-score";
-    private static final String MINIGAME_TITLE = "Eco Collector";
-    private static final int MINIGAME_TARGET = 800;
+    private static final String MINIGAME_PATH = "/games/collect-waste";
+    private static final String MINIGAME_TITLE = "Collect Waste";
+    private static final String MINIGAME_DESCRIPTION = "Collect waste to reach the target score.";
+    private static final int MINIGAME_TARGET = 10;
+    private static final String LEGACY_MINIGAME_PATH = "/quests/minigames/simple-score";
+    private static final String LEGACY_MINIGAME_TITLE = "Eco Collector";
+    private static final String LEGACY_QUEST_DESCRIPTION =
+            "Play the energy collection minigame and reach its target score.";
     private static final List<StarterQuest> CATALOG = List.of(
             new StarterQuest(ENERGY, ACTIVITIES, "The Daylight Challenge",
                     "Use natural light for one daytime activity.", 15,
@@ -141,19 +146,44 @@ public class QuestCatalogSeed implements ApplicationRunner {
     }
 
     private void seedMinigameQuest() {
-        if (quests.existsByTitleAndTypeAndCategory(MINIGAME_TITLE, MINIGAME, ENERGY)) {
+        migrateLegacyMinigameQuest();
+        if (quests.existsByTitleAndTypeAndCategory(MINIGAME_TITLE, MINIGAME, RECYCLE)) {
             return;
         }
         var game = minigames.findAll().stream()
-                .filter(existing -> existing.getUrl().endsWith(MINIGAME_PATH))
+                .filter(existing -> MINIGAME_PATH.equals(existing.getUrl()))
                 .findFirst()
-                .orElseGet(() -> minigames.save(new Minigame(null, MINIGAME_TITLE,
-                        "Collect energy to reach the target score.", MINIGAME_PATH,
-                        Map.of("minScore", MINIGAME_TARGET))));
+                .orElseGet(() -> saveCollectWaste(null));
         if (!quests.existsPublishedMinigameQuest(game.getId())) {
-            seedQuest(new StarterQuest(ENERGY, MINIGAME, MINIGAME_TITLE,
-                    "Play the energy collection minigame and reach its target score.", 5), game.getId(), null);
+            seedQuest(new StarterQuest(RECYCLE, MINIGAME, MINIGAME_TITLE,
+                    MINIGAME_DESCRIPTION, 5), game.getId(), null);
         }
+    }
+
+    private void migrateLegacyMinigameQuest() {
+        var legacyQuests = quests.search(LEGACY_MINIGAME_TITLE, ENERGY, MINIGAME, null, Theme.MINIGAME);
+        for (var quest : legacyQuests) {
+            if (!LEGACY_MINIGAME_TITLE.equals(quest.getTitle())
+                    || !LEGACY_QUEST_DESCRIPTION.equals(quest.getDescription())
+                    || quest.getMinigameId() == null) {
+                continue;
+            }
+            var game = minigames.findById(quest.getMinigameId());
+            if (game.isEmpty() || !game.get().getUrl().endsWith(LEGACY_MINIGAME_PATH)) {
+                continue;
+            }
+            // Preserve the IDs referenced by attempts and quest assignments.
+            saveCollectWaste(quest.getMinigameId());
+            quests.save(new Quest(quest.getId(), quest.getMinigameId(), MINIGAME_TITLE, RECYCLE,
+                    MINIGAME_DESCRIPTION, MINIGAME, quest.getAge(), quest.getReward(),
+                    quest.getTime(), quest.getImage(), quest.getTheme(), quest.getAssignedDate(),
+                    quest.getVersionGroupId(), quest.getVersionNumber(), quest.getPublicationStatus()));
+        }
+    }
+
+    private Minigame saveCollectWaste(Long id) {
+        return minigames.save(new Minigame(id, MINIGAME_TITLE, MINIGAME_DESCRIPTION,
+                MINIGAME_PATH, Map.of("minScore", MINIGAME_TARGET)));
     }
 
     private void seedQuest(StarterQuest entry, Long minigameId, LocalDate assignedDate) {
