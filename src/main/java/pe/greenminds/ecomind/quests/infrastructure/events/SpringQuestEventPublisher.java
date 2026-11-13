@@ -38,4 +38,5 @@ public class SpringQuestEventPublisher implements QuestEventPublisher {
     @Override public void publish(CollaborativeQuestInvitationRejectedIntegrationEvent event) { applicationEventPublisher.publishEvent(event); }
     @Override public void publish(CollaborativeQuestStartedIntegrationEvent event) { applicationEventPublisher.publishEvent(event); }
     @Override public void publish(FamilyPlanActivatedIntegrationEvent event) { applicationEventPublisher.publishEvent(event); }
+    @Override public void publish(QuestFinishedForGoalsIntegrationEvent event) {applicationEventPublisher.publishEvent(event);}
 }
