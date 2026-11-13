@@ -12,4 +12,5 @@ public interface QuestEventPublisher {
     void publish(CollaborativeQuestInvitationRejectedIntegrationEvent event);
     void publish(CollaborativeQuestStartedIntegrationEvent event);
     void publish(FamilyPlanActivatedIntegrationEvent event);
+    void publish(QuestFinishedForGoalsIntegrationEvent event);
 }

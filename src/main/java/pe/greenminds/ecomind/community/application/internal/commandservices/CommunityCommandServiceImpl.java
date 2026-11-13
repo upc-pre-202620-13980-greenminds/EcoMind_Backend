@@ -24,6 +24,7 @@ import pe.greenminds.ecomind.community.domain.model.commands.LeaveCommunityComma
 import pe.greenminds.ecomind.community.application.commandservices.EventLifecycleService;
 import pe.greenminds.ecomind.community.domain.model.aggregates.Post;
 import pe.greenminds.ecomind.community.domain.repositories.PostRepository;
+import pe.greenminds.ecomind.community.application.commandservices.CommunityGoalCommandService;
 import java.util.Locale;
 
 @Service
@@ -36,9 +37,10 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
     private final EventRegistrationRepository registrations;
     private final EventLifecycleService lifecycle;
     private final PostRepository posts;
+    private final CommunityGoalCommandService goalCommands;
 
 
-    public CommunityCommandServiceImpl(CommunityRepository communities, CommunityMembershipRepository memberships, CommunityAchievementRepository achievements, CommunityActorGateway actors, EventRepository events, EventRegistrationRepository registrations, EventLifecycleService lifecycle, PostRepository posts) {
+    public CommunityCommandServiceImpl(CommunityRepository communities, CommunityMembershipRepository memberships, CommunityAchievementRepository achievements, CommunityActorGateway actors, EventRepository events, EventRegistrationRepository registrations, EventLifecycleService lifecycle, PostRepository posts, CommunityGoalCommandService goalCommands) {
         this.communities = communities;
         this.memberships = memberships;
         this.achievements = achievements;
@@ -47,6 +49,7 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
         this.registrations = registrations;
         this.lifecycle = lifecycle;
         this.posts = posts;
+        this.goalCommands = goalCommands;
     }
     @Override
     @Transactional
@@ -180,6 +183,8 @@ public class CommunityCommandServiceImpl implements CommunityCommandService {
                     )
             );
         }
+
+        goalCommands.leaveCommunity(command.communityId(), command.userId());   
 
         for (var event : events.findByCommunityIdForUpdate(command.communityId())) {
             if (event.getAuthorId().equals(command.userId())) {
