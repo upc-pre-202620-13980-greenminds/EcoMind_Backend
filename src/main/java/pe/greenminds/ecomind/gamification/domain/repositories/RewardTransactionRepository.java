@@ -14,5 +14,9 @@ public interface RewardTransactionRepository {
 
     RewardTransaction save(RewardTransaction rewardTransaction);
 
+    long countCompletedQuests(UserId userId);
+
+    List<UserId> findUsersMissingQuestAward(UUID achievementId);
+
     List<RewardTransaction> findRecentByUser(UserId userId);
 }

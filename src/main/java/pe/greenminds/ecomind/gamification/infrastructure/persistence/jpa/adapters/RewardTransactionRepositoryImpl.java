@@ -16,6 +16,7 @@ import java.util.UUID;
 
 @Repository
 public class RewardTransactionRepositoryImpl implements RewardTransactionRepository {
+    private static final List<String> QUEST_TYPES = List.of("QUEST", "MINIGAME", "COLLABORATIVE_QUEST");
     private final RewardTransactionPersistenceRepository persistenceRepository;
 
     public RewardTransactionRepositoryImpl(
@@ -56,6 +57,18 @@ public class RewardTransactionRepositoryImpl implements RewardTransactionReposit
         entity.setAppliedFactor(rewardTransaction.appliedFactor());
         entity.setRepetitionFactor(rewardTransaction.repetitionFactor());
         return toDomain(persistenceRepository.save(entity));
+    }
+
+    @Override
+    public long countCompletedQuests(UserId userId) {
+        return persistenceRepository.countByBeneficiaryTypeAndBeneficiaryIdAndSourceTypeIn(
+                "USER", userId.value(), QUEST_TYPES);
+    }
+
+    @Override
+    public List<UserId> findUsersMissingQuestAward(UUID achievementId) {
+        return persistenceRepository.findUsersMissingQuestAward(QUEST_TYPES, achievementId.toString())
+                .stream().map(UserId::new).toList();
     }
 
     @Override

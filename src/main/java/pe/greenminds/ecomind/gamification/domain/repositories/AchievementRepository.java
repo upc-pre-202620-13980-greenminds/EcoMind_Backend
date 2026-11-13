@@ -14,6 +14,8 @@ public interface AchievementRepository {
 
     void add(Achievement achievement);
 
+    void deactivate(String code, UUID id);
+
     Optional<Achievement> findById(UUID id);
 
     List<Achievement> findActive(AchievementScope scope);

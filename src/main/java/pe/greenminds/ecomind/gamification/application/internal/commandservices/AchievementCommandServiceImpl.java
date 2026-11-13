@@ -27,6 +27,7 @@ import pe.greenminds.ecomind.gamification.domain.repositories.AchievementReposit
 import pe.greenminds.ecomind.gamification.domain.repositories.AchievementShareRequestRepository;
 import pe.greenminds.ecomind.gamification.domain.repositories.FamilyScoreRepository;
 import pe.greenminds.ecomind.gamification.domain.repositories.UserProgressRepository;
+import pe.greenminds.ecomind.gamification.domain.repositories.RewardTransactionRepository;
 import pe.greenminds.ecomind.gamification.domain.services.AchievementEvaluationService;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 import pe.greenminds.ecomind.shared.application.result.Result;
@@ -45,6 +46,7 @@ public class AchievementCommandServiceImpl implements AchievementCommandService 
     private final CommunityServiceClient community;
     private final AchievementShareRequestRepository shares;
     private final AchievementMilestoneRepository milestones;
+    private final RewardTransactionRepository rewards;
 
     public AchievementCommandServiceImpl(
             AchievementRepository catalog,
@@ -54,7 +56,8 @@ public class AchievementCommandServiceImpl implements AchievementCommandService 
             GamificationEventPublisher events,
             CommunityServiceClient community,
             AchievementShareRequestRepository shares,
-            AchievementMilestoneRepository milestones) {
+            AchievementMilestoneRepository milestones,
+            RewardTransactionRepository rewards) {
         this.catalog = catalog;
         this.awards = awards;
         this.users = users;
@@ -63,6 +66,7 @@ public class AchievementCommandServiceImpl implements AchievementCommandService 
         this.community = community;
         this.shares = shares;
         this.milestones = milestones;
+        this.rewards = rewards;
     }
 
     @Transactional
@@ -195,6 +199,7 @@ public class AchievementCommandServiceImpl implements AchievementCommandService 
                 confirmedValue =
                         switch (definition.metric()) {
                             case ECOPOINTS -> progress.getTotalEcopoints();
+                            case COMPLETED_QUESTS -> rewards.countCompletedQuests(userId);
                             case LONGEST_STREAK -> progress.getLongestStreak();
                             case COMPLETED_COMMUNITY_GOALS ->
                                     milestones.count(
