@@ -9,13 +9,17 @@ import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityType;
 import pe.greenminds.ecomind.community.domain.repositories.CommunityRepository;
 import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.assemblers.CommunityPersistenceAssembler;
 import pe.greenminds.ecomind.community.infrastructure.persistence.jpa.repositories.CommunityPersistenceRepository;
+import jakarta.persistence.EntityManager;
+import org.hibernate.Session;
 
 @Repository
 public class CommunityRepositoryImpl implements CommunityRepository {
     private final CommunityPersistenceRepository repository;
+    private final EntityManager entityManager;
 
-    public CommunityRepositoryImpl(CommunityPersistenceRepository persistenceRepository) {
+    public CommunityRepositoryImpl(CommunityPersistenceRepository persistenceRepository, EntityManager entityManager) {
         repository = persistenceRepository;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -48,5 +52,16 @@ public class CommunityRepositoryImpl implements CommunityRepository {
     public Optional<Community> findByIdForUpdate(Long id) {
         return repository.findByIdForUpdate(id)
                 .map(CommunityPersistenceAssembler::toDomain);
+    }
+
+    @Override
+    public void lockLocalCatalog() {
+        entityManager.unwrap(Session.class).doWork(connection -> {
+            if ("PostgreSQL".equals(connection.getMetaData().getDatabaseProductName())) {
+                try (var statement = connection.createStatement()) {
+                    statement.execute("select pg_advisory_xact_lock(1938236102, 2)");
+                }
+            }
+        });
     }
 }

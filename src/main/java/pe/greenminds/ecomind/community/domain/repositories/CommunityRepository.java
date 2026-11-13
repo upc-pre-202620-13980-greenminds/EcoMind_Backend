@@ -15,4 +15,6 @@ public interface CommunityRepository {
     boolean existsById(Long id);
 
     Optional<Community> findByIdForUpdate(Long id);
+
+    void lockLocalCatalog();
 }
