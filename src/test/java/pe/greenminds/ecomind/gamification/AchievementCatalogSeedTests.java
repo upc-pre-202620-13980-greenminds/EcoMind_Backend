@@ -119,8 +119,14 @@ class AchievementCatalogSeedTests {
             var ready = new CountDownLatch(2);
             var start = new CountDownLatch(1);
             try (var executor = Executors.newFixedThreadPool(2)) {
-                var first = executor.submit(() -> concurrentRun(seed, args, ready, start));
-                var second = executor.submit(() -> concurrentRun(seed, args, ready, start));
+                var first = executor.submit(() -> {
+                    concurrentRun(seed, args, ready, start);
+                    return null;
+                });
+                var second = executor.submit(() -> {
+                    concurrentRun(seed, args, ready, start);
+                    return null;
+                });
                 assertTrue(ready.await(5, TimeUnit.SECONDS));
                 start.countDown();
                 first.get(35, TimeUnit.SECONDS);
