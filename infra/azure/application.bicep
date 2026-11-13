@@ -14,9 +14,12 @@ param imageDigest string
 param configureEmail bool = false
 param resendFromEmail string = ''
 
-@allowed(['resend', 'azure'])
+@allowed(['resend', 'azure', 'smtp'])
 param emailProvider string
 param azureEmailFromEmail string = ''
+param smtpHost string = 'smtp.gmail.com'
+param smtpPort int = 587
+param smtpUsername string = ''
 
 @description('Public HTTPS recovery handoff, for example https://<app-host>/authentication/reset-password.')
 param passwordRecoveryUrl string
@@ -40,6 +43,10 @@ module runtime './application-resources.bicep' = {
     emailProvider: emailProvider
     azureEmailConnectionString: emailProvider == 'azure' ? vault.getSecret('azure-email-connection-string') : ''
     azureEmailFromEmail: azureEmailFromEmail
+    smtpHost: smtpHost
+    smtpPort: smtpPort
+    smtpUsername: smtpUsername
+    smtpPassword: emailProvider == 'smtp' ? vault.getSecret('smtp-password') : ''
     passwordRecoveryUrl: passwordRecoveryUrl
     cloudinaryCloudName: vault.getSecret('cloudinary-cloud-name')
     cloudinaryApiKey: vault.getSecret('cloudinary-api-key')

@@ -24,11 +24,16 @@ param jwtSigningKey string
 param resendApiKey string = ''
 param resendFromEmail string = ''
 
-@allowed(['resend', 'azure'])
+@allowed(['resend', 'azure', 'smtp'])
 param emailProvider string = 'resend'
 @secure()
 param azureEmailConnectionString string = ''
 param azureEmailFromEmail string = ''
+param smtpHost string = 'smtp.gmail.com'
+param smtpPort int = 587
+param smtpUsername string = ''
+@secure()
+param smtpPassword string = ''
 param passwordRecoveryUrl string
 
 @secure()
@@ -101,7 +106,8 @@ resource app 'Microsoft.App/containerApps@2025-07-01' = {
         { name: 'cloudinary-api-key', value: cloudinaryApiKey }
         { name: 'cloudinary-api-secret', value: cloudinaryApiSecret }
       ], empty(resendApiKey) ? [] : [{ name: 'resend-api-key', value: resendApiKey }],
-        empty(azureEmailConnectionString) ? [] : [{ name: 'azure-email-connection-string', value: azureEmailConnectionString }])
+        empty(azureEmailConnectionString) ? [] : [{ name: 'azure-email-connection-string', value: azureEmailConnectionString }],
+        empty(smtpPassword) ? [] : [{ name: 'smtp-password', value: smtpPassword }])
     }
     template: {
       terminationGracePeriodSeconds: 30
@@ -129,7 +135,13 @@ resource app 'Microsoft.App/containerApps@2025-07-01' = {
             { name: 'CLOUDINARY_API_KEY', secretRef: 'cloudinary-api-key' }
             { name: 'CLOUDINARY_API_SECRET', secretRef: 'cloudinary-api-secret' }
           ], empty(resendApiKey) ? [{ name: 'RESEND_API_KEY', value: '' }] : [{ name: 'RESEND_API_KEY', secretRef: 'resend-api-key' }],
-            empty(azureEmailConnectionString) ? [] : [{ name: 'AZURE_EMAIL_CONNECTION_STRING', secretRef: 'azure-email-connection-string' }])
+            empty(azureEmailConnectionString) ? [] : [{ name: 'AZURE_EMAIL_CONNECTION_STRING', secretRef: 'azure-email-connection-string' }],
+            emailProvider != 'smtp' ? [] : [
+              { name: 'SMTP_HOST', value: smtpHost }
+              { name: 'SMTP_PORT', value: string(smtpPort) }
+              { name: 'SMTP_USERNAME', value: smtpUsername }
+              { name: 'SMTP_PASSWORD', secretRef: 'smtp-password' }
+            ])
           probes: [
             {
               type: 'Startup'
