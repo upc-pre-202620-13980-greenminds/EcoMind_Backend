@@ -28,7 +28,20 @@ public class InventoryCommandService {
  }
  @Transactional public void equipCosmetic(Long user,UUID id,boolean equip){
   var selected=owned.findByUserIdAndCosmeticId(user,id.toString()).orElseThrow(()->new IllegalArgumentException("Cosmetic is not owned"));
-  if(equip) owned.findByUserId(user).forEach(x->{x.setEquipped(false);owned.save(x);}); selected.setEquipped(equip);owned.save(selected);
+  if(equip){
+   var selectedType=cosmetics.findById(id)
+       .orElseThrow(()->new IllegalArgumentException("Cosmetic was not found"))
+       .type();
+   owned.findByUserId(user).stream()
+       .filter(x->!x.getCosmeticId().equals(id.toString()))
+       .filter(UserCosmeticPersistenceEntity::isEquipped)
+       .filter(x->cosmetics.findById(UUID.fromString(x.getCosmeticId()))
+           .map(cosmetic->cosmetic.type()==selectedType)
+           .orElse(false))
+       .forEach(x->{x.setEquipped(false);owned.save(x);});
+  }
+  selected.setEquipped(equip);
+  owned.save(selected);
  }
  @Transactional public ProtectorInventoryPersistenceEntity buyProtector(Long user,UUID id,UUID request){
   var replay=replay(request,"PROTECTOR_PURCHASE",user,id,protectorInventory::findById);if(replay!=null)return replay;
