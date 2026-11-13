@@ -4,10 +4,16 @@ import pe.greenminds.ecomind.community.domain.model.commands.CreateCommunityGoal
 import pe.greenminds.ecomind.community.interfaces.rest.resources.CreateCommunityGoalResource;
 
 public final class CreateCommunityGoalCommandFromResourceAssembler {
-    private CreateCommunityGoalCommandFromResourceAssembler() {}
 
-    public static CreateCommunityGoalCommand toCommandFromResource(CreateCommunityGoalResource resource, Long userId) {
-        return new CreateCommunityGoalCommand(resource.community_id(), resource.topic(), resource.target(),
+    private CreateCommunityGoalCommandFromResourceAssembler() {
+    }
+
+    public static CreateCommunityGoalCommand toCommandFromResource(
+            CreateCommunityGoalResource resource,
+            Long userId) {
+        return new CreateCommunityGoalCommand(
+                resource.community_id(),
+                resource.topic(),
                 userId);
     }
 }

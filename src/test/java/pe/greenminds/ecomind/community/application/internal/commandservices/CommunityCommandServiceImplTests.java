@@ -17,6 +17,7 @@ import pe.greenminds.ecomind.community.domain.model.commands.*;
 import pe.greenminds.ecomind.community.domain.model.valueobjects.*;
 import pe.greenminds.ecomind.community.domain.repositories.*;
 import pe.greenminds.ecomind.community.application.commandservices.EventLifecycleService;
+import pe.greenminds.ecomind.community.application.commandservices.CommunityGoalCommandService;
 
 @ExtendWith(MockitoExtension.class)
 class CommunityCommandServiceImplTests {
@@ -28,6 +29,7 @@ class CommunityCommandServiceImplTests {
   @Mock EventRegistrationRepository registrations;
   @Mock EventLifecycleService lifecycle;
   @Mock PostRepository posts;
+  @Mock CommunityGoalCommandService goalCommands;
   CommunityCommandServiceImpl service;
 
   @BeforeEach
@@ -40,7 +42,8 @@ class CommunityCommandServiceImplTests {
             events,
             registrations,
             lifecycle,
-            posts
+            posts,
+            goalCommands
     );
   }
 
