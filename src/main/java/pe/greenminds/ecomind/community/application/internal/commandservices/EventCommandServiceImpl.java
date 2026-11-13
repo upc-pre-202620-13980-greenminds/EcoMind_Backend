@@ -9,6 +9,7 @@ import pe.greenminds.ecomind.community.application.outboundservices.CommunityAct
 import pe.greenminds.ecomind.community.domain.model.aggregates.*;
 import pe.greenminds.ecomind.community.domain.model.commands.*;
 import pe.greenminds.ecomind.community.domain.model.events.EventCreatedEvent;
+import pe.greenminds.ecomind.community.interfaces.acl.events.CommunityEventPublishedIntegrationEvent;
 import pe.greenminds.ecomind.community.domain.model.valueobjects.EventRegistrationStatus;
 import pe.greenminds.ecomind.community.domain.model.valueobjects.EventRegistrationType;
 import pe.greenminds.ecomind.community.domain.repositories.*;
@@ -196,6 +197,15 @@ public class EventCommandServiceImpl implements EventCommandService {
             }
         }
 
+        // Notice for Notifications (HU-018); it is delivered only if the update is committed
+        publisher.publishEvent(new CommunityEventPublishedIntegrationEvent(
+                java.util.UUID.randomUUID(),
+                updated.getId(),
+                updated.getCommunityId(),
+                updated.getAuthorId(),
+                updated.getName(),
+                CommunityEventPublishedIntegrationEvent.Action.UPDATED,
+                Instant.now()));
         return Result.success(events.save(updated));
     }
 }

@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import com.jayway.jsonpath.JsonPath;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -26,9 +27,12 @@ import pe.greenminds.ecomind.iam.domain.model.valueobjects.*;
 import pe.greenminds.ecomind.quests.application.internal.services.DailyQuestLifecycleService;
 import pe.greenminds.ecomind.quests.application.internal.services.QuestCatalogSeed;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.Quest;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.ActivityType;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.Category;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestPublicationStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestType;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.Theme;
+import pe.greenminds.ecomind.quests.domain.repositories.ActivityRepository;
 import pe.greenminds.ecomind.quests.domain.repositories.QuestRepository;
 import pe.greenminds.ecomind.users.domain.model.aggregates.UserProfile;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.*;
@@ -47,6 +51,7 @@ class QuestLifecycleIntegrationTests {
   @Autowired pe.greenminds.ecomind.quests.domain.repositories.CollabQuestSessionRepository sessions;
   @Autowired QuestCatalogSeed questCatalogSeed;
   @Autowired QuestRepository quests;
+  @Autowired ActivityRepository activities;
   @Autowired DailyQuestLifecycleService dailyQuests;
   long owner, participant, outsider, family;
 
@@ -141,16 +146,34 @@ class QuestLifecycleIntegrationTests {
   @Test
   void startupCatalogHasThreeDailyQuestsAndAutomaticallyAssignsOne() throws Exception {
     var published = quests.findByPublicationStatus(QuestPublicationStatus.PUBLISHED);
+    var writingTitles = Map.of(
+        Category.ENERGY, "My Energy-Saving Habit",
+        Category.RECYCLE, "Give It a Second Life",
+        Category.WATER, "My Water-Saving Plan");
     for (var category : Category.values()) {
       assertTrue(published.stream().filter(quest -> quest.getCategory() == category)
           .filter(quest -> quest.getType() == QuestType.ACTIVITIES || quest.getType() == QuestType.COLLABORATIVE)
           .count() >= 4);
       assertTrue(published.stream().anyMatch(quest -> quest.getCategory() == category
           && quest.getType() == QuestType.COLLABORATIVE));
+      var writingQuest = published.stream()
+          .filter(quest -> quest.getCategory() == category && quest.getType() == QuestType.ACTIVITIES
+              && quest.getTitle().equals(writingTitles.get(category)))
+          .findFirst().orElseThrow();
+      assertEquals(Theme.WRITE, writingQuest.getTheme());
+      var writingSteps = activities.findByQuestsIdOrderByOrderAsc(writingQuest.getId());
+      assertEquals(1, writingSteps.size());
+      assertEquals(ActivityType.WRITE, writingSteps.getFirst().getActivityType());
+      assertEquals(15, writingSteps.getFirst().getActivityConfiguration().get("minCharacters"));
     }
     assertTrue(published.stream().filter(quest -> quest.getType() == QuestType.FAMILY).count() >= 4);
-    assertTrue(published.stream().anyMatch(quest -> quest.getType() == QuestType.MINIGAME
-        && quest.getMinigameId() != null));
+    var collectWaste = published.stream()
+        .filter(quest -> quest.getType() == QuestType.MINIGAME && "Collect Waste".equals(quest.getTitle()))
+        .findFirst().orElseThrow();
+    assertEquals(Category.RECYCLE, collectWaste.getCategory());
+    var game = call(get("/api/v1/minigames/" + collectWaste.getMinigameId()), participant, null, 200);
+    assertEquals("/games/collect-waste", JsonPath.read(game, "$.url"));
+    assertEquals(10, JsonPath.<Integer>read(game, "$.completionRules.minScore").intValue());
 
     var questCount = quests.findAll().size();
     questCatalogSeed.run(new DefaultApplicationArguments());
@@ -170,6 +193,36 @@ class QuestLifecycleIntegrationTests {
     assertTrue(dailies.stream().anyMatch(quest -> quest.getId() == assignedId));
     List<Integer> repeated = JsonPath.read(call(get(status), participant, null, 200), "$[*].questId");
     assertEquals(assignedIds, repeated);
+  }
+
+  @Test
+  @org.springframework.transaction.annotation.Transactional
+  void startupCatalogMigratesTheLegacyMinigameInPlace() throws Exception {
+    var gameId = id(call(post("/api/v1/minigames"), owner, """
+        {"name":"Eco Collector","description":"Collect energy to reach the target score.",
+         "url":"/quests/minigames/simple-score","completionRules":{"minScore":800}}
+        """, 201));
+    var questId = id(call(post("/api/v1/quests"), owner, """
+        {"title":"Eco Collector",
+         "description":"Play the energy collection minigame and reach its target score.",
+         "category":"ENERGY","type":"MINIGAME","theme":"MINIGAME","age":8,"time":5,
+         "gemReward":3,"ecopoints":30,"minigameId":%d}
+        """.formatted(gameId), 201));
+    call(patch("/api/v1/quests/" + questId + "/publish"), owner, null, 200);
+    var questCount = quests.findAll().size();
+
+    questCatalogSeed.run(new DefaultApplicationArguments());
+    questCatalogSeed.run(new DefaultApplicationArguments());
+
+    assertEquals(questCount, quests.findAll().size());
+    var migrated = quests.findById(questId).orElseThrow();
+    assertEquals(gameId, migrated.getMinigameId().longValue());
+    assertEquals("Collect Waste", migrated.getTitle());
+    assertEquals(Category.RECYCLE, migrated.getCategory());
+    assertEquals(QuestPublicationStatus.PUBLISHED, migrated.getPublicationStatus());
+    var game = call(get("/api/v1/minigames/" + gameId), participant, null, 200);
+    assertEquals("/games/collect-waste", JsonPath.read(game, "$.url"));
+    assertEquals(10, JsonPath.<Integer>read(game, "$.completionRules.minScore").intValue());
   }
 
   void submit(long assignment, long actor) throws Exception {

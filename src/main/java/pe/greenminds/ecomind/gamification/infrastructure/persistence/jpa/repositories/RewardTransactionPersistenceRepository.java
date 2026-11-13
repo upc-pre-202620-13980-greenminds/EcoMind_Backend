@@ -4,6 +4,7 @@ import jakarta.persistence.LockModeType;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
 
 import pe.greenminds.ecomind.gamification.infrastructure.persistence.jpa.entities.RewardTransactionPersistenceEntity;
 
@@ -12,6 +13,17 @@ import java.util.Optional;
 
 public interface RewardTransactionPersistenceRepository
         extends JpaRepository<RewardTransactionPersistenceEntity, String> {
+    long countByBeneficiaryTypeAndBeneficiaryIdAndSourceTypeIn(
+            String beneficiaryType, Long beneficiaryId, List<String> sourceTypes);
+
+    @Query("select distinct r.beneficiaryId from RewardTransactionPersistenceEntity r"
+            + " where r.beneficiaryType = 'USER' and r.sourceType in :sourceTypes"
+            + " and not exists (select a.id from AchievementAwardPersistenceEntity a"
+            + " where a.achievementId = :achievementId and a.scope = 'INDIVIDUAL'"
+            + " and a.beneficiaryId = r.beneficiaryId)"
+            + " order by r.beneficiaryId")
+    List<Long> findUsersMissingQuestAward(List<String> sourceTypes, String achievementId);
+
     // Read the recorded grant after acquiring the beneficiary lock, including concurrent retries.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<RewardTransactionPersistenceEntity>

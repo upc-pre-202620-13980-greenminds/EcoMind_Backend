@@ -10,11 +10,11 @@ import java.util.Map;
         name = "CreateMinigameRequest",
         example = """
         {
-          "name": "Recolector Eco",
-          "description": "Suma puntos recolectando energia hasta alcanzar la meta.",
-          "url": "/quests/minigames/simple-score",
+          "name": "Recoge residuos",
+          "description": "Recoge residuos hasta alcanzar el puntaje objetivo.",
+          "url": "/games/collect-waste",
           "completionRules": {
-            "minScore": 800
+            "minScore": 10
           }
         }
         """

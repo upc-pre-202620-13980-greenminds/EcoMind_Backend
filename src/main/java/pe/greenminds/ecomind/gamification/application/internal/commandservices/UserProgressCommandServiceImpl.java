@@ -7,15 +7,23 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.greenminds.ecomind.gamification.application.commandservices.AchievementCommandService;
 import pe.greenminds.ecomind.gamification.application.commandservices.UserProgressCommandService;
 import pe.greenminds.ecomind.gamification.application.outboundservices.GamificationEventPublisher;
+import pe.greenminds.ecomind.gamification.domain.model.aggregates.RewardTransaction;
+import pe.greenminds.ecomind.gamification.domain.model.aggregates.UserProgress;
 import pe.greenminds.ecomind.gamification.domain.model.commands.UpdateUserScoreCommand;
 import pe.greenminds.ecomind.gamification.domain.model.commands.UpdateUserStreakCommand;
+import pe.greenminds.ecomind.gamification.domain.model.events.RewardGrantedEvent;
 import pe.greenminds.ecomind.gamification.domain.model.events.UserScoreUpdatedEvent;
 import pe.greenminds.ecomind.gamification.domain.model.events.UserStreakUpdatedEvent;
 import pe.greenminds.ecomind.gamification.domain.model.valueobjects.Reward;
+import pe.greenminds.ecomind.gamification.domain.model.valueobjects.RewardSourceType;
+import pe.greenminds.ecomind.gamification.domain.repositories.RewardTransactionRepository;
 import pe.greenminds.ecomind.gamification.domain.repositories.StreakProtectionRequestRepository;
 import pe.greenminds.ecomind.gamification.domain.repositories.UserProgressRepository;
+import pe.greenminds.ecomind.gamification.domain.services.StreakService;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
+import java.util.UUID;
 
 /** Internal score updates always join the recorded grant's transaction. */
 @Service
@@ -25,16 +33,19 @@ public class UserProgressCommandServiceImpl implements UserProgressCommandServic
     private final GamificationEventPublisher events;
     private final StreakProtectionRequestRepository protection;
     private final AchievementCommandService achievements;
+    private final RewardTransactionRepository rewards;
 
     public UserProgressCommandServiceImpl(
             UserProgressRepository users,
             GamificationEventPublisher events,
             StreakProtectionRequestRepository protection,
-            AchievementCommandService achievements) {
+            AchievementCommandService achievements,
+            RewardTransactionRepository rewards) {
         this.users = users;
         this.events = events;
         this.protection = protection;
         this.achievements = achievements;
+        this.rewards = rewards;
     }
 
     public void handle(UpdateUserScoreCommand command) {
@@ -57,6 +68,7 @@ public class UserProgressCommandServiceImpl implements UserProgressCommandServic
         users.save(progress);
         if (oldStreak != progress.getCurrentStreak()
                 || !Objects.equals(oldDate, progress.getLastActivityDate())) {
+            grantWeeklyBonus(progress, command);
             events.publish(
                     new UserStreakUpdatedEvent(
                             command.userId(),
@@ -66,5 +78,23 @@ public class UserProgressCommandServiceImpl implements UserProgressCommandServic
             achievements.evaluateUser(
                     command.userId(), command.executionId(), command.occurredAt());
         }
+    }
+
+    private void grantWeeklyBonus(UserProgress progress, UpdateUserStreakCommand command) {
+        var bonus = new StreakService().weeklyBonus(progress.getCurrentStreak());
+        if (bonus == 0) return;
+        var execution = UUID.nameUUIDFromBytes(
+                ("streak-bonus:" + command.activityDate()).getBytes(StandardCharsets.UTF_8));
+        if (rewards.findByOrigin(RewardSourceType.STREAK_BONUS, execution, command.userId()).isPresent())
+            return;
+        var reward = new Reward(bonus, 0);
+        var transaction = new RewardTransaction(
+                UUID.randomUUID(), RewardSourceType.STREAK_BONUS, execution, command.userId(),
+                reward, reward, command.occurredAt());
+        rewards.save(transaction);
+        progress.applyReward(reward, null, false);
+        users.save(progress);
+        events.publish(new UserScoreUpdatedEvent(command.userId(), execution, command.occurredAt()));
+        events.publish(new RewardGrantedEvent(transaction));
     }
 }

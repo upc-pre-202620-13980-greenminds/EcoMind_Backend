@@ -1,6 +1,7 @@
 package pe.greenminds.ecomind.gamification.infrastructure.persistence.jpa.adapters;
 
 import jakarta.persistence.EntityManager;
+import org.hibernate.Session;
 
 import org.springframework.stereotype.Repository;
 
@@ -22,6 +23,28 @@ public class AchievementRepositoryImpl implements AchievementRepository {
         this.entities = entities;
     }
 
+    public void lockCatalog() {
+        entities.unwrap(Session.class).doWork(connection -> {
+            if ("PostgreSQL".equals(connection.getMetaData().getDatabaseProductName())) {
+                try (var statement = connection.createStatement()) {
+                    statement.execute("set local lock_timeout = '30s'");
+                    statement.execute("select pg_advisory_xact_lock(1938236102, 3)");
+                }
+            }
+        });
+    }
+
+    public boolean existsByCodeOrId(String code, UUID id) {
+        return !entities.createQuery(
+                        "select a.id from AchievementPersistenceEntity a where a.code = :code or a.id = :id",
+                        String.class)
+                .setParameter("code", code)
+                .setParameter("id", id.toString())
+                .setMaxResults(1)
+                .getResultList()
+                .isEmpty();
+    }
+
     public void add(Achievement achievement) {
         var row = new AchievementPersistenceEntity();
         row.setId(achievement.id().toString());
@@ -35,6 +58,14 @@ public class AchievementRepositoryImpl implements AchievementRepository {
         row.setCosmeticId(
                 achievement.cosmeticId() == null ? null : achievement.cosmeticId().toString());
         entities.persist(row);
+    }
+
+    public void deactivate(String code, UUID id) {
+        entities.createQuery("update AchievementPersistenceEntity set active = false"
+                        + " where id = :id and code = :code")
+                .setParameter("id", id.toString())
+                .setParameter("code", code)
+                .executeUpdate();
     }
 
     public Optional<Achievement> findById(UUID id) {

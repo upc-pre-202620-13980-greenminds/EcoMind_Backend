@@ -31,9 +31,14 @@ import static pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestType.M
 
 @Component
 public class QuestCatalogSeed implements ApplicationRunner {
-    private static final String MINIGAME_PATH = "/quests/minigames/simple-score";
-    private static final String MINIGAME_TITLE = "Eco Collector";
-    private static final int MINIGAME_TARGET = 800;
+    private static final String MINIGAME_PATH = "/games/collect-waste";
+    private static final String MINIGAME_TITLE = "Collect Waste";
+    private static final String MINIGAME_DESCRIPTION = "Collect waste to reach the target score.";
+    private static final int MINIGAME_TARGET = 10;
+    private static final String LEGACY_MINIGAME_PATH = "/quests/minigames/simple-score";
+    private static final String LEGACY_MINIGAME_TITLE = "Eco Collector";
+    private static final String LEGACY_QUEST_DESCRIPTION =
+            "Play the energy collection minigame and reach its target score.";
     private static final List<StarterQuest> CATALOG = List.of(
             new StarterQuest(ENERGY, ACTIVITIES, "The Daylight Challenge",
                     "Use natural light for one daytime activity.", 15,
@@ -83,6 +88,15 @@ public class QuestCatalogSeed implements ApplicationRunner {
                     "Trade water-saving ideas with your teammates and try one out.", 15,
                     "Have each teammate share one practical way to use less water.",
                     "Choose one idea as a team and have everyone try it today."),
+            new StarterQuest(ENERGY, ACTIVITIES, "My Energy-Saving Habit",
+                    "Make a plan to save electricity at home.", 5, ActivityType.WRITE,
+                    "In one sentence, describe a device you can turn off and when you will do it."),
+            new StarterQuest(RECYCLE, ACTIVITIES, "Give It a Second Life",
+                    "Think of a new use for something you would usually throw away.", 5, ActivityType.WRITE,
+                    "Name one item you can reuse and explain how you would use it again."),
+            new StarterQuest(WATER, ACTIVITIES, "My Water-Saving Plan",
+                    "Pick one everyday habit you can change to use less water.", 5, ActivityType.WRITE,
+                    "Write one way you can save water at home and when you will try it."),
             new StarterQuest(ENERGY, DAILY_QUEST, "Daily Lights Check",
                     "Save energy the next time you leave a room.", 5,
                     "Switch off the lights when you leave an empty room."),
@@ -141,25 +155,51 @@ public class QuestCatalogSeed implements ApplicationRunner {
     }
 
     private void seedMinigameQuest() {
-        if (quests.existsByTitleAndTypeAndCategory(MINIGAME_TITLE, MINIGAME, ENERGY)) {
+        migrateLegacyMinigameQuest();
+        if (quests.existsByTitleAndTypeAndCategory(MINIGAME_TITLE, MINIGAME, RECYCLE)) {
             return;
         }
         var game = minigames.findAll().stream()
-                .filter(existing -> existing.getUrl().endsWith(MINIGAME_PATH))
+                .filter(existing -> MINIGAME_PATH.equals(existing.getUrl()))
                 .findFirst()
-                .orElseGet(() -> minigames.save(new Minigame(null, MINIGAME_TITLE,
-                        "Collect energy to reach the target score.", MINIGAME_PATH,
-                        Map.of("minScore", MINIGAME_TARGET))));
+                .orElseGet(() -> saveCollectWaste(null));
         if (!quests.existsPublishedMinigameQuest(game.getId())) {
-            seedQuest(new StarterQuest(ENERGY, MINIGAME, MINIGAME_TITLE,
-                    "Play the energy collection minigame and reach its target score.", 5), game.getId(), null);
+            seedQuest(new StarterQuest(RECYCLE, MINIGAME, MINIGAME_TITLE,
+                    MINIGAME_DESCRIPTION, 5), game.getId(), null);
         }
+    }
+
+    private void migrateLegacyMinigameQuest() {
+        var legacyQuests = quests.search(LEGACY_MINIGAME_TITLE, ENERGY, MINIGAME, null, Theme.MINIGAME);
+        for (var quest : legacyQuests) {
+            if (!LEGACY_MINIGAME_TITLE.equals(quest.getTitle())
+                    || !LEGACY_QUEST_DESCRIPTION.equals(quest.getDescription())
+                    || quest.getMinigameId() == null) {
+                continue;
+            }
+            var game = minigames.findById(quest.getMinigameId());
+            if (game.isEmpty() || !game.get().getUrl().endsWith(LEGACY_MINIGAME_PATH)) {
+                continue;
+            }
+            // Preserve the IDs referenced by attempts and quest assignments.
+            saveCollectWaste(quest.getMinigameId());
+            quests.save(new Quest(quest.getId(), quest.getMinigameId(), MINIGAME_TITLE, RECYCLE,
+                    MINIGAME_DESCRIPTION, MINIGAME, quest.getAge(), quest.getReward(),
+                    quest.getTime(), quest.getImage(), quest.getTheme(), quest.getAssignedDate(),
+                    quest.getVersionGroupId(), quest.getVersionNumber(), quest.getPublicationStatus()));
+        }
+    }
+
+    private Minigame saveCollectWaste(Long id) {
+        return minigames.save(new Minigame(id, MINIGAME_TITLE, MINIGAME_DESCRIPTION,
+                MINIGAME_PATH, Map.of("minScore", MINIGAME_TARGET)));
     }
 
     private void seedQuest(StarterQuest entry, Long minigameId, LocalDate assignedDate) {
         var theme = switch (entry.type()) {
             case COLLABORATIVE -> Theme.COLLABORATIVE;
             case MINIGAME -> Theme.MINIGAME;
+            case ACTIVITIES -> entry.activityType() == ActivityType.WRITE ? Theme.WRITE : Theme.CHECKBOX;
             default -> Theme.CHECKBOX;
         };
         var reward = switch (entry.type()) {
@@ -173,13 +213,20 @@ public class QuestCatalogSeed implements ApplicationRunner {
         quest.publish();
         var saved = quests.save(quest);
         quests.save(saved);
+        Map<String, Object> configuration = entry.activityType() == ActivityType.WRITE
+                ? Map.of("minCharacters", 15) : Map.of();
         for (int index = 0; index < entry.steps().length; index++) {
             activities.save(new Activity(saved.getId(), entry.steps()[index], index + 1,
-                    ActivityType.CHECKBOX, Map.of(), null));
+                    entry.activityType(), configuration, null));
         }
     }
 
     private record StarterQuest(
-            Category category, QuestType type, String title, String description, int minutes, String... steps
-    ) {}
+            Category category, QuestType type, String title, String description, int minutes,
+            ActivityType activityType, String... steps
+    ) {
+        StarterQuest(Category category, QuestType type, String title, String description, int minutes, String... steps) {
+            this(category, type, title, description, minutes, ActivityType.CHECKBOX, steps);
+        }
+    }
 }

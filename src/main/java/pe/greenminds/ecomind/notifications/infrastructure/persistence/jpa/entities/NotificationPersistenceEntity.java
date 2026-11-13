@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -23,7 +24,12 @@ import pe.greenminds.ecomind.shared.infrastructure.persistence.jpa.entities.Audi
 @Table(
     name = "notifications",
     indexes =
-        @Index(name = "ix_notifications_recipient_date", columnList = "recipient_id, created_at"))
+        @Index(name = "ix_notifications_recipient_date", columnList = "recipient_id, created_at"),
+    // The same source never notifies a recipient twice; rows without a key do not take part
+    uniqueConstraints =
+        @UniqueConstraint(
+            name = "uk_notifications_recipient_source",
+            columnNames = {"recipient_id", "source_key"}))
 public class NotificationPersistenceEntity extends AuditableAbstractPersistenceEntity {
 
   @Id
@@ -47,6 +53,12 @@ public class NotificationPersistenceEntity extends AuditableAbstractPersistenceE
 
   @Column(length = 150)
   private String actorName;
+
+  @Column(length = 150)
+  private String detail;
+
+  @Column(length = 120)
+  private String sourceKey;
 
   // "is_read" instead of "read", which some databases treat as a reserved word
   @Column(name = "is_read", nullable = false)

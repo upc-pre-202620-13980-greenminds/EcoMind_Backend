@@ -22,6 +22,7 @@ import pe.greenminds.ecomind.notifications.domain.model.commands.CreateNotificat
 import pe.greenminds.ecomind.notifications.domain.model.commands.MarkAllNotificationsAsReadCommand;
 import pe.greenminds.ecomind.notifications.domain.model.commands.MarkNotificationAsReadCommand;
 import pe.greenminds.ecomind.notifications.domain.model.commands.NotifyFriendRequestAcceptedCommand;
+import pe.greenminds.ecomind.notifications.domain.model.commands.NotifyUserCommand;
 import pe.greenminds.ecomind.notifications.domain.model.valueobjects.NotificationCategory;
 import pe.greenminds.ecomind.notifications.domain.model.valueobjects.NotificationType;
 import pe.greenminds.ecomind.notifications.domain.model.valueobjects.RecipientId;
@@ -134,5 +135,46 @@ class NotificationCommandServiceImplTests {
   private static String errorCodeOf(Result<?, ApplicationError> result) {
     assertThat(result.isFailure()).isTrue();
     return ((Result.Failure<?, ApplicationError>) result).error().code();
+  }
+
+  @Test
+  void aGeneratedNotificationKeepsItsSourceKey() {
+    when(notificationRepository.existsByRecipientAndSourceKey(LUIS, "ACHIEVEMENT:a1"))
+        .thenReturn(false);
+    when(notificationRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+
+    var result =
+        service.handle(
+            new NotifyUserCommand(
+                LUIS,
+                NotificationCategory.ACHIEVEMENTS_AND_BADGES,
+                NotificationType.ACHIEVEMENT_UNLOCKED,
+                "First quest",
+                null,
+                "ACHIEVEMENT:a1"));
+
+    Notification notification = result.toOptional().orElseThrow();
+    assertThat(notification.getType()).isEqualTo(NotificationType.ACHIEVEMENT_UNLOCKED);
+    assertThat(notification.getActorName()).isEqualTo("First quest");
+    assertThat(notification.getSourceKey()).isEqualTo("ACHIEVEMENT:a1");
+  }
+
+  @Test
+  void theSameSourceDoesNotNotifyTheSameRecipientTwice() {
+    when(notificationRepository.existsByRecipientAndSourceKey(LUIS, "ACHIEVEMENT:a1"))
+        .thenReturn(true);
+
+    var result =
+        service.handle(
+            new NotifyUserCommand(
+                LUIS,
+                NotificationCategory.ACHIEVEMENTS_AND_BADGES,
+                NotificationType.ACHIEVEMENT_UNLOCKED,
+                "First quest",
+                null,
+                "ACHIEVEMENT:a1"));
+
+    assertThat(result.isFailure()).isTrue();
+    verify(notificationRepository, never()).save(any());
   }
 }

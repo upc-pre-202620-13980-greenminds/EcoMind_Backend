@@ -31,6 +31,8 @@ public class NotificationRepositoryImpl implements NotificationRepository {
       entity.setTitle(notification.getTitle());
       entity.setMessage(notification.getMessage());
       entity.setActorName(notification.getActorName());
+      entity.setDetail(notification.getDetail());
+      entity.setSourceKey(notification.getSourceKey());
     } else {
       entity = persistenceRepository.findById(notification.getId()).orElseThrow();
     }
@@ -65,6 +67,11 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     return persistenceRepository.countByRecipientIdAndReadFalse(recipientId.value());
   }
 
+  @Override
+  public boolean existsByRecipientAndSourceKey(RecipientId recipientId, String sourceKey) {
+    return persistenceRepository.existsByRecipientIdAndSourceKey(recipientId.value(), sourceKey);
+  }
+
   private static Notification toDomain(NotificationPersistenceEntity entity) {
     return new Notification(
         entity.getId(),
@@ -74,6 +81,8 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         entity.getTitle(),
         entity.getMessage(),
         entity.getActorName(),
+        entity.getDetail(),
+        entity.getSourceKey(),
         entity.isRead(),
         entity.getCreatedAt() == null ? null : entity.getCreatedAt().toInstant());
   }

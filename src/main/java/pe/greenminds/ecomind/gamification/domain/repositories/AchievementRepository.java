@@ -8,7 +8,13 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface AchievementRepository {
+    void lockCatalog();
+
+    boolean existsByCodeOrId(String code, UUID id);
+
     void add(Achievement achievement);
+
+    void deactivate(String code, UUID id);
 
     Optional<Achievement> findById(UUID id);
 

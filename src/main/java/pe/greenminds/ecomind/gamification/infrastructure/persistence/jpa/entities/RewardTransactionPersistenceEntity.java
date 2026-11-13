@@ -26,16 +26,7 @@ import java.time.Instant;
 @Entity
 @Check(
         name = "ck_rewardtransaction",
-        constraints =
-                "base_ecopoints >= 0 AND base_gems >= 0 AND ecopoints >= 0"
-                    + " AND gems >= 0 AND applied_factor >= 0 AND"
-                    + " repetition_factor BETWEEN 0 AND 1 AND source_type IN"
-                    + " ('QUEST','MINIGAME','COLLABORATIVE_QUEST','FAMILY_PLAN','COMMUNITY_GOAL','COMMUNITY_EVENT')"
-                    + " AND ((beneficiary_type = 'USER' AND user_progress_id IS NOT NULL AND"
-                    + " user_progress_id = beneficiary_id AND family_score_id IS NULL) OR"
-                    + " (beneficiary_type = 'FAMILY' AND family_score_id IS NOT NULL AND"
-                    + " family_score_id = beneficiary_id AND user_progress_id IS NULL AND"
-                    + " base_gems = 0 AND gems = 0))")
+        constraints = RewardTransactionPersistenceEntity.CHECK_CONSTRAINT)
 @Table(
         name = "reward_transactions",
         uniqueConstraints =
@@ -52,6 +43,17 @@ import java.time.Instant;
                         name = "ix_reward_beneficiary_date",
                         columnList = "beneficiary_type,beneficiary_id,occurred_at"))
 public class RewardTransactionPersistenceEntity {
+    public static final String CHECK_CONSTRAINT =
+            "base_ecopoints >= 0 AND base_gems >= 0 AND ecopoints >= 0"
+                    + " AND gems >= 0 AND applied_factor >= 0 AND"
+                    + " repetition_factor BETWEEN 0 AND 1 AND source_type IN"
+                    + " ('QUEST','MINIGAME','COLLABORATIVE_QUEST','FAMILY_PLAN','COMMUNITY_GOAL','COMMUNITY_EVENT','STREAK_BONUS')"
+                    + " AND ((beneficiary_type = 'USER' AND user_progress_id IS NOT NULL AND"
+                    + " user_progress_id = beneficiary_id AND family_score_id IS NULL) OR"
+                    + " (beneficiary_type = 'FAMILY' AND family_score_id IS NOT NULL AND"
+                    + " family_score_id = beneficiary_id AND user_progress_id IS NULL AND"
+                    + " base_gems = 0 AND gems = 0))";
+
     @Id
     @Column(length = 36)
     private String id;

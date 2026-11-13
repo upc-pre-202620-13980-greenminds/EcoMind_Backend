@@ -62,4 +62,32 @@ class NotificationTests {
 
     assertThat(notification.isRead()).isTrue();
   }
+
+  @Test
+  void aGeneratedNotificationNeedsTheKeyOfItsSource() {
+    assertThatThrownBy(
+            () ->
+                Notification.generated(
+                    new RecipientId(1L),
+                    NotificationCategory.WEEKLY_PROGRESS_SUMMARY,
+                    NotificationType.WEEKLY_SUMMARY,
+                    "120",
+                    "3",
+                    " "))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void aGeneratedNotificationCannotUseTheGeneralType() {
+    assertThatThrownBy(
+            () ->
+                Notification.generated(
+                    new RecipientId(1L),
+                    NotificationCategory.LEARNING_REMINDERS,
+                    NotificationType.GENERAL,
+                    "Recycling essentials",
+                    "10",
+                    "LEARNING_REMINDER:1"))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
 }
