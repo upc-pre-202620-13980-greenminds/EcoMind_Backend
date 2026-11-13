@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -79,6 +80,7 @@ class FirstQuestAchievementIntegrationTests {
         complete(type, execution);
         complete(type, execution);
         complete(type, UUID.randomUUID());
+        seed();
 
         var earned = awards.findByBeneficiary(AchievementScope.INDIVIDUAL, USER.value(), 0, 100);
         assertEquals(1, earned.size());
@@ -170,19 +172,29 @@ class FirstQuestAchievementIntegrationTests {
         assertEquals(2, awards.findByBeneficiary(AchievementScope.INDIVIDUAL, USER.value(), 0, 100).size());
     }
 
-    @Test
-    void existingCompletedQuestsReceiveTheRestoredMedalOnUpgrade() {
-        jdbc.update("DELETE FROM achievements WHERE code = 'FIRST_QUEST_COMPLETED'");
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void existingCompletedQuestsReceiveTheRestoredMedalOnUpgrade(boolean definitionExists) {
+        if (!definitionExists) jdbc.update("DELETE FROM achievements WHERE code = 'FIRST_QUEST_COMPLETED'");
+        var nonParticipant = new UserId(12003L);
         tx(() -> {
             progress.lockForReward(USER);
+            progress.lockForReward(OTHER);
+            progress.lockForReward(nonParticipant);
             rewardRows.save(new RewardTransaction(UUID.randomUUID(), RewardSourceType.QUEST,
                     UUID.randomUUID(), USER, new Reward(0, 0), new Reward(0, 0), AT));
+            rewardRows.save(new RewardTransaction(UUID.randomUUID(), RewardSourceType.MINIGAME,
+                    UUID.randomUUID(), OTHER, new Reward(0, 0), new Reward(0, 0), AT));
+            rewardRows.save(new RewardTransaction(UUID.randomUUID(), RewardSourceType.COMMUNITY_GOAL,
+                    UUID.randomUUID(), nonParticipant, new Reward(20, 0), new Reward(20, 0), AT));
         });
         seed();
         seed();
 
         assertEquals(1, rewardRows.countCompletedQuests(USER));
         assertEquals(1, awards.findByBeneficiary(AchievementScope.INDIVIDUAL, USER.value(), 0, 100).size());
+        assertEquals(1, awards.findByBeneficiary(AchievementScope.INDIVIDUAL, OTHER.value(), 0, 100).size());
+        assertTrue(awards.findByBeneficiary(AchievementScope.INDIVIDUAL, nonParticipant.value(), 0, 100).isEmpty());
         assertEquals(0, progress.findByUserId(USER).orElseThrow().getTotalEcopoints());
     }
 

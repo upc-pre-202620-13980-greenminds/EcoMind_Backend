@@ -56,17 +56,15 @@ public class AchievementCatalogSeed implements ApplicationRunner {
         catalog.lockCatalog();
         catalog.deactivate("FIRST_ECOPOINTS", definitionId("FIRST_ECOPOINTS"));
         int created = 0;
-        boolean firstQuestCreated = false;
         for (var definition : DEFINITIONS) {
             if (catalog.existsByCodeOrId(definition.code(), definition.id())) continue;
             commands.register(definition);
-            if (definition.code().equals(FIRST_QUEST)) firstQuestCreated = true;
             created++;
         }
-        if (firstQuestCreated) {
-            var achievementId = definitionId(FIRST_QUEST);
+        var achievementId = definitionId(FIRST_QUEST);
+        if (catalog.findById(achievementId).filter(Achievement::active).isPresent()) {
             var now = Instant.now();
-            for (var user : rewards.findUsersWithCompletedQuests()) {
+            for (var user : rewards.findUsersMissingQuestAward(achievementId)) {
                 commands.handle(new AwardAchievementCommand(
                         achievementId, user.value(), null, achievementId, now));
             }

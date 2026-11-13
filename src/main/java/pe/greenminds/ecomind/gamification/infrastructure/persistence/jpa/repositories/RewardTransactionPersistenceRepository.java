@@ -18,8 +18,11 @@ public interface RewardTransactionPersistenceRepository
 
     @Query("select distinct r.beneficiaryId from RewardTransactionPersistenceEntity r"
             + " where r.beneficiaryType = 'USER' and r.sourceType in :sourceTypes"
+            + " and not exists (select a.id from AchievementAwardPersistenceEntity a"
+            + " where a.achievementId = :achievementId and a.scope = 'INDIVIDUAL'"
+            + " and a.beneficiaryId = r.beneficiaryId)"
             + " order by r.beneficiaryId")
-    List<Long> findUsersWithCompletedQuests(List<String> sourceTypes);
+    List<Long> findUsersMissingQuestAward(List<String> sourceTypes, String achievementId);
 
     // Read the recorded grant after acquiring the beneficiary lock, including concurrent retries.
     @Lock(LockModeType.PESSIMISTIC_WRITE)

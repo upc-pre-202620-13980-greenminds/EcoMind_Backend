@@ -66,8 +66,8 @@ public class RewardTransactionRepositoryImpl implements RewardTransactionReposit
     }
 
     @Override
-    public List<UserId> findUsersWithCompletedQuests() {
-        return persistenceRepository.findUsersWithCompletedQuests(QUEST_TYPES)
+    public List<UserId> findUsersMissingQuestAward(UUID achievementId) {
+        return persistenceRepository.findUsersMissingQuestAward(QUEST_TYPES, achievementId.toString())
                 .stream().map(UserId::new).toList();
     }
 
