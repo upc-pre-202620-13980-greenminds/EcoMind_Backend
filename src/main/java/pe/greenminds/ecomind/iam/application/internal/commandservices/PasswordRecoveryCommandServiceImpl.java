@@ -71,15 +71,30 @@ public class PasswordRecoveryCommandServiceImpl implements PasswordRecoveryComma
     }
 
     var resetToken = passwordResetTokenRepository.findByTokenHash(TokenHash.of(command.token()));
-    if (resetToken.isEmpty() || !resetToken.get().consume(Instant.now())) {
+    if (resetToken.isEmpty()) {
       return Result.failure(IamErrors.passwordResetTokenInvalid());
     }
     PasswordResetToken consumedToken = resetToken.get();
+    Instant now = Instant.now();
+    TokenHash confirmationIdHash = command.confirmationId() == null
+        ? null : TokenHash.of(command.confirmationId());
+    boolean retry = consumedToken.isConfirmationRetry(confirmationIdHash, now);
+    if (!retry && !consumedToken.isValid(now)) {
+      return Result.failure(IamErrors.passwordResetTokenInvalid());
+    }
 
     var account = accountRepository.findById(consumedToken.getAccountId());
     if (account.isEmpty()) {
       return Result.failure(IamErrors.passwordResetTokenInvalid());
     }
+    if (retry) {
+      // A lost response can be acknowledged only for the same change, never a new password.
+      if (!passwordHasher.matches(command.newPassword(), account.get().getCredential().getPasswordHash())) {
+        return Result.failure(IamErrors.passwordResetTokenInvalid());
+      }
+      return Result.success(consumedToken.getAccountId());
+    }
+    consumedToken.consume(now, confirmationIdHash);
 
     account.get().changePassword(passwordHasher.hash(command.newPassword()));
     accountRepository.save(account.get());

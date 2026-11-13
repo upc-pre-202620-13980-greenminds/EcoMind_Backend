@@ -23,6 +23,7 @@ import pe.greenminds.ecomind.community.domain.model.aggregates.EventRegistration
 import pe.greenminds.ecomind.community.domain.model.commands.LeaveCommunityCommand;
 import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityRole;
 import pe.greenminds.ecomind.community.domain.model.valueobjects.CommunityType;
+import pe.greenminds.ecomind.community.application.commandservices.CommunityGoalCommandService;
 import pe.greenminds.ecomind.community.domain.model.valueobjects.EventRegistrationStatus;
 import pe.greenminds.ecomind.community.domain.model.valueobjects.EventRegistrationType;
 import pe.greenminds.ecomind.community.domain.repositories.CommunityAchievementRepository;
@@ -42,12 +43,13 @@ class CommunityLeaveCommandServiceImplTests {
   @Mock EventRegistrationRepository registrations;
   @Mock EventLifecycleService lifecycle;
   @Mock PostRepository posts;
+  @Mock CommunityGoalCommandService goals;
   CommunityCommandServiceImpl service;
 
   @BeforeEach
   void setUp() {
     service = new CommunityCommandServiceImpl(
-        communities, memberships, achievements, actors, events, registrations, lifecycle, posts);
+        communities, memberships, achievements, actors, events, registrations, lifecycle, posts, goals);
   }
 
   @Test

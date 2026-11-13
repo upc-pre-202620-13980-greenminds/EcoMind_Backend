@@ -75,22 +75,21 @@ Feature: Community participation
     Then the response status is 403
 
   @HU-063 @HU-064
-  Scenario: Members complete a community goal only once
+  Scenario: Members join a community goal without duplicate enrollment
     When "Ana" creates a topic community with 3 places
     Then the response status is 201
     When "Ana" creates a goal of 1 energy quests
     Then the response status is 201
-    When "Bruno" contributes to the community goal
+    When "Bruno" joins the community goal
     Then the response status is 403
     When "Bruno" joins the community
     Then the response status is 201
-    When "Bruno" contributes to the community goal
+    When "Bruno" joins the community goal
     Then the response status is 200
-    And the community goal is completed
-    And the community has exactly 1 goal achievement
-    When "Bruno" contributes to the community goal
-    Then the response status is 422
-    And the community has exactly 1 goal achievement
+    And the community goal has 2 participants
+    When "Bruno" joins the community goal
+    Then the response status is 200
+    And the community goal has 2 participants
 
   @HU-063
   Scenario: A community can only have one active goal
