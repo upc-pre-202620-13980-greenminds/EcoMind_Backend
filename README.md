@@ -122,7 +122,8 @@ To run with the production profile:
 
 ```bash
 ./mvnw clean package
-SPRING_PROFILES_ACTIVE=prod java -jar target/ecomind-backend-0.0.1-SNAPSHOT.jar
+APP_VERSION=$(bash ./mvnw -q help:evaluate -Dexpression=project.version -DforceStdout)
+SPRING_PROFILES_ACTIVE=prod java -jar "target/ecomind-backend-${APP_VERSION}.jar"
 ```
 
 ## API documentation
@@ -156,7 +157,7 @@ export PASSWORD_RECOVERY_URL=ecomind://authentication/reset-password
 
 The email service appends the recovery token as the `token` query parameter. Android opens the
 reset-password screen from this link both when the app is closed and when it is already running.
-The variable remains required in production; it has no default value.
+The variable is optional and defaults to the app link above. Azure overrides it with the public HTTPS recovery handoff.
 
 `POST /api/v1/authentication/password-recovery/confirm` accepts `{ "token": "<recovery-token>",
 "newPassword": "<new-password>" }` and returns `204` with no response body after changing the
