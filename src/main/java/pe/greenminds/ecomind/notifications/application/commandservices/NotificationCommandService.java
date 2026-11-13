@@ -7,6 +7,7 @@ import pe.greenminds.ecomind.notifications.domain.model.commands.CreateNotificat
 import pe.greenminds.ecomind.notifications.domain.model.commands.MarkAllNotificationsAsReadCommand;
 import pe.greenminds.ecomind.notifications.domain.model.commands.MarkNotificationAsReadCommand;
 import pe.greenminds.ecomind.notifications.domain.model.commands.NotifyFriendRequestAcceptedCommand;
+import pe.greenminds.ecomind.notifications.domain.model.commands.NotifyUserCommand;
 
 /**
  * Entry point for the other bounded contexts too: they create their notifications through this
@@ -17,6 +18,13 @@ public interface NotificationCommandService {
   Result<Notification, ApplicationError> handle(CreateNotificationCommand command);
 
   Result<Notification, ApplicationError> handle(NotifyFriendRequestAcceptedCommand command);
+
+  /**
+   * Creates a notification produced by another bounded context or a scheduled task. It runs in its
+   * own transaction, so a failure never undoes the work of the context that published the event.
+   * When the source already notified the recipient it returns NOTIFICATION_CONFLICT.
+   */
+  Result<Notification, ApplicationError> handle(NotifyUserCommand command);
 
   Result<Notification, ApplicationError> handle(MarkNotificationAsReadCommand command);
 

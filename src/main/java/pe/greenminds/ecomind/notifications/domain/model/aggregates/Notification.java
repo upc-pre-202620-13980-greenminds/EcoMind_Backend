@@ -13,6 +13,8 @@ public class Notification {
 
   public static final int TITLE_MAX_LENGTH = 120;
   public static final int MESSAGE_MAX_LENGTH = 500;
+  public static final int SUBJECT_MAX_LENGTH = 150;
+  public static final int SOURCE_KEY_MAX_LENGTH = 120;
 
   private final Long id;
   private final RecipientId recipientId;
@@ -21,6 +23,10 @@ public class Notification {
   private final String title;
   private final String message;
   private final String actorName;
+  // Second value of the generated texts, such as the minutes of a material
+  private final String detail;
+  // What produced the notification, so the same source never notifies a recipient twice
+  private final String sourceKey;
   private boolean read;
   private final Instant createdAt;
 
@@ -35,6 +41,22 @@ public class Notification {
       String actorName,
       boolean read,
       Instant createdAt) {
+    this(id, recipientId, category, type, title, message, actorName, null, null, read, createdAt);
+  }
+
+  /** Rebuilds a generated notification with its detail and the key of its source. */
+  public Notification(
+      Long id,
+      RecipientId recipientId,
+      NotificationCategory category,
+      NotificationType type,
+      String title,
+      String message,
+      String actorName,
+      String detail,
+      String sourceKey,
+      boolean read,
+      Instant createdAt) {
     this.id = id;
     this.recipientId = recipientId;
     this.category = category;
@@ -42,6 +64,8 @@ public class Notification {
     this.title = title;
     this.message = message;
     this.actorName = actorName;
+    this.detail = detail;
+    this.sourceKey = sourceKey;
     this.read = read;
     this.createdAt = createdAt;
   }
@@ -62,6 +86,29 @@ public class Notification {
     return new Notification(
         null, requesterId, NotificationCategory.COMMUNITY_ACTIVITY,
         NotificationType.FRIEND_REQUEST_ACCEPTED, null, null, name, false, null);
+  }
+
+  /**
+   * A notification produced by another bounded context. Its texts are written when it is read, in
+   * the language of the reader; subject and detail are the values those texts show.
+   */
+  public static Notification generated(
+      RecipientId recipientId,
+      NotificationCategory category,
+      NotificationType type,
+      String subject,
+      String detail,
+      String sourceKey) {
+    if (type == NotificationType.GENERAL) {
+      throw new IllegalArgumentException("A generated notification needs its own type");
+    }
+    String cleanSubject = requireText(subject, SUBJECT_MAX_LENGTH, "Notification subject");
+    String cleanDetail =
+        detail == null ? null : requireText(detail, SUBJECT_MAX_LENGTH, "Notification detail");
+    String cleanKey = requireText(sourceKey, SOURCE_KEY_MAX_LENGTH, "Notification source key");
+    return new Notification(
+        null, recipientId, category, type, null, null, cleanSubject, cleanDetail, cleanKey, false,
+        null);
   }
 
   public void markAsRead() {
@@ -109,6 +156,14 @@ public class Notification {
 
   public String getActorName() {
     return actorName;
+  }
+
+  public String getDetail() {
+    return detail;
+  }
+
+  public String getSourceKey() {
+    return sourceKey;
   }
 
   public boolean isRead() {

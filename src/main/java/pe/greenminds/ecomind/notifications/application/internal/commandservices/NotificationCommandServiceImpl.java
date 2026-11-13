@@ -2,6 +2,7 @@ package pe.greenminds.ecomind.notifications.application.internal.commandservices
 
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import pe.greenminds.ecomind.shared.application.result.ApplicationError;
 import pe.greenminds.ecomind.shared.application.result.Result;
@@ -12,6 +13,7 @@ import pe.greenminds.ecomind.notifications.domain.model.commands.CreateNotificat
 import pe.greenminds.ecomind.notifications.domain.model.commands.MarkAllNotificationsAsReadCommand;
 import pe.greenminds.ecomind.notifications.domain.model.commands.MarkNotificationAsReadCommand;
 import pe.greenminds.ecomind.notifications.domain.model.commands.NotifyFriendRequestAcceptedCommand;
+import pe.greenminds.ecomind.notifications.domain.model.commands.NotifyUserCommand;
 import pe.greenminds.ecomind.notifications.domain.repositories.NotificationRepository;
 
 @Service
@@ -37,11 +39,35 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
   }
 
   @Override
-  @Transactional
+  // Called after the friendship is saved, so it needs its own transaction
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Result<Notification, ApplicationError> handle(NotifyFriendRequestAcceptedCommand command) {
     try {
       Notification notification =
           Notification.friendRequestAccepted(command.requesterId(), command.accepterName());
+      return Result.success(notificationRepository.save(notification));
+    } catch (IllegalArgumentException exception) {
+      return Result.failure(NotificationsErrors.invalidNotification(exception.getMessage()));
+    }
+  }
+
+  @Override
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Result<Notification, ApplicationError> handle(NotifyUserCommand command) {
+    // An event delivered twice or a task run again finds the notification it already created
+    if (notificationRepository.existsByRecipientAndSourceKey(
+        command.recipientId(), command.sourceKey())) {
+      return Result.failure(NotificationsErrors.alreadyNotified(command.sourceKey()));
+    }
+    try {
+      Notification notification =
+          Notification.generated(
+              command.recipientId(),
+              command.category(),
+              command.type(),
+              command.subject(),
+              command.detail(),
+              command.sourceKey());
       return Result.success(notificationRepository.save(notification));
     } catch (IllegalArgumentException exception) {
       return Result.failure(NotificationsErrors.invalidNotification(exception.getMessage()));

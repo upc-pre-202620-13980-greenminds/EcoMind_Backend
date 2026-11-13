@@ -13,4 +13,6 @@ public interface NotificationPersistenceRepository
   List<NotificationPersistenceEntity> findByRecipientIdAndReadFalse(Long recipientId);
 
   long countByRecipientIdAndReadFalse(Long recipientId);
+
+  boolean existsByRecipientIdAndSourceKey(Long recipientId, String sourceKey);
 }

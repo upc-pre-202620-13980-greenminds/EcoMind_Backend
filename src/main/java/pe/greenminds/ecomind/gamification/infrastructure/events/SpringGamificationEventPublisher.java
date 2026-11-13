@@ -100,6 +100,8 @@ public class SpringGamificationEventPublisher implements GamificationEventPublis
         row.setAchievementId(e.achievementId().toString());
         row.setAwardId(e.awardId().toString());
         messages.save(row);
+        // Notifications listens to it after the commit; the outbox delivery to Community is the same
+        applicationEvents.publishEvent(e);
     }
 
     public void publish(AchievementShareRequestedIntegrationEvent e) {

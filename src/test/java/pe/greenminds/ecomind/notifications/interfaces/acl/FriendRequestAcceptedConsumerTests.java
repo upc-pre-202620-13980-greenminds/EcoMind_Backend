@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,7 +19,7 @@ import pe.greenminds.ecomind.notifications.application.commandservices.Notificat
 import pe.greenminds.ecomind.notifications.application.internal.outboundservices.acl.UsersServiceClient;
 import pe.greenminds.ecomind.notifications.domain.model.commands.NotifyFriendRequestAcceptedCommand;
 import pe.greenminds.ecomind.notifications.domain.model.valueobjects.RecipientId;
-import pe.greenminds.ecomind.users.domain.model.events.FriendRequestAcceptedEvent;
+import pe.greenminds.ecomind.users.interfaces.acl.events.FriendRequestAcceptedIntegrationEvent;
 
 @ExtendWith(MockitoExtension.class)
 class FriendRequestAcceptedConsumerTests {
@@ -42,7 +43,8 @@ class FriendRequestAcceptedConsumerTests {
   void theRequesterIsNotifiedWithTheNameOfWhoAccepted() {
     when(usersServiceClient.getUserName(ANA)).thenReturn(Optional.of("Ana"));
 
-    consumer.on(new FriendRequestAcceptedEvent(10L, LUIS, ANA, Instant.now()));
+    consumer.on(
+        new FriendRequestAcceptedIntegrationEvent(UUID.randomUUID(), 10L, LUIS, ANA, Instant.now()));
 
     var command = ArgumentCaptor.forClass(NotifyFriendRequestAcceptedCommand.class);
     verify(notificationCommandService).handle(command.capture());
@@ -54,7 +56,8 @@ class FriendRequestAcceptedConsumerTests {
   void nothingIsCreatedWhenTheAccepterHasNoProfile() {
     when(usersServiceClient.getUserName(ANA)).thenReturn(Optional.empty());
 
-    consumer.on(new FriendRequestAcceptedEvent(10L, LUIS, ANA, Instant.now()));
+    consumer.on(
+        new FriendRequestAcceptedIntegrationEvent(UUID.randomUUID(), 10L, LUIS, ANA, Instant.now()));
 
     verify(notificationCommandService, never())
         .handle(any(NotifyFriendRequestAcceptedCommand.class));

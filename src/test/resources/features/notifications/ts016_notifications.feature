@@ -49,3 +49,27 @@ Feature: Notification inbox
     And "Ana" accepts the friend request
     When "Luis" lists their notifications
     Then the first notification says "Ana aceptó tu solicitud de amistad."
+
+  @HU-018 @community
+  Scenario: Only the parents are alerted about a new community event
+    Given the parent "Carla" is registered
+    And the parent "Diego" is registered
+    And a local community created by "Carla"
+    And "Diego" joins the community
+    And "Luis" joins the community
+    When "Carla" creates an event with 10 places
+    Then the response status is 201
+    And "Diego" has 1 notification of type "COMMUNITY_EVENT_CREATED"
+    And "Luis" has 0 notifications of type "COMMUNITY_EVENT_CREATED"
+    And "Carla" has 0 notifications of type "COMMUNITY_EVENT_CREATED"
+
+  @HU-018 @community
+  Scenario: The alert of a community event in Latin American Spanish
+    Given my language is "es-419"
+    And the parent "Carla" is registered
+    And the parent "Diego" is registered
+    And a local community created by "Carla"
+    And "Diego" joins the community
+    When "Carla" creates an event with 10 places
+    And "Diego" lists their notifications
+    Then the first notification says "Park cleanup ya está disponible para las familias."
