@@ -63,7 +63,7 @@ public class PendingRegistrationRepositoryImpl implements PendingRegistrationRep
         try (var timeout = connection.createStatement();
             var lock = connection.prepareStatement(
                 "select pg_advisory_xact_lock(1938236103, hashtext(?))")) {
-          timeout.execute("set local lock_timeout = '30s'");
+          timeout.execute("set local lock_timeout = '90s'");
           lock.setString(1, email.value());
           lock.execute();
         }
