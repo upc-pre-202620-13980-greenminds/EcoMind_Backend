@@ -166,9 +166,11 @@ The test profile recreates tables with `create-drop`.
    suites, coverage, runtime-image checks and the vulnerability scan before merging.
 4. Verify the resulting `main` workflow, create the matching annotated `v<version>` tag,
    and wait for its version check and remaining CI checks before publishing the release.
-5. Merge the release changes back into `develop` by pull request after its checks pass.
-   The existing Azure automation then deploys that verified `develop` image.
+5. Create a return branch from the current `develop`, merge the tagged `main` commit
+   into it and start the next SNAPSHOT development version. Open its pull request into
+   `develop` and wait for all checks before merging. Verify that the release tag is an
+   ancestor of the resulting `develop`; the existing Azure automation deploys that image.
 
 `main` and the release tag identify the release. The shared Azure environment continues
 following `develop`; closing a release does not change that deployment policy or grant
-new Azure access. Start a new development version before preparing the next release.
+new Azure access. Use the next development version for subsequent feature work.
