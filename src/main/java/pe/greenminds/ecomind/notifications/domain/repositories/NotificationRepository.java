@@ -17,4 +17,7 @@ public interface NotificationRepository {
   List<Notification> findUnreadByRecipient(RecipientId recipientId);
 
   long countUnreadByRecipient(RecipientId recipientId);
+
+  /** True when the source already notified this recipient. */
+  boolean existsByRecipientAndSourceKey(RecipientId recipientId, String sourceKey);
 }

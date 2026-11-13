@@ -29,7 +29,7 @@ public class NotificationResourceAssembler {
       Locale locale = LocaleContextHolder.getLocale();
       String key = "notification." + notification.getType().name().toLowerCase(Locale.ROOT)
           .replace('_', '-');
-      Object[] args = {notification.getActorName()};
+      Object[] args = {notification.getActorName(), notification.getDetail()};
       title = messageSource.getMessage(key + ".title", args, locale);
       message = messageSource.getMessage(key + ".message", args, locale);
     }

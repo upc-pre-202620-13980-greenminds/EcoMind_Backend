@@ -131,6 +131,13 @@ public class UsersContextFacade {
                 .toList();
     }
 
+    /** Ids of every user with a profile; used by the weekly summary of Notifications. */
+    public List<Long> getAllUserIds() {
+        return userProfileRepository.findAll().stream()
+                .map(profile -> profile.getUserId().value())
+                .toList();
+    }
+
     public boolean familyExists(Long familyId) {
         return findFamily(familyId).isPresent();
     }

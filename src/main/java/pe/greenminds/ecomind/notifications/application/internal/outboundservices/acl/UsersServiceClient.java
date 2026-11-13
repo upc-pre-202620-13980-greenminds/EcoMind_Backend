@@ -1,6 +1,9 @@
 package pe.greenminds.ecomind.notifications.application.internal.outboundservices.acl;
 
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import pe.greenminds.ecomind.users.interfaces.acl.UsersContextFacade;
 
@@ -20,5 +23,23 @@ public class UsersServiceClient {
 
   public Optional<String> getUserName(Long userId) {
     return usersContextFacade.getUserName(userId);
+  }
+
+  public boolean isParent(Long userId) {
+    return usersContextFacade.isParent(userId);
+  }
+
+  /** The user and, when the user has a family, every member of that family. */
+  public Set<Long> getUserAndFamilyMemberIds(Long userId) {
+    Set<Long> ids = new LinkedHashSet<>();
+    ids.add(userId);
+    usersContextFacade
+        .getFamilyIdOfUser(userId)
+        .ifPresent(familyId -> ids.addAll(usersContextFacade.getFamilyMemberIds(familyId)));
+    return ids;
+  }
+
+  public List<Long> getAllUserIds() {
+    return usersContextFacade.getAllUserIds();
   }
 }
