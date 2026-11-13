@@ -156,3 +156,28 @@ never creates a post. Authorized members can read/filter achievement publication
 
 Community goal/event completion remains a contract dependency until those producers are implemented.
 Quests supplies the ecopoints score and gems; completion requires no additional XP configuration.
+
+
+## Production achievement catalog
+
+The production profile initializes three recognition definitions through the trusted
+catalog command service: first ecopoints (`ECOPOINTS`, target 1), a seven-day streak
+(`LONGEST_STREAK`, target 7), and a first completed family plan
+(`COMPLETED_FAMILY_PLANS`, target 1). They provide the individual collection and
+family recognition described by HU-011, HU-015 and HU-016, using the existing
+criterion evaluators. None grants additional ecopoints, gems or cosmetics.
+
+Initialization is serialized across PostgreSQL replicas and preserves existing
+codes, IDs and inactive/custom definitions. Repeated startup does not duplicate or
+update the catalog. Set `gamification.catalog.enabled=false` to manage the entire
+catalog externally. The initializer runs only with the `prod` profile.
+
+Startup creates definitions, never awards. The next eligible event evaluates a
+user's existing ecopoints/longest streak or a family's recorded completed plans;
+any resulting award keeps that event as its recognition source. Opening a mobile
+screen does not grant or backdate medals.
+
+HU-005 also describes an incremental weekly points bonus, but the report supplies
+no amount or growth formula. This catalog does not substitute a medal for that
+point bonus or introduce an unapproved monetary rule. XP remains the same
+accumulated ecopoints score; multipliers do not increase gems.
