@@ -73,7 +73,9 @@ public class DailyQuestLifecycleService {
         }
 
         var savedQuest = questRepository.save(cloneQuestForDate(template.get(), today));
-        savedQuest.initializeVersionGroup(savedQuest.getId());
+        if (savedQuest.getVersionGroupId() == null) {
+            savedQuest.initializeVersionGroup(savedQuest.getId());
+        }
         savedQuest.publish();
         savedQuest = questRepository.save(savedQuest);
         cloneActivities(template.get().getId(), savedQuest.getId());
