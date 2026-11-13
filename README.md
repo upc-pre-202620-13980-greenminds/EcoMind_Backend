@@ -160,7 +160,13 @@ The variable remains required in production; it has no default value.
 
 `POST /api/v1/authentication/password-recovery/confirm` accepts `{ "token": "<recovery-token>",
 "newPassword": "<new-password>" }` and returns `204` with no response body after changing the
-password. Tokens expire after 30 minutes and can only be used once. An invalid, expired or used
+password. Tokens expire after 30 minutes and can only be used once. Clients may also supply a random 43-character base64url
+`confirmationId` and retain it for an unchanged confirmation payload. Its hash is stored with
+the consumed token. For five minutes after the original change, the same token, identifier and
+password can acknowledge the committed result with `204`, without another password write.
+This receipt may outlive the link expiration; it never extends permission to change a password.
+A different/missing identifier or a different password still rejects a consumed token.
+Concurrent confirmations are serialized on the token row. An invalid, expired or used
 token returns `422` with code `PASSWORD_RESET_TOKEN_INVALID`.
 
 ### Logout

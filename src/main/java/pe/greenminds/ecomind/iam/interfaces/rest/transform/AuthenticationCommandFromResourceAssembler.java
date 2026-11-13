@@ -44,6 +44,7 @@ public final class AuthenticationCommandFromResourceAssembler {
 
   public static ConfirmPasswordRecoveryCommand toCommandFromResource(
       ConfirmPasswordRecoveryResource resource) {
-    return new ConfirmPasswordRecoveryCommand(resource.token(), resource.newPassword());
+    return new ConfirmPasswordRecoveryCommand(
+        resource.token(), resource.newPassword(), resource.confirmationId());
   }
 }

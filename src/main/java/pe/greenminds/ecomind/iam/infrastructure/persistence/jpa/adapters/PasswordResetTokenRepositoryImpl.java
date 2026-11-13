@@ -36,6 +36,8 @@ public class PasswordResetTokenRepositoryImpl implements PasswordResetTokenRepos
       entity = persistenceRepository.findById(passwordResetToken.getId()).orElseThrow();
     }
     entity.setUsedAt(passwordResetToken.getUsedAt());
+    entity.setConfirmationIdHash(passwordResetToken.getConfirmationIdHash() == null
+        ? null : passwordResetToken.getConfirmationIdHash().value());
     return toDomain(persistenceRepository.save(entity));
   }
 
@@ -52,6 +54,7 @@ public class PasswordResetTokenRepositoryImpl implements PasswordResetTokenRepos
         new AccountId(entity.getAccount().getId()),
         new TokenHash(entity.getTokenHash()),
         entity.getExpiresAt(),
-        entity.getUsedAt());
+        entity.getUsedAt(),
+        entity.getConfirmationIdHash() == null ? null : new TokenHash(entity.getConfirmationIdHash()));
   }
 }
