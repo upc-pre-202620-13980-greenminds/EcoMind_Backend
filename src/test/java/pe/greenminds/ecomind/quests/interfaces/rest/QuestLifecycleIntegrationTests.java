@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import com.jayway.jsonpath.JsonPath;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -26,9 +27,12 @@ import pe.greenminds.ecomind.iam.domain.model.valueobjects.*;
 import pe.greenminds.ecomind.quests.application.internal.services.DailyQuestLifecycleService;
 import pe.greenminds.ecomind.quests.application.internal.services.QuestCatalogSeed;
 import pe.greenminds.ecomind.quests.domain.model.aggregates.Quest;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.ActivityType;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.Category;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestPublicationStatus;
 import pe.greenminds.ecomind.quests.domain.model.valueobjects.QuestType;
+import pe.greenminds.ecomind.quests.domain.model.valueobjects.Theme;
+import pe.greenminds.ecomind.quests.domain.repositories.ActivityRepository;
 import pe.greenminds.ecomind.quests.domain.repositories.QuestRepository;
 import pe.greenminds.ecomind.users.domain.model.aggregates.UserProfile;
 import pe.greenminds.ecomind.users.domain.model.valueobjects.*;
@@ -47,6 +51,7 @@ class QuestLifecycleIntegrationTests {
   @Autowired pe.greenminds.ecomind.quests.domain.repositories.CollabQuestSessionRepository sessions;
   @Autowired QuestCatalogSeed questCatalogSeed;
   @Autowired QuestRepository quests;
+  @Autowired ActivityRepository activities;
   @Autowired DailyQuestLifecycleService dailyQuests;
   long owner, participant, outsider, family;
 
@@ -141,12 +146,25 @@ class QuestLifecycleIntegrationTests {
   @Test
   void startupCatalogHasThreeDailyQuestsAndAutomaticallyAssignsOne() throws Exception {
     var published = quests.findByPublicationStatus(QuestPublicationStatus.PUBLISHED);
+    var writingTitles = Map.of(
+        Category.ENERGY, "My Energy-Saving Habit",
+        Category.RECYCLE, "Give It a Second Life",
+        Category.WATER, "My Water-Saving Plan");
     for (var category : Category.values()) {
       assertTrue(published.stream().filter(quest -> quest.getCategory() == category)
           .filter(quest -> quest.getType() == QuestType.ACTIVITIES || quest.getType() == QuestType.COLLABORATIVE)
           .count() >= 4);
       assertTrue(published.stream().anyMatch(quest -> quest.getCategory() == category
           && quest.getType() == QuestType.COLLABORATIVE));
+      var writingQuest = published.stream()
+          .filter(quest -> quest.getCategory() == category && quest.getType() == QuestType.ACTIVITIES
+              && quest.getTitle().equals(writingTitles.get(category)))
+          .findFirst().orElseThrow();
+      assertEquals(Theme.WRITE, writingQuest.getTheme());
+      var writingSteps = activities.findByQuestsIdOrderByOrderAsc(writingQuest.getId());
+      assertEquals(1, writingSteps.size());
+      assertEquals(ActivityType.WRITE, writingSteps.getFirst().getActivityType());
+      assertEquals(15, writingSteps.getFirst().getActivityConfiguration().get("minCharacters"));
     }
     assertTrue(published.stream().filter(quest -> quest.getType() == QuestType.FAMILY).count() >= 4);
     var collectWaste = published.stream()

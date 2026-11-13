@@ -88,6 +88,15 @@ public class QuestCatalogSeed implements ApplicationRunner {
                     "Trade water-saving ideas with your teammates and try one out.", 15,
                     "Have each teammate share one practical way to use less water.",
                     "Choose one idea as a team and have everyone try it today."),
+            new StarterQuest(ENERGY, ACTIVITIES, "My Energy-Saving Habit",
+                    "Make a plan to save electricity at home.", 5, ActivityType.WRITE,
+                    "In one sentence, describe a device you can turn off and when you will do it."),
+            new StarterQuest(RECYCLE, ACTIVITIES, "Give It a Second Life",
+                    "Think of a new use for something you would usually throw away.", 5, ActivityType.WRITE,
+                    "Name one item you can reuse and explain how you would use it again."),
+            new StarterQuest(WATER, ACTIVITIES, "My Water-Saving Plan",
+                    "Pick one everyday habit you can change to use less water.", 5, ActivityType.WRITE,
+                    "Write one way you can save water at home and when you will try it."),
             new StarterQuest(ENERGY, DAILY_QUEST, "Daily Lights Check",
                     "Save energy the next time you leave a room.", 5,
                     "Switch off the lights when you leave an empty room."),
@@ -190,6 +199,7 @@ public class QuestCatalogSeed implements ApplicationRunner {
         var theme = switch (entry.type()) {
             case COLLABORATIVE -> Theme.COLLABORATIVE;
             case MINIGAME -> Theme.MINIGAME;
+            case ACTIVITIES -> entry.activityType() == ActivityType.WRITE ? Theme.WRITE : Theme.CHECKBOX;
             default -> Theme.CHECKBOX;
         };
         var reward = switch (entry.type()) {
@@ -203,13 +213,20 @@ public class QuestCatalogSeed implements ApplicationRunner {
         quest.publish();
         var saved = quests.save(quest);
         quests.save(saved);
+        Map<String, Object> configuration = entry.activityType() == ActivityType.WRITE
+                ? Map.of("minCharacters", 15) : Map.of();
         for (int index = 0; index < entry.steps().length; index++) {
             activities.save(new Activity(saved.getId(), entry.steps()[index], index + 1,
-                    ActivityType.CHECKBOX, Map.of(), null));
+                    entry.activityType(), configuration, null));
         }
     }
 
     private record StarterQuest(
-            Category category, QuestType type, String title, String description, int minutes, String... steps
-    ) {}
+            Category category, QuestType type, String title, String description, int minutes,
+            ActivityType activityType, String... steps
+    ) {
+        StarterQuest(Category category, QuestType type, String title, String description, int minutes, String... steps) {
+            this(category, type, title, description, minutes, ActivityType.CHECKBOX, steps);
+        }
+    }
 }
